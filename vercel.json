@@ -1,0 +1,53 @@
+{
+  "trailingSlash": false,
+  "crons": [
+    {
+      "path": "/api/agents/blog-writer",
+      "schedule": "0 8 * * 1"
+    },
+    {
+      "path": "/api/agents/outreach?action=send-batch",
+      "schedule": "15 8 * * *"
+    },
+    {
+      "path": "/api/agents/followup",
+      "schedule": "0 9 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
+    {
+      "source": "/blog/:slug",
+      "destination": "/api/blog/article?slug=:slug"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/robots.txt",
+      "headers": [{ "key": "Content-Type", "value": "text/plain" }]
+    },
+    {
+      "source": "/images/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/(.*\\.webm|.*\\.mp4)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/chat-widget.js",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+    },
+    {
+      "source": "/styles.css",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+    },
+    {
+      "source": "/script.js",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+    }
+  ]
+}

@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog Exadrone Enterprise — Nettoyage, Inspection et Cartographie par Drone</title>
+<meta name="description" content="Guides pratiques sur le nettoyage de toiture et de façade par drone, le bardage, la cartographie, la photogrammétrie et l'inspection aérienne — pour les collectivités, le BTP et les sociétés de rénovation de façade.">
+<link rel="canonical" href="https://exadrone-enterprise.com/blog/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Exadrone Enterprise">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Blog Exadrone Enterprise — Nettoyage, Inspection et Cartographie par Drone">
+<meta property="og:description" content="Guides pratiques sur le nettoyage de toiture et de façade par drone, le bardage, la cartographie, la photogrammétrie et l'inspection aérienne — pour les collectivités, le BTP et les sociétés de rénovation de façade.">
+<meta property="og:url" content="https://exadrone-enterprise.com/blog/">
+<meta property="og:image" content="https://exadrone-enterprise.com/images/og-cover.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Blog Exadrone Enterprise — Nettoyage, Inspection et Cartographie par Drone">
+<meta name="twitter:image" content="https://exadrone-enterprise.com/images/og-cover.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="/styles.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Blog Exadrone Enterprise",
+  "url": "https://exadrone-enterprise.com/blog/",
+  "hasPart": [
+    { "@type": "ListItem", "position": 1, "url": "https://exadrone-enterprise.com/blog/nettoyage-toiture-par-drone-avantages.html" },
+    { "@type": "ListItem", "position": 2, "url": "https://exadrone-enterprise.com/blog/nettoyage-facade-par-drone-avantages-cout.html" },
+    { "@type": "ListItem", "position": 3, "url": "https://exadrone-enterprise.com/blog/bardage-par-drone.html" },
+    { "@type": "ListItem", "position": 4, "url": "https://exadrone-enterprise.com/blog/cartographie-par-drone-batiment.html" },
+    { "@type": "ListItem", "position": 5, "url": "https://exadrone-enterprise.com/blog/photogrammetrie-par-drone.html" },
+    { "@type": "ListItem", "position": 6, "url": "https://exadrone-enterprise.com/blog/inspection-toiture-par-drone.html" },
+    { "@type": "ListItem", "position": 7, "url": "https://exadrone-enterprise.com/blog/nettoyage-toiture-drone-vs-traditionnel.html" },
+    { "@type": "ListItem", "position": 8, "url": "https://exadrone-enterprise.com/blog/prix-nettoyage-facade-par-drone.html" },
+    { "@type": "ListItem", "position": 9, "url": "https://exadrone-enterprise.com/blog/nettoyage-panneaux-solaires-par-drone.html" },
+    { "@type": "ListItem", "position": 10, "url": "https://exadrone-enterprise.com/blog/marche-public-nettoyage-drone-collectivites.html" },
+    { "@type": "ListItem", "position": 11, "url": "https://exadrone-enterprise.com/blog/drone-btp-cartographie-aerienne-majors-secteur.html" },
+    { "@type": "ListItem", "position": 12, "url": "https://exadrone-enterprise.com/blog/sous-traitance-drone-renovation-facade.html" },
+    { "@type": "ListItem", "position": 13, "url": "https://exadrone-enterprise.com/blog/photogrammetrie-chantier-btp-drone.html" },
+    { "@type": "ListItem", "position": 14, "url": "https://exadrone-enterprise.com/blog/cahier-des-charges-marche-public-nettoyage-facade-drone.html" },
+    { "@type": "ListItem", "position": 15, "url": "https://exadrone-enterprise.com/blog/drone-vs-nacelle-echafaudage-comparatif-couts-securite.html" },
+    { "@type": "ListItem", "position": 16, "url": "https://exadrone-enterprise.com/blog/maintenance-batiments-publics-drone.html" }
+  ]
+}
+</script>
+</head>
+<body>
+
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="grain"></div>
+<canvas class="ambient-canvas" id="ambientCanvas" aria-hidden="true"></canvas>
+<div class="ambient-hotspots" aria-hidden="true"></div>
+
+<header class="site-nav" id="siteNav">
+  <div class="nav-inner">
+    <a href="/index.html#top" class="nav-mark" aria-label="Accueil Exadrone Enterprise">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+        <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+        <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+      </svg>
+      <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+    </a>
+
+    <nav class="nav-links" id="navLinks">
+      <a href="/index.html#capabilities" data-cursor="link">Capacités</a>
+      <a href="/index.html#process" data-cursor="link">Processus</a>
+      <a href="/index.html#fleet" data-cursor="link">Drone</a>
+      <a href="/index.html#reliability" data-cursor="link">Fiabilité</a>
+      <a href="/index.html#secteurs" data-cursor="link">Secteurs</a>
+      <a href="/blog/" data-cursor="link">Blog</a>
+      <a href="/contact.html" class="nav-cta" data-cursor="link">Demander un devis</a>
+    </nav>
+
+    <button class="nav-toggle" id="navToggle" aria-label="Afficher le menu" aria-expanded="false">
+      <span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="blog-main">
+    <div class="blog-inner">
+      <p class="eyebrow reveal" data-reveal>Blog</p>
+      <h1 class="blog-title reveal" data-reveal data-delay="1">Nettoyage, inspection et cartographie par drone</h1>
+      <p class="blog-intro reveal" data-reveal data-delay="2">
+        Guides pratiques pour les collectivités, les entreprises du BTP et les sociétés de rénovation de façade :
+        nettoyage de toiture et de façade par drone, bardage, cartographie, photogrammétrie de chantier, inspection
+        aérienne et marchés publics.
+      </p>
+
+      <div class="blog-grid">
+      <a href="/blog/nettoyage-toiture-par-drone-avantages.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-nettoyage-toiture-avantages.webp" type="image/webp">
+            <img src="/images/blog/cover-nettoyage-toiture-avantages.jpg" alt="Drone survolant une toiture en ardoise lors d'une opération de nettoyage aérien" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Nettoyage de toiture · 2026-07-01</span>
+          <h2>Pourquoi nettoyer sa toiture par drone plutôt que traditionnellement ?</h2>
+          <p>Le nettoyage de toiture par drone supprime le risque de travail en hauteur, réduit la durée d'intervention et permet un contrôle qualité photo avant/après. Voici comment et pourquoi.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/nettoyage-facade-par-drone-avantages-cout.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-nettoyage-facade-avantages-cout.webp" type="image/webp">
+            <img src="/images/blog/cover-nettoyage-facade-avantages-cout.jpg" alt="Façade d'immeuble avant et après un nettoyage professionnel par drone" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Nettoyage de façade · 2026-07-03</span>
+          <h2>Nettoyage de façade par drone : avantages, coût et déroulement</h2>
+          <p>Le nettoyage de façade par drone élimine le besoin d'échafaudage et de nacelle. Découvrez son déroulement étape par étape et les facteurs qui influencent le coût.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/bardage-par-drone.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-bardage-par-drone.webp" type="image/webp">
+            <img src="/images/blog/cover-bardage-par-drone.jpg" alt="Drone de nettoyage en intervention sur une toiture, pulvérisant un traitement de précision sur le bardage et la couverture d'un bâtiment" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Bardage par drone · 2026-07-08</span>
+          <h2>Bardage par drone : une solution innovante pour vos bâtiments</h2>
+          <p>Le bardage par drone permet de nettoyer et d'entretenir les revêtements de façade en hauteur sans échafaudage. Fonctionnement, avantages et cas d'usage concrets.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/cartographie-par-drone-batiment.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-cartographie-batiment.webp" type="image/webp">
+            <img src="/images/blog/cover-cartographie-batiment.jpg" alt="Vue aérienne d'un bâtiment capturée par drone pour une cartographie de précision" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Cartographie par drone · 2026-07-10</span>
+          <h2>Cartographie par drone : comment ça fonctionne et pour quels usages ?</h2>
+          <p>La cartographie par drone produit un relevé 2D/3D précis d'un bâtiment ou d'un site. Découvrez le fonctionnement, les technologies utilisées et les applications concrètes.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/photogrammetrie-par-drone.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-photogrammetrie.webp" type="image/webp">
+            <img src="/images/blog/cover-photogrammetrie.jpg" alt="Drone effectuant une série de prises de vue aériennes pour la photogrammétrie d'un bâtiment" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Photogrammétrie · 2026-07-15</span>
+          <h2>Photogrammétrie par drone expliquée : de la prise de vue au modèle 3D</h2>
+          <p>La photogrammétrie par drone transforme des centaines de photos aériennes en un modèle 3D précis et mesurable. Étapes, outils et applications pour le bâtiment.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/inspection-toiture-par-drone.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-inspection-toiture.webp" type="image/webp">
+            <img src="/images/blog/cover-inspection-toiture.jpg" alt="Drone en vol stationnaire effectuant l'inspection détaillée d'une toiture" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Inspection de toiture · 2026-07-17</span>
+          <h2>Inspection de toiture par drone : détecter les problèmes avant qu'ils s'aggravent</h2>
+          <p>L'inspection de toiture par drone permet de repérer fissures, infiltrations et défauts d'étanchéité sans risque ni échafaudage, avant qu'ils n'aggravent les dégâts.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/nettoyage-toiture-drone-vs-traditionnel.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-vs-traditionnel.webp" type="image/webp">
+            <img src="/images/blog/cover-vs-traditionnel.jpg" alt="Comparatif visuel entre une intervention de nettoyage de toiture par drone et une méthode traditionnelle avec échafaudage" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Comparatif · 2026-07-22</span>
+          <h2>Nettoyage de toiture : drone vs méthode traditionnelle, le comparatif complet</h2>
+          <p>Drone ou méthode traditionnelle pour nettoyer une toiture ? Comparatif détaillé : sécurité, durée d'intervention, coût, qualité de résultat et impact environnemental.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/prix-nettoyage-facade-par-drone.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-prix-nettoyage-facade.webp" type="image/webp">
+            <img src="/images/blog/cover-prix-nettoyage-facade.jpg" alt="Façade encore sale avant une intervention de nettoyage par drone, illustrant le diagnostic tarifaire" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Tarifs · 2026-07-24</span>
+          <h2>Combien coûte un nettoyage de façade par drone ? Tarifs et facteurs à considérer</h2>
+          <p>Quel est le prix d'un nettoyage de façade par drone ? Tour d'horizon des facteurs qui font varier le tarif et comparaison avec les méthodes classiques (échafaudage, nacelle).</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/nettoyage-panneaux-solaires-par-drone.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-panneaux-solaires.webp" type="image/webp">
+            <img src="/images/blog/cover-panneaux-solaires.jpg" alt="Drone effectuant le nettoyage d'une installation de panneaux solaires sur toiture" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Panneaux solaires · 2026-07-29</span>
+          <h2>Nettoyage de panneaux solaires par drone : pourquoi c'est essentiel</h2>
+          <p>Un panneau solaire encrassé perd du rendement. Le nettoyage par drone restaure l'efficacité de votre installation sans risque pour les cellules ni interruption d'activité.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/marche-public-nettoyage-drone-collectivites.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-marche-public-collectivites.webp" type="image/webp">
+            <img src="/images/blog/cover-marche-public-collectivites.jpg" alt="Drone professionnel en inspection près du clocher d'un édifice patrimonial, dans le cadre d'un marché public" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Marchés Publics · 2026-08-03</span>
+          <h2>Comment les collectivités peuvent intégrer le nettoyage par drone dans leurs marchés publics</h2>
+          <p>Nettoyage de toiture, façade ou inspection par drone : comment une collectivité peut intégrer cette prestation à un marché public, de la définition du besoin au choix du prestataire.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/drone-btp-cartographie-aerienne-majors-secteur.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-btp-majors-cartographie.webp" type="image/webp">
+            <img src="/images/blog/cover-btp-majors-cartographie.jpg" alt="Vue aérienne d'un quartier urbain dense, illustrant l'usage de la cartographie par drone sur de grands projets BTP" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">BTP & Industrie · 2026-08-05</span>
+          <h2>Drone et BTP : comment les grands groupes de construction utilisent la cartographie aérienne</h2>
+          <p>La cartographie aérienne par drone s'est généralisée chez les grands groupes du BTP pour le suivi de chantier et le contrôle d'avancement. Panorama des usages et de ce qu'une entreprise de toute taille peut en tirer.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/sous-traitance-drone-renovation-facade.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-sous-traitance-renovation.webp" type="image/webp">
+            <img src="/images/blog/cover-sous-traitance-renovation.jpg" alt="Façade rénovée après une intervention de nettoyage par drone en sous-traitance d'une entreprise de ravalement" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Sous-traitance · 2026-08-10</span>
+          <h2>Sous-traitance drone pour entreprises de rénovation de façade : pourquoi et comment</h2>
+          <p>Plutôt que d'investir dans une flotte de drones, une entreprise de rénovation de façade peut sous-traiter le diagnostic, le nettoyage préparatoire et le contrôle qualité. Fonctionnement et bénéfices de ce partenariat.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/photogrammetrie-chantier-btp-drone.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-photogrammetrie-chantier.webp" type="image/webp">
+            <img src="/images/blog/cover-photogrammetrie-chantier.jpg" alt="Drone effectuant un relevé aérien au-dessus d'un site urbain, utilisé pour le suivi photogrammétrique de chantier" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Suivi de Chantier · 2026-08-12</span>
+          <h2>Photogrammétrie de chantier : suivre l'avancement des travaux BTP par drone</h2>
+          <p>La photogrammétrie par drone permet de produire des modèles 3D comparables dans le temps pour suivre l'avancement réel d'un chantier BTP. Méthode, fréquence de vol et usages pour les conducteurs de travaux.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/cahier-des-charges-marche-public-nettoyage-facade-drone.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-cahier-des-charges.webp" type="image/webp">
+            <img src="/images/blog/cover-cahier-des-charges.jpg" alt="Façade d'un bâtiment public avant intervention, illustrant le diagnostic préalable à un appel d'offres de nettoyage par drone" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Marchés Publics · 2026-08-17</span>
+          <h2>Cahier des charges : ce qu'une mairie doit prévoir pour un appel d'offres nettoyage de façade par drone</h2>
+          <p>Surface, accès, certifications, livrables attendus : les points à intégrer dans le cahier des charges d'un appel d'offres de nettoyage de façade ou de toiture par drone pour une collectivité.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/drone-vs-nacelle-echafaudage-comparatif-couts-securite.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-drone-vs-nacelle.webp" type="image/webp">
+            <img src="/images/blog/cover-drone-vs-nacelle.jpg" alt="Comparatif visuel entre une intervention de nettoyage par drone et une méthode traditionnelle avec nacelle ou échafaudage sur un grand chantier" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Comparatif BTP · 2026-08-19</span>
+          <h2>Drone vs nacelle/échafaudage : comparatif coûts et sécurité pour les grands chantiers</h2>
+          <p>Pour une inspection, un nettoyage ou un contrôle qualité sur un grand chantier BTP, drone, nacelle et échafaudage répondent à des besoins différents. Comparatif coûts, délais et sécurité.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+
+      <a href="/blog/maintenance-batiments-publics-drone.html" class="blog-card reveal" data-reveal>
+        <div class="blog-card-media">
+          <picture>
+            <source srcset="/images/blog/cover-maintenance-batiments-publics.webp" type="image/webp">
+            <img src="/images/blog/cover-maintenance-batiments-publics.jpg" alt="Drone en intervention de maintenance sur la toiture d'un bâtiment public" width="600" height="338" loading="lazy">
+          </picture>
+        </div>
+        <div class="blog-card-body">
+          <span class="blog-card-meta">Collectivités · 2026-08-24</span>
+          <h2>Maintenance des bâtiments publics par drone : écoles, monuments et patrimoine communal</h2>
+          <p>Écoles, mairies, monuments classés : comment le drone permet d'entretenir le patrimoine bâti communal sans échafaudage et sans interrompre l'activité des établissements publics.</p>
+          <span class="blog-card-link">Lire l'article →</span>
+        </div>
+      </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="nav-mark static">
+        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+          <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+          <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        </svg>
+        <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+      </span>
+      <p>Systèmes de Nettoyage Aérien de Précision</p>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Explorer</span>
+      <div class="footer-links">
+        <a href="/index.html#capabilities">Capacités</a>
+        <a href="/index.html#process">Processus</a>
+        <a href="/index.html#fleet">Drone</a>
+        <a href="/index.html#reliability">Fiabilité</a>
+        <a href="/blog/">Blog</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Secteurs B2B</span>
+      <div class="footer-links">
+        <a href="/collectivites-territoriales.html">Collectivités &amp; mairies</a>
+        <a href="/entreprises-btp.html">Entreprises du BTP</a>
+        <a href="/renovation-facade.html">Rénovation de façade</a>
+        <a href="/marches-publics.html">Marchés publics</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Légal</span>
+      <div class="footer-links">
+        <a href="/mentions-legales.html">Mentions légales</a>
+        <a href="/cgv.html">CGV</a>
+        <a href="/politique-de-confidentialite.html">Confidentialité</a>
+        <a href="/politique-de-cookies.html">Cookies</a>
+        <button type="button" class="footer-link-btn" id="cookiePrefsBtn">Préférences cookies</button>
+      </div>
+    </div>
+
+    <div class="footer-meta">
+      <span>contact@exadrone-enterprise.com</span>
+      <span>© 2026 Exadrone Enterprise. Tous droits réservés.</span>
+    </div>
+  </div>
+</footer>
+
+<div class="cookie-banner" id="cookieBanner" role="dialog" aria-live="polite" aria-label="Gestion des cookies">
+  <div class="cookie-banner-inner">
+    <p>
+      Nous utilisons des cookies strictement nécessaires au fonctionnement du site et, si vous l'acceptez,
+      des cookies de mesure d'audience pour améliorer votre expérience.
+      <a href="/politique-de-cookies.html">En savoir plus</a>.
+    </p>
+    <div class="cookie-banner-actions">
+      <button type="button" class="btn btn-ghost btn-small" id="cookieReject">Refuser</button>
+      <button type="button" class="btn btn-ghost btn-small" id="cookieCustomize">Personnaliser</button>
+      <button type="button" class="btn btn-primary btn-small" id="cookieAccept">Accepter tout</button>
+    </div>
+  </div>
+</div>
+
+<a class="whatsapp-fab" href="https://wa.me/33770022172" target="_blank" rel="noopener" aria-label="Discuter avec Exadrone Enterprise sur WhatsApp">
+  <span class="whatsapp-fab-tooltip">WhatsApp</span>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.6 6.32A7.85 7.85 0 0 0 12.05 4C7.7 4 4.15 7.53 4.15 11.87c0 1.4.37 2.74 1.07 3.92L4 20l4.32-1.13a7.9 7.9 0 0 0 3.73.94h.01c4.34 0 7.88-3.53 7.88-7.87a7.8 7.8 0 0 0-2.34-5.62Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9.2 9.04c.1-.23.27-.23.43-.23h.37c.12 0 .27 0 .39.3.14.34.47 1.18.51 1.27.04.09.07.2 0 .31-.31.6-.66.86-.66.86s-.13.15-.02.36c.42.78 1.55 2 2.93 2.43.22.07.34.05.46-.08.13-.13.5-.59.64-.79.13-.2.27-.17.45-.1.18.07 1.15.55 1.35.65.2.1.33.15.38.23.05.09.05.5-.13.99-.18.49-1.04.96-1.45 1.02-.37.06-.83.08-1.34-.08a8.4 8.4 0 0 1-3.71-2.57c-1.4-1.5-1.95-2.85-2-3.07-.04-.21-.18-.7.13-1.3.2-.39.4-.55.55-.7Z" fill="currentColor"/>
+  </svg>
+</a>
+
+<script src="/script.js" defer></script>
+<script>
+(function () {
+  // Fetch Supabase-generated articles and merge with static cards, sorted newest first
+  var grid = document.querySelector('.blog-grid');
+  if (!grid) return;
+
+  function parseDate(el) {
+    var meta = el.querySelector('.blog-card-meta');
+    if (!meta) return '';
+    var m = meta.textContent.match(/(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  }
+
+  function escHtml(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function buildCard(article) {
+    var date = article.published_at ? article.published_at.slice(0, 10) : '';
+    var kw = article.target_keyword || 'Article';
+    var category = kw.charAt(0).toUpperCase() + kw.slice(1).split(' ').slice(0, 3).join(' ');
+    var a = document.createElement('a');
+    a.href = '/blog/' + article.slug;
+    a.className = 'blog-card reveal';
+    a.dataset.date = date;
+    a.innerHTML =
+      '<div class="blog-card-media" style="position:relative;overflow:hidden;">' +
+        '<div style="width:100%;padding-top:56.25%;background:linear-gradient(135deg,#060d1a 0%,#0d2044 55%,#112d5e 100%);position:relative;">' +
+          '<svg style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:.2;" width="52" height="52" viewBox="0 0 28 28" fill="none">' +
+            '<circle cx="14" cy="14" r="2.2" fill="white"/><circle cx="7" cy="7" r="1.5" fill="white"/><circle cx="21" cy="7" r="1.5" fill="white"/><circle cx="7" cy="21" r="1.5" fill="white"/><circle cx="21" cy="21" r="1.5" fill="white"/>' +
+            '<line x1="14" y1="14" x2="8.3" y2="8.3" stroke="white" stroke-width="0.75"/><line x1="14" y1="14" x2="19.7" y2="8.3" stroke="white" stroke-width="0.75"/><line x1="14" y1="14" x2="8.3" y2="19.7" stroke="white" stroke-width="0.75"/><line x1="14" y1="14" x2="19.7" y2="19.7" stroke="white" stroke-width="0.75"/>' +
+          '</svg>' +
+        '</div>' +
+      '</div>' +
+      '<div class="blog-card-body">' +
+        '<span class="blog-card-meta">' + escHtml(category) + ' · ' + escHtml(date) + '</span>' +
+        '<h2>' + escHtml(article.title) + '</h2>' +
+        '<p>' + escHtml(article.meta_description || '') + '</p>' +
+        '<span class="blog-card-link">Lire l\'article →</span>' +
+      '</div>';
+    return a;
+  }
+
+  function sortAndRender() {
+    var cards = Array.from(grid.querySelectorAll('.blog-card'));
+    cards.forEach(function (c) { if (!c.dataset.date) c.dataset.date = parseDate(c); });
+    cards.sort(function (a, b) { return (b.dataset.date || '').localeCompare(a.dataset.date || ''); });
+    cards.forEach(function (c) { grid.appendChild(c); });
+  }
+
+  fetch('/api/blog/listing')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      (data.articles || []).forEach(function (article) {
+        grid.appendChild(buildCard(article));
+      });
+      sortAndRender();
+    })
+    .catch(sortAndRender); // Sort static cards even if API is unavailable
+})();
+</script>
+</body>
+</html>
