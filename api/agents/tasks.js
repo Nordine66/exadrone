@@ -5,7 +5,7 @@ const { getSupabase } = require('../../lib/supabase')
 const { getSettings, getAgent } = require('../../lib/settings')
 const { isAgentBlocked } = require('../../lib/settings')
 const { sendManagedEmail } = require('../../lib/resend-send')
-const { outreachFooterHtml } = require('../../lib/email-footer')
+const { outreachFooterHtml, chloeSignatureHtml } = require('../../lib/email-footer')
 
 const FROM_ADDRESS = 'chloe@exadrone-enterprise.com'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -433,7 +433,7 @@ async function handleSendBatch(req, res, supabase) {
       const subjectMatch = raw.match(/^SUBJECT:(.+)$/m)
       const subject = (subjectMatch?.[1] || `Exadrone Enterprise — ${prospect.company_name}`).trim()
       const bodyHtml = raw.split('---').slice(1).join('---').trim() || `<p>Bonjour ${prospect.contact_name || ''},</p>`
-      const fullHtml = bodyHtml + outreachFooterHtml(prospect.email)
+      const fullHtml = bodyHtml + chloeSignatureHtml() + outreachFooterHtml(prospect.email)
       const emailMessageId = `<${crypto.randomUUID()}@exadrone-enterprise.com>`
 
       const sendResult = await sendManagedEmail({
