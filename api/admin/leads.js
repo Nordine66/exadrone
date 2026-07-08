@@ -1,10 +1,5 @@
 const { createClient } = require('@supabase/supabase-js')
-
-// TODO: Replace token check with proper session-based auth (e.g. NextAuth or Supabase Auth) before production
-function isAuthenticated(req) {
-  const token = req.headers['x-admin-token']
-  return token && token === process.env.ADMIN_SECRET
-}
+const { isAdminAuthenticated } = require('../../lib/admin-auth')
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
@@ -12,7 +7,7 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  if (!isAuthenticated(req)) {
+  if (!isAdminAuthenticated(req)) {
     return res.status(401).json({ error: 'Non autorisé' })
   }
 

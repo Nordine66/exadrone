@@ -1,10 +1,5 @@
 const { createClient } = require('@supabase/supabase-js')
-
-// TODO: Replace with proper auth before production
-function isAuthenticated(req) {
-  const token = req.headers['x-admin-token']
-  return token && token === process.env.ADMIN_SECRET
-}
+const { isAdminAuthenticated } = require('../../lib/admin-auth')
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
@@ -13,7 +8,7 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'GET') return res.status(405).end()
 
-  if (!isAuthenticated(req)) {
+  if (!isAdminAuthenticated(req)) {
     return res.status(401).json({ error: 'Non autorisé' })
   }
 

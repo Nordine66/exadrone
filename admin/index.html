@@ -360,10 +360,10 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
 <div class="chat-overlay" id="chat-overlay"></div>
 <div id="chat-panel">
   <div class="chat-agent-tabs">
-    <button class="chat-agent-tab" data-slug="victoria"><span class="chat-agent-avatar" style="background:#1f6feb">V</span>Victoria</button>
-    <button class="chat-agent-tab" data-slug="marco"><span class="chat-agent-avatar" style="background:#a855f7">M</span>Marco</button>
-    <button class="chat-agent-tab" data-slug="chloe"><span class="chat-agent-avatar" style="background:#ec4899">C</span>Chloé</button>
-    <button class="chat-agent-tab" data-slug="hugo"><span class="chat-agent-avatar" style="background:#34d399">H</span>Hugo</button>
+    <button class="chat-agent-tab" data-slug="victoria"><span class="chat-agent-avatar" style="background:#1f6feb">🔍</span>Victoria</button>
+    <button class="chat-agent-tab" data-slug="marco"><span class="chat-agent-avatar" style="background:#a855f7">✍️</span>Marco</button>
+    <button class="chat-agent-tab" data-slug="chloe"><span class="chat-agent-avatar" style="background:#ec4899">✉️</span>Chloé</button>
+    <button class="chat-agent-tab" data-slug="hugo"><span class="chat-agent-avatar" style="background:#34d399">🔄</span>Hugo</button>
   </div>
   <div class="chat-header">
     <div>
@@ -489,6 +489,7 @@ function loadLeads() {
 
 // ── Agents ────────────────────────────────────────────────────────────────────
 const AGENT_COLORS = { victoria: '#1f6feb', marco: '#a855f7', chloe: '#ec4899', hugo: '#34d399' }
+const AGENT_EMOJIS = { victoria: '🔍', marco: '✍️', chloe: '✉️', hugo: '🔄' }
 let agentsData = []
 let globalSettings = { paused_all: false, test_mode: true }
 
@@ -519,7 +520,7 @@ function renderAgentCards() {
   el.innerHTML = agentsData.map(a => `
     <div class="agent-card">
       <div class="agent-card-top">
-        <div class="agent-avatar" style="background:${AGENT_COLORS[a.slug] || '#64748b'}">${esc(a.name[0])}</div>
+        <div class="agent-avatar" style="background:${AGENT_COLORS[a.slug] || '#64748b'}">${AGENT_EMOJIS[a.slug] || esc(a.name[0])}</div>
         <div class="agent-info">
           <div class="agent-name">${esc(a.name)}</div>
           <div class="agent-role">${esc(a.role)}</div>
