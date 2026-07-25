@@ -81,7 +81,14 @@
    ScrollTrigger hero section, it froze scrolling entirely on iOS Safari.
    The elastic-bounce jitter it was meant to fix is a smaller problem than
    a page that doesn't scroll. */
-html { scroll-behavior: smooth; overflow-x: hidden; max-width: 100%; }
+/* overflow-x: clip (not hidden) — hidden/auto/scroll on either axis force
+   the *other* axis to compute as auto too if it isn't already non-visible,
+   which turns html/body into an unintended scroll container. That broke
+   position: sticky on .hero-video-container entirely (verified via CDP:
+   its getBoundingClientRect().top was tracking scrollY 1:1 instead of
+   staying pinned) — clip suppresses the overflow without triggering that
+   auto-scroll-container pairing. */
+html { scroll-behavior: smooth; overflow-x: clip; max-width: 100%; }
 
 /* ---------- Native cross-page view transitions ----------
    Chromium-only progressive enhancement: opts every same-origin navigation
@@ -121,7 +128,7 @@ body {
   font-size: 18px;
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100%;
   -webkit-tap-highlight-color: transparent;
   animation: page-fade-in .7s var(--ease);

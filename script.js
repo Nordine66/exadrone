@@ -327,19 +327,72 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     for (let c = 0; c < HERO_LOAD_CONCURRENCY; c++) startNextHeroLoad();
 
+    const heroTextLeft = document.getElementById('heroTextLeft');
+    const heroTextRight = document.getElementById('heroTextRight');
+
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      // No scrub — land on one representative frame.
+      // No scrub, no blur-reveal — land on one representative frame with
+      // the text already fully in place (CSS default: no filter/opacity/
+      // transform applied, so this is just leaving the elements alone).
       const stillIndex = Math.floor(HERO_FRAME_COUNT * 0.45);
       heroImages[stillIndex].addEventListener('load', () => drawHeroFrame(stillIndex, true));
     } else {
       // Same scrub math on every viewport size — the pinned track's own
       // height (280vh desktop, shorter on mobile, see .hero-video-scroll
       // in styles.css) is what changes, not this calculation.
+      //
+      // Text reveal is tied to the *same* progress value rather than a
+      // one-shot IntersectionObserver transition: stopping the scroll
+      // partway must show partially-blurred, partially-offset text, not
+      // an all-or-nothing state. Reaches fully sharp at 60% of the pinned
+      // track, leaving the rest of the scroll to just admire the video.
+      const TEXT_REVEAL_END = 0.6;
+      const BLUR_PX = 20;
+      const SLIDE_PX = 48;
+      let heroTextEverActive = false;
+
+      const updateHeroText = (progress) => {
+        const t = Math.min(1, progress / TEXT_REVEAL_END);
+        // easeOutCubic — fast start, settles gently rather than linearly,
+        // so the last bit of blur/slide resolves smoothly instead of
+        // arriving at a constant rate all the way to 0.
+        const eased = 1 - Math.pow(1 - t, 3);
+        const blur = (1 - eased) * BLUR_PX;
+        // Opacity floors at 0.5 rather than 0 — the brief for this is
+        // "text starts completely blurred", not invisible: at 20px of
+        // blur the text is already illegible on its own, fading it to
+        // fully transparent on top of that just hides it a beat earlier
+        // than stopping mid-scroll should.
+        const opacity = 0.5 + eased * 0.5;
+        if (heroTextLeft) {
+          heroTextLeft.style.opacity = opacity;
+          heroTextLeft.style.filter = `blur(${blur.toFixed(2)}px)`;
+          heroTextLeft.style.transform = `translateX(${((1 - eased) * -SLIDE_PX).toFixed(2)}px)`;
+        }
+        if (heroTextRight) {
+          heroTextRight.style.opacity = opacity;
+          heroTextRight.style.filter = `blur(${blur.toFixed(2)}px)`;
+          heroTextRight.style.transform = `translateX(${((1 - eased) * SLIDE_PX).toFixed(2)}px)`;
+        }
+        if (!heroTextEverActive && t > 0) {
+          heroTextEverActive = true;
+          heroTextLeft && (heroTextLeft.style.willChange = 'opacity, filter, transform');
+          heroTextRight && (heroTextRight.style.willChange = 'opacity, filter, transform');
+        }
+      };
+      updateHeroText(0); // set the initial blurred/offset state before first paint
+
+      heroCanvas.style.willChange = 'transform';
       heroScrubTick = () => {
         const rect = heroSection.getBoundingClientRect();
         const scrollable = rect.height - window.innerHeight;
         const progress = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0;
         drawHeroFrame(Math.round(progress * (HERO_FRAME_COUNT - 1)));
+        updateHeroText(progress);
+        // Slow push-in across the whole scrub (independent of the 60%
+        // text-reveal window) — a static frame sequence reads as more
+        // "alive" with a bit of continuous motion under it.
+        heroCanvas.style.transform = `scale(${(1 + progress * 0.15).toFixed(4)})`;
       };
     }
   }
