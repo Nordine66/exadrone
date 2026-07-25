@@ -342,6 +342,28 @@ a, button, input, select, textarea { touch-action: manipulation; }
 .reveal[data-delay="5"] { --d: 5; }
 .reveal.is-visible { opacity: 1; transform: translateY(0); }
 
+/* ---------- Directional reveal (arrives from left/right) ----------
+   Layers onto the same .reveal/[data-reveal]/.is-visible system already
+   driven by the single IntersectionObserver in script.js — no new JS, no
+   second observer. Kept to a couple of signature moments rather than
+   applied to every [data-reveal] element: the plain fade-up above is the
+   default specifically because adding filter:blur() to all 30-50 of them
+   site-wide is the will-change/GPU-layer cost the comment above already
+   describes fixing for mobile OOM crashes. */
+.reveal.reveal-from-left, .reveal.reveal-from-right {
+  display: inline-block;
+  filter: blur(8px);
+  transition: opacity .9s var(--ease), transform .9s var(--ease), filter .9s var(--ease);
+  transition-delay: calc(var(--d, 0) * 90ms);
+}
+.reveal.reveal-from-left { transform: translateX(-48px); }
+.reveal.reveal-from-right { transform: translateX(48px); }
+.reveal.reveal-from-left.is-visible,
+.reveal.reveal-from-right.is-visible { transform: translateX(0); filter: blur(0); }
+@media (prefers-reduced-motion: reduce) {
+  .reveal.reveal-from-left, .reveal.reveal-from-right { transition: none; filter: none; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; transition: none; }
   html { scroll-behavior: auto; }
