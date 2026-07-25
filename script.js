@@ -178,9 +178,19 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastRawScrollY = targetScrollY;
   let navHideAccum = 0;
 
+  // Assigned further down (see "Hero video scrub") once the drone3D canvas
+  // exists — reading it here rather than adding a second rAF loop, per the
+  // note above about not duplicating the pinned-canvas scrub's own ticker.
+  // Safe to reference before assignment: this function's *body* only runs
+  // on the next animation frame, by which point the whole synchronous
+  // DOMContentLoaded callback (including the assignment below) has run.
+  let heroScrubTick = null;
+
   const scrollTick = () => {
     currentScrollY += (targetScrollY - currentScrollY) * 0.25;
     if (Math.abs(targetScrollY - currentScrollY) < 0.05) currentScrollY = targetScrollY;
+
+    if (heroScrubTick) heroScrubTick();
 
     nav.classList.toggle('scrolled', currentScrollY > 40);
 
@@ -208,6 +218,89 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(scrollTick);
   };
   requestAnimationFrame(scrollTick);
+
+  /* ---------- Hero video scrub (drone3D) ----------
+     145 pre-rendered frames stand in for a real <video> because scroll-
+     scrubbing needs frame-accurate random access a <video> element can't
+     give (seeking is async and throttled). On desktop/tablet the section
+     is pinned (position: sticky, see .hero-video-scroll/.hero-video-
+     container in styles.css) and the frame shown tracks scroll progress
+     through that pinned track — computed in heroScrubTick, called from
+     the shared scrollTick loop above rather than a second listener/rAF.
+     Below the 760px breakpoint the CSS drops the pin entirely (no long
+     track to scrub against on a phone-height viewport), so instead the
+     frames just loop like a muted autoplay video, paused while the hero
+     is scrolled out of view — same play-only-in-view pattern as
+     #showcaseVideo below. */
+  const heroCanvas = document.getElementById('heroCanvas');
+  const heroSection = document.querySelector('.hero-video-scroll');
+  if (heroCanvas && heroSection) {
+    const HERO_FRAME_COUNT = 145;
+    const heroCtx = heroCanvas.getContext('2d');
+    const heroImages = [];
+    let heroLastDrawn = -1;
+
+    const drawHeroFrame = (index, force) => {
+      const img = heroImages[index];
+      if (!img || !img.complete || !img.naturalWidth) return;
+      if (!force && index === heroLastDrawn) return;
+      heroLastDrawn = index;
+      heroCtx.drawImage(img, 0, 0, heroCanvas.width, heroCanvas.height);
+    };
+
+    const sizeHeroCanvas = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = heroCanvas.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;
+      heroCanvas.width = Math.round(rect.width * dpr);
+      heroCanvas.height = Math.round(rect.height * dpr);
+      drawHeroFrame(Math.max(heroLastDrawn, 0), true);
+    };
+    window.addEventListener('resize', sizeHeroCanvas);
+
+    for (let i = 0; i < HERO_FRAME_COUNT; i++) {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = `/images/hero-frames/drone3d/drone3D_${String(i + 1).padStart(4, '0')}.jpg`;
+      if (i === 0) {
+        img.addEventListener('load', () => { sizeHeroCanvas(); drawHeroFrame(0, true); });
+      }
+      heroImages.push(img);
+    }
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // No scrub, no autoplay loop — land on one representative frame.
+      const stillIndex = Math.floor(HERO_FRAME_COUNT * 0.45);
+      heroImages[stillIndex].addEventListener('load', () => drawHeroFrame(stillIndex, true));
+    } else if (window.matchMedia('(min-width: 761px)').matches) {
+      heroScrubTick = () => {
+        const rect = heroSection.getBoundingClientRect();
+        const scrollable = rect.height - window.innerHeight;
+        const progress = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0;
+        drawHeroFrame(Math.round(progress * (HERO_FRAME_COUNT - 1)));
+      };
+    } else {
+      let heroLoopFrame = 0;
+      let heroLoopRunning = false;
+      let heroLoopLast = 0;
+      const HERO_LOOP_FPS = 24;
+      const stepHeroLoop = (now) => {
+        if (!heroLoopRunning) return;
+        if (now - heroLoopLast >= 1000 / HERO_LOOP_FPS) {
+          heroLoopLast = now;
+          heroLoopFrame = (heroLoopFrame + 1) % HERO_FRAME_COUNT;
+          drawHeroFrame(heroLoopFrame);
+        }
+        requestAnimationFrame(stepHeroLoop);
+      };
+      new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          heroLoopRunning = entry.isIntersecting;
+          if (heroLoopRunning) requestAnimationFrame(stepHeroLoop);
+        });
+      }, { threshold: 0.15 }).observe(heroSection);
+    }
+  }
 
   /* ---------- Pointer-tracked spotlight on bento/glass surfaces ---------- */
   const spotlightEls = document.querySelectorAll('.stat, .cap-card, .timeline-item, .estimate-card, .reliability-list li, .glow-surface');

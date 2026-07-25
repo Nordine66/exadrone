@@ -27,11 +27,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap"></noscript>
 <link rel="stylesheet" href="styles.css">
-<!-- Split by media so phones preload the ~540p mobile encode (≈540KB)
-     instead of the 1080p desktop file (≈1.76MB) — matches the <source
-     media> split on .hook-bg below. -->
-<link rel="preload" as="video" href="drone-hook-mobile.webm" fetchpriority="high" media="(max-width: 760px)">
-<link rel="preload" as="video" href="./drone vidéo first.webm" fetchpriority="high" media="(min-width: 761px)">
+<!-- First frame of the drone3D hero sequence — the actual LCP element now
+     that the hook is a canvas frame-scrub instead of a background video
+     (see .hero-canvas-portrait below and "Hero video scrub" in script.js). -->
+<link rel="preload" as="image" href="/images/hero-frames/drone3d/drone3D_0001.jpg" fetchpriority="high">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -118,49 +117,53 @@
 
 <main id="top">
 
-  <!-- HOOK — la promesse, énoncée immédiatement, sur l'image hero plein écran -->
-  <section class="intro-hook" id="hook">
-    <!-- fetchpriority="high": this is the single absolute-first hero asset,
-         everything else on the page is deprioritized relative to it. The
-         <link rel=preload> pair in <head> already carries the same hint
-         for the underlying file fetch; spec support for fetchpriority on
-         <video> itself is inconsistent across browsers, but it's harmless
-         where unsupported. -->
-    <video class="hook-bg" autoplay loop muted playsinline aria-hidden="true" fetchpriority="high" preload="auto">
-      <!-- 960x540 mobile encode (~540KB) picked first on phones/small
-           tablets; falls through to the 1080p desktop files otherwise. -->
-      <source src="drone-hook-mobile.webm" type="video/webm" media="(max-width: 760px)">
-      <source src="drone-hook-mobile.mp4" type="video/mp4" media="(max-width: 760px)">
-      <source src="./drone vidéo first.webm" type="video/webm">
-      <source src="./drone vidéo first.mp4" type="video/mp4">
-    </video>
-    <div class="hook-scrim" aria-hidden="true"></div>
-    <div class="hook-content">
-      <p class="eyebrow reveal" data-reveal>Prestataire Drone — BTP &amp; Collectivités</p>
-      <h1 class="hero-title">
-        <span class="reveal" data-reveal data-delay="1">Nettoyage de toiture</span>
-        <span class="reveal" data-reveal data-delay="2">et façade par drone.</span>
-      </h1>
-      <p class="hero-sub reveal" data-reveal data-delay="3">
-        Sans échafaudage. Sans interruption d'activité. Partout en France,
-        pour le BTP, les collectivités et la rénovation de façade.
-      </p>
-      <div class="hero-actions reveal" data-reveal data-delay="4">
-        <a href="#contact" class="btn btn-primary" data-cursor="link">Demander un devis</a>
-        <a href="#secteurs" class="btn btn-ghost" data-cursor="link">Solutions par secteur</a>
+  <!-- HERO — drone3D portrait reveal, scrubbed against scroll on desktop
+       (see script.js "Hero video scrub"); text wraps the video left/right,
+       filling the space a plain centered portrait clip would otherwise
+       leave empty. Stacks to a single column (video autoplay-loops
+       instead of scrubbing) under 760px — see .hero-video-scroll media
+       queries in styles.css. -->
+  <section class="hero-video-scroll" id="hook">
+    <div class="hero-video-container">
+      <div class="hero-text-left">
+        <p class="eyebrow reveal reveal-from-left" data-reveal>Prestataire Drone — BTP &amp; Collectivités</p>
+        <h1 class="hero-title">
+          <span class="reveal" data-reveal data-delay="1">Nettoyage par drone</span>
+        </h1>
+        <p class="hero-tags reveal reveal-from-left" data-reveal data-delay="2">Façade · Toiture</p>
       </div>
-      <div class="hero-launch reveal" data-reveal data-delay="5">
-        <span class="dot"></span> Lancement&nbsp;en&nbsp;<strong>juillet&nbsp;2026</strong>
+
+      <div class="hero-canvas-wrapper">
+        <canvas class="hero-canvas-portrait" id="heroCanvas" role="img" aria-label="Drone Exadrone en vol stationnaire, vue du dessus"></canvas>
       </div>
-      <div class="hero-phone reveal" data-reveal data-delay="6">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
-        <span>Appelez-nous&nbsp;:&nbsp;</span><a href="tel:+33770022172" aria-label="Appeler Exadrone Enterprise au 07 70 02 21 72" class="hero-phone-number">07&nbsp;70&nbsp;02&nbsp;21&nbsp;72</a>
+
+      <div class="hero-text-right">
+        <p class="hero-tags reveal reveal-from-right" data-reveal>Photovoltaïques · Bardage</p>
+        <p class="hero-sub reveal reveal-from-right" data-reveal data-delay="1">
+          Sans échafaudage. Sans interruption d'activité. Partout en France,
+          pour le BTP, les collectivités et la rénovation de façade.
+        </p>
+        <div class="hero-actions reveal reveal-from-right" data-reveal data-delay="2">
+          <a href="#contact" class="btn btn-primary" data-cursor="link">Demander un devis</a>
+          <a href="#secteurs" class="btn btn-ghost" data-cursor="link">Solutions par secteur</a>
+        </div>
+        <div class="hero-launch reveal reveal-from-right" data-reveal data-delay="3">
+          <span class="dot"></span> Lancement&nbsp;en&nbsp;<strong>juillet&nbsp;2026</strong>
+        </div>
+        <div class="hero-phone reveal reveal-from-right" data-reveal data-delay="4">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+          <span>Appelez-nous&nbsp;:&nbsp;</span><a href="tel:+33770022172" aria-label="Appeler Exadrone Enterprise au 07 70 02 21 72" class="hero-phone-number">07&nbsp;70&nbsp;02&nbsp;21&nbsp;72</a>
+        </div>
       </div>
     </div>
+    <noscript>
+      <img src="/images/hero-frames/drone3d/drone3D_0001.jpg" alt="Drone Exadrone en vol stationnaire, vue du dessus" style="display:block;max-width:320px;margin:40px auto;">
+    </noscript>
   </section>
 
-  <!-- STAT STRIP — cartes de données bento -->
-  <section class="stat-strip">
+  <!-- STAT STRIP — cartes de données bento; video-overlap fades its top
+       edge in over the tail of the pinned hero canvas above. -->
+  <section class="stat-strip video-overlap">
     <div class="stat-strip-inner">
       <div class="stat reveal" data-reveal>
         <svg class="stat-icon" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 20h16M7 20V10l5-6 5 6v10" stroke="currentColor" stroke-width="1.4"/></svg>

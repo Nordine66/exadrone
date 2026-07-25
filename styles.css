@@ -57,6 +57,11 @@
      frame, the same way a phone screen's bezel doesn't follow page theme. */
   --panel-dark: #0a0b0d;
 
+  /* Exact backdrop color baked into the drone3D render frames (sampled
+     from the source JPEGs) — used on the hero's own container/canvas so
+     there's no visible seam between the video and the page around it. */
+  --hero-video-bg: #ededef;
+
   --ink: var(--obsidian);
 
   /* Apple system-font stack — renders true San Francisco on Mac/iPhone/iPad,
@@ -622,123 +627,130 @@ a, button, input, select, textarea { touch-action: manipulation; }
 
 
 /* ============================================================
-   HOOK — the very first thing visitors see: a full-bleed video hero
-   with the service stated plainly on top, classic Apple-statement-hero
-   composition. The video/scrim are absolutely positioned layers;
-   .hook-content is the only in-flow child, given its own stacking context
-   so it reliably paints above them regardless of DOM order (positioned
-   siblings would otherwise paint over static text).
+   HERO — portrait drone3D reveal. A tall pinned (position: sticky)
+   section scrubs through the 145 pre-rendered frames as the user
+   scrolls (see script.js "Hero video scrub" — a real <video> can't
+   give the frame-accurate random access scroll-scrubbing needs, so
+   playback is a canvas blitting whichever frame matches scroll
+   progress). Text sits in flex columns either side of the video,
+   "wrapping" the empty space rather than overlaying the footage —
+   unlike the old dark full-bleed hook video, there's no scrim/white
+   text treatment to worry about: .eyebrow/.hero-title/.hero-sub/
+   .hero-actions/.hero-launch/.hero-phone all keep their ordinary
+   light-background styling used everywhere else on the page.
    ============================================================ */
-.intro-hook {
+.hero-video-scroll {
   position: relative;
-  isolation: isolate;
-  min-height: 100vh;
+  height: 280vh;
+  background: var(--hero-video-bg);
+}
+.hero-video-container {
+  position: sticky;
+  top: 0;
+  height: 100vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  text-align: center;
+  gap: clamp(16px, 3.5vw, 56px);
   overflow: hidden;
+  padding: clamp(88px, 12vw, 120px) clamp(20px, 4vw, 56px) clamp(32px, 6vw, 64px);
+  background: var(--hero-video-bg);
 }
-.hook-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
+.hero-canvas-wrapper {
+  flex: 0 0 auto;
+  display: flex;
+  height: min(74vh, 860px);
+}
+.hero-canvas-portrait {
   height: 100%;
-  object-fit: cover;
-  /* Own compositor layer for the autoplaying loop, same as the other
-     background video elsewhere on the page — keeps its frame decode/paint
-     from ever touching the rest of the page's layers. The settle keyframe
-     below already animates transform (scale), which is what actually
-     promotes this to the GPU; will-change just makes that promotion
-     immediate instead of on first animation tick. backface-visibility is
-     the same hint for older WebKit/Safari specifically. */
-  will-change: transform;
-  backface-visibility: hidden;
-  /* Slight scale-in on load echoes the text's own upward glide — a single
-     slow, subtle Apple-style settle rather than a static photo dropped in. */
-  animation: hook-bg-settle 1.6s var(--ease) both;
+  width: auto;
+  aspect-ratio: 1248 / 1660;
+  display: block;
+  background: var(--hero-video-bg);
 }
-@keyframes hook-bg-settle {
-  /* translate3d(0,0,0) baked into both stops — purely a GPU-layer hint,
-     the actual scale-in motion is unchanged. */
-  from { transform: translate3d(0, 0, 0) scale(1.06); opacity: 0.0; }
-  to { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+.hero-text-left,
+.hero-text-right {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 400px;
 }
-.hook-scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  /* Premium dark gradient, deliberately never thinner than ~0.34 alpha
-     anywhere: the photo crops very differently across breakpoints
-     (background-size:cover on a wide landscape shot means a narrow/tall
-     mobile viewport shows a heavily zoomed, somewhat unpredictable center
-     slice), so the scrim has to guarantee text contrast against whatever
-     part of the image — including the drone's own bright blue/white body —
-     ends up behind it, not just the calmest crop we happened to preview. */
-  background:
-    radial-gradient(ellipse 90% 70% at 50% 45%, rgba(8,10,14,0.22), rgba(8,10,14,0.5) 100%),
-    linear-gradient(180deg,
-      rgba(8,10,14,0.42) 0%,
-      rgba(8,10,14,0.34) 16%,
-      rgba(8,10,14,0.5) 42%,
-      rgba(8,10,14,0.58) 62%,
-      rgba(8,10,14,0.4) 82%,
-      rgba(8,10,14,0.62) 100%);
+.hero-text-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
 }
-.hook-content {
-  position: relative;
-  z-index: 2;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: clamp(140px, 18vw, 200px) clamp(24px, 6vw, 64px) clamp(60px, 8vw, 100px);
+.hero-text-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
 }
-/* Text sits directly on the photo, so it gets its own light-on-dark-photo
-   treatment here, independent of the page's ink-on-light system used
-   everywhere else (see --overlay-chip-text/--overlay-knob-ink for the same
-   pattern applied to chips floating over the hero video/before-after photo). */
-/* Premium dual-layer glow: a tight dark drop-shadow for crisp edge
-   definition, plus a soft white atmospheric bloom behind the letters —
-   keeps text sharp and legible no matter which video frame sits behind it. */
-.hook-content .eyebrow,
-.hook-content .hero-title,
-.hook-content .hero-sub,
-.hook-content .hero-launch {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.1);
-}
-.hook-content .eyebrow { color: #FFFFFF; }
-.hook-content .hero-title { color: #FFFFFF; }
-.hook-content .hero-sub { color: rgba(255,255,255,0.82); }
-.hook-content .hero-launch { color: rgba(255,255,255,0.78); }
+.hero-text-left .hero-title { align-items: flex-end; }
+.hero-text-right .hero-actions,
+.hero-text-right .hero-launch { justify-content: flex-start; }
+/* Base .hero-title sizing (styles.css §hero-title below) is tuned for a
+   narrow side column rather than the old full-width centered statement. */
 
-/* Brand-blue heading interaction — desktop hover, mobile tap. Two
-   separate media queries rather than a bare :hover, since touch browsers
-   either fake-trigger :hover on tap (and then it sticks until the user
-   taps elsewhere — exactly the stuck-state bug we hit with the carousel
-   pause) or don't trigger it at all. :active has no such lingering state:
-   it applies only while the finger/pointer is actually down. */
-@media (hover: hover) and (pointer: fine) {
-  .section-title:hover,
-  .hero-title:hover,
-  .hook-content .hero-title:hover {
-    color: var(--cro-blue);
+/* Service keywords flanking the video, split across both columns —
+   reuses the eyebrow's mono/uppercase treatment at a smaller size. */
+.hero-tags {
+  margin: 14px 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+@media (max-width: 1100px) {
+  .hero-text-left, .hero-text-right { max-width: 300px; }
+  .hero-canvas-wrapper { height: min(70vh, 760px); }
+}
+
+/* Below this width the two columns no longer have room beside the
+   portrait video without crushing either — the hero drops the pin/scrub
+   and lays out as a single normal-flow column instead (video autoplays a
+   looping reveal via script.js rather than scrubbing against scroll,
+   since there's no long pinned track to scrub across on a phone-height
+   viewport). */
+@media (max-width: 760px) {
+  .hero-video-scroll { height: auto; }
+  /* Plain block stacking rather than a column flex layout — nested flex
+     (each text column is itself display:flex for its desktop left/right
+     alignment) fights a stretched cross-size in ways that left .eyebrow/
+     .hero-title sized to their unwrapped text width instead of the
+     column's actual width, overflowing the viewport. Block children need
+     no such fight: each one simply takes the full available width, so
+     text wraps normally and text-align does the centering. */
+  .hero-video-container {
+    position: static;
+    height: auto;
+    display: block;
+    padding: clamp(112px, 24vw, 140px) 20px 48px;
   }
-}
-@media (hover: none) {
-  .section-title:active,
-  .hero-title:active,
-  .hook-content .hero-title:active {
-    color: var(--cro-blue);
+  .hero-canvas-wrapper {
+    display: block;
+    height: auto;
+    margin: 28px 0;
   }
+  .hero-canvas-portrait { height: min(48vh, 440px); margin: 0 auto; }
+  .hero-text-left, .hero-text-right {
+    display: block;
+    max-width: 480px;
+    width: 100%;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .hero-text-left .hero-title { display: block; }
+  .hero-title .reveal { display: block; }
+  .hero-text-right .hero-actions,
+  .hero-text-right .hero-launch,
+  .hero-phone { justify-content: center; }
 }
-.hook-content .btn-ghost {
-  border-color: rgba(255,255,255,0.45);
-  color: #fff;
-}
-.hook-content .btn-ghost:hover { border-color: #fff; }
 @media (prefers-reduced-motion: reduce) {
-  .hook-bg { animation: none; }
+  .hero-canvas-portrait { animation: none; }
 }
 
 /* ============================================================
@@ -773,15 +785,13 @@ a, button, input, select, textarea { touch-action: manipulation; }
 .hero-title {
   font-family: var(--font-display);
   font-weight: 800;
-  /* The floor here matters as much as the ceiling: at 8.5vw, phones in the
-     360–430px range compute to ~31–37px, well under the old 3rem (48px)
-     floor — so clamp() was discarding the fluid value entirely and always
-     returning 48px, which wraps "Nettoyage de toiture" / "et façade par
-     drone." to 4 lines instead of 2 and pushes the actions/launch row down
-     behind the mobile cookie banner. A 2rem floor lets 8.5vw actually take
-     effect across real phone widths (verified two lines, no wrap, down to
-     360px) while desktop is unaffected (governed by the 7.4rem ceiling). */
-  font-size: clamp(2rem, 8.5vw, 7.4rem);
+  /* Sized for the hero's narrow side column (max-width 400px, see
+     .hero-text-left/.hero-text-right) rather than the old full-bleed
+     centered statement — 2.6rem ceiling keeps "Nettoyage de toiture" from
+     overflowing a 400px column at desktop widths. The 1.7rem floor still
+     comfortably clears the mobile cookie banner once the column drops to
+     full-width centered layout under 760px. */
+  font-size: clamp(1.7rem, 2.6vw, 2.6rem);
   line-height: 1.0;
   letter-spacing: -0.02em;
   display: flex;
@@ -2003,10 +2013,6 @@ a, button, input, select, textarea { touch-action: manipulation; }
   .reliability-list { align-self: start; }
 }
 
-@media (max-width: 760px), (orientation: portrait) {
-  .hook-bg { background-position: center 28%; }
-}
-
 @media (max-width: 760px) {
   .nav-links { position: fixed; top: 0; right: 0; height: 100vh; width: 78vw; max-width: 340px;
     background: var(--slate-glass-strong); backdrop-filter: blur(24px) saturate(150%); -webkit-backdrop-filter: blur(24px) saturate(150%);
@@ -2050,11 +2056,6 @@ a, button, input, select, textarea { touch-action: manipulation; }
 
 /* Smallest phones (iPhone SE / mini, narrow Android) — extra typography restraint */
 @media (max-width: 420px) {
-  /* .hero-title intentionally not overridden here anymore — its base
-     clamp(2rem, 8.5vw, 7.4rem) already resolves correctly at these widths
-     (verified two lines, no wrap, down to 360px); this rule used to force
-     it back up to a 2.4–3.2rem floor, which was even more aggressive than
-     the bug it was trying to fix. */
   .hero-sub { font-size: 0.95rem; max-width: 32ch; }
   .section-title { font-size: clamp(1.6rem, 7vw, 2.2rem); }
   .cta-title { font-size: clamp(1.8rem, 7vw, 2.4rem); }
@@ -2150,7 +2151,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
   gap: 6px;
   margin-top: 16px;
   font-size: 0.875rem;
-  color: rgba(232,232,232,0.75);
+  color: var(--steel);
   font-family: var(--font-body, 'DM Sans', sans-serif);
 }
 .hero-phone svg { opacity: 0.7; flex-shrink: 0; }
