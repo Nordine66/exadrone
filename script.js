@@ -233,16 +233,33 @@ document.addEventListener('DOMContentLoaded', () => {
   const heroCanvas = document.getElementById('heroCanvas');
   const heroSection = document.querySelector('.hero-video-scroll');
   if (heroCanvas && heroSection) {
-    const HERO_FRAME_COUNT = 145;
+    const HERO_FRAME_COUNT = 49;
     const heroCtx = heroCanvas.getContext('2d');
     const heroImages = [];
     let heroLastDrawn = -1;
 
+    const isReady = (img) => img && img.complete && img.naturalWidth;
+
     const drawHeroFrame = (index, force) => {
-      const img = heroImages[index];
-      if (!img || !img.complete || !img.naturalWidth) return;
-      if (!force && index === heroLastDrawn) return;
-      heroLastDrawn = index;
+      let target = index;
+      if (!isReady(heroImages[target])) {
+        // The exact requested frame hasn't finished downloading yet (can
+        // happen on slower connections right after landing on the page,
+        // before all frames arrive) — rather than freezing on whatever
+        // was drawn last, show the nearest frame that HAS loaded so the
+        // sequence still visibly keeps pace with scroll and catches up
+        // to the exact frame once it's in.
+        let lo = target - 1, hi = target + 1;
+        while (lo >= 0 || hi < HERO_FRAME_COUNT) {
+          if (lo >= 0 && isReady(heroImages[lo])) { target = lo; break; }
+          if (hi < HERO_FRAME_COUNT && isReady(heroImages[hi])) { target = hi; break; }
+          lo--; hi++;
+        }
+      }
+      const img = heroImages[target];
+      if (!isReady(img)) return;
+      if (!force && target === heroLastDrawn) return;
+      heroLastDrawn = target;
       heroCtx.drawImage(img, 0, 0, heroCanvas.width, heroCanvas.height);
     };
 
