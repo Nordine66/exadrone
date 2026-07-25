@@ -222,16 +222,14 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ---------- Hero video scrub (drone3D) ----------
      145 pre-rendered frames stand in for a real <video> because scroll-
      scrubbing needs frame-accurate random access a <video> element can't
-     give (seeking is async and throttled). On desktop/tablet the section
-     is pinned (position: sticky, see .hero-video-scroll/.hero-video-
-     container in styles.css) and the frame shown tracks scroll progress
-     through that pinned track — computed in heroScrubTick, called from
-     the shared scrollTick loop above rather than a second listener/rAF.
-     Below the 760px breakpoint the CSS drops the pin entirely (no long
-     track to scrub against on a phone-height viewport), so instead the
-     frames just loop like a muted autoplay video, paused while the hero
-     is scrolled out of view — same play-only-in-view pattern as
-     #showcaseVideo below. */
+     give (seeking is async and throttled). The section is pinned
+     (position: sticky, see .hero-video-scroll/.hero-video-container in
+     styles.css) on every viewport size, and the frame shown tracks scroll
+     progress through that pinned track — computed in heroScrubTick,
+     called from the shared scrollTick loop above rather than a second
+     listener/rAF. Only the pinned track's height and the column-vs-row
+     layout change at the 760px breakpoint (shorter track, stacked
+     composition) — the scrub math itself is identical everywhere. */
   const heroCanvas = document.getElementById('heroCanvas');
   const heroSection = document.querySelector('.hero-video-scroll');
   if (heroCanvas && heroSection) {
@@ -269,36 +267,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      // No scrub, no autoplay loop — land on one representative frame.
+      // No scrub — land on one representative frame.
       const stillIndex = Math.floor(HERO_FRAME_COUNT * 0.45);
       heroImages[stillIndex].addEventListener('load', () => drawHeroFrame(stillIndex, true));
-    } else if (window.matchMedia('(min-width: 761px)').matches) {
+    } else {
+      // Same scrub math on every viewport size — the pinned track's own
+      // height (280vh desktop, shorter on mobile, see .hero-video-scroll
+      // in styles.css) is what changes, not this calculation.
       heroScrubTick = () => {
         const rect = heroSection.getBoundingClientRect();
         const scrollable = rect.height - window.innerHeight;
         const progress = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0;
         drawHeroFrame(Math.round(progress * (HERO_FRAME_COUNT - 1)));
       };
-    } else {
-      let heroLoopFrame = 0;
-      let heroLoopRunning = false;
-      let heroLoopLast = 0;
-      const HERO_LOOP_FPS = 24;
-      const stepHeroLoop = (now) => {
-        if (!heroLoopRunning) return;
-        if (now - heroLoopLast >= 1000 / HERO_LOOP_FPS) {
-          heroLoopLast = now;
-          heroLoopFrame = (heroLoopFrame + 1) % HERO_FRAME_COUNT;
-          drawHeroFrame(heroLoopFrame);
-        }
-        requestAnimationFrame(stepHeroLoop);
-      };
-      new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
-          heroLoopRunning = entry.isIntersecting;
-          if (heroLoopRunning) requestAnimationFrame(stepHeroLoop);
-        });
-      }, { threshold: 0.15 }).observe(heroSection);
     }
   }
 

@@ -26,7 +26,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="styles.css?v=20260726">
+<link rel="stylesheet" href="styles.css?v=20260726b">
 <!-- First frame of the drone3D hero sequence — the actual LCP element now
      that the hook is a canvas frame-scrub instead of a background video
      (see .hero-canvas-portrait below and "Hero video scrub" in script.js). -->
@@ -117,12 +117,12 @@
 
 <main id="top">
 
-  <!-- HERO — drone3D portrait reveal, scrubbed against scroll on desktop
-       (see script.js "Hero video scrub"); text wraps the video left/right,
-       filling the space a plain centered portrait clip would otherwise
-       leave empty. Stacks to a single column (video autoplay-loops
-       instead of scrubbing) under 760px — see .hero-video-scroll media
-       queries in styles.css. -->
+  <!-- HERO — drone3D portrait reveal, scrubbed against scroll on every
+       viewport size (see script.js "Hero video scrub"); text wraps the
+       video left/right, filling the space a plain centered portrait clip
+       would otherwise leave empty. Stacks to a compact single column
+       (still pinned/scrubbed, just a shorter track) under 760px — see
+       .hero-video-scroll media queries in styles.css. -->
   <section class="hero-video-scroll" id="hook">
     <div class="hero-video-container">
       <div class="hero-text-left">
@@ -796,7 +796,7 @@
      runs them in this same order once parsing finishes. script.js already
      wraps everything in a DOMContentLoaded listener, so execution timing
      relative to the rest of the page is unchanged. -->
-<script src="script.js?v=20260726" defer></script>
+<script src="script.js?v=20260726b" defer></script>
 <!-- Chat widget: loaded after page is interactive, zero impact on LCP/FID -->
 <script>
   window.addEventListener('load', function() {

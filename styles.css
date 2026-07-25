@@ -709,33 +709,22 @@ a, button, input, select, textarea { touch-action: manipulation; }
   .hero-canvas-wrapper { height: min(70vh, 760px); }
 }
 
-/* Below this width the two columns no longer have room beside the
-   portrait video without crushing either — the hero drops the pin/scrub
-   and lays out as a single normal-flow column instead (video autoplays a
-   looping reveal via script.js rather than scrubbing against scroll,
-   since there's no long pinned track to scrub across on a phone-height
-   viewport). */
+/* Below this width the two side-by-side columns no longer have room next
+   to the portrait video — the hero stays pinned/scrubbed exactly like
+   desktop (same heroScrubTick math in script.js, just a shorter track:
+   phones scroll more per swipe, and there's less vertical room to hunt
+   for a frame across), but the row becomes a compact vertical stack so
+   the whole composition still fits one screen height while pinned. */
 @media (max-width: 760px) {
-  .hero-video-scroll { height: auto; }
-  /* Plain block stacking rather than a column flex layout — nested flex
-     (each text column is itself display:flex for its desktop left/right
-     alignment) fights a stretched cross-size in ways that left .eyebrow/
-     .hero-title sized to their unwrapped text width instead of the
-     column's actual width, overflowing the viewport. Block children need
-     no such fight: each one simply takes the full available width, so
-     text wraps normally and text-align does the centering. */
+  .hero-video-scroll { height: 220vh; }
   .hero-video-container {
-    position: static;
-    height: auto;
-    display: block;
-    padding: clamp(112px, 24vw, 140px) 20px 48px;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(78px, 20vw, 100px) 20px 16px;
+    gap: 8px;
   }
-  .hero-canvas-wrapper {
-    display: block;
-    height: auto;
-    margin: 28px 0;
-  }
-  .hero-canvas-portrait { height: min(48vh, 440px); margin: 0 auto; }
+  .hero-canvas-wrapper { height: min(32vh, 300px); }
+  .hero-canvas-portrait { margin: 0 auto; }
   .hero-text-left, .hero-text-right {
     display: block;
     max-width: 480px;
@@ -745,6 +734,16 @@ a, button, input, select, textarea { touch-action: manipulation; }
   }
   .hero-text-left .hero-title { display: block; }
   .hero-title .reveal { display: block; }
+  /* Tightened type scale + spacing — the desktop side-column sizing
+     leaves no room once everything stacks in a single pinned screen. */
+  .hero-title { font-size: clamp(1.3rem, 6vw, 1.7rem); }
+  .eyebrow { font-size: 0.68rem; margin-bottom: 6px; }
+  .hero-tags { margin: 6px 0; font-size: 0.66rem; }
+  .hero-sub { margin-top: 6px; font-size: 0.82rem; line-height: 1.35; }
+  .hero-actions { margin-top: 10px; gap: 8px; }
+  .hero-actions .btn { padding: 11px 18px; font-size: 0.74rem; }
+  .hero-launch { margin-top: 8px; font-size: 0.66rem; }
+  .hero-phone { margin-top: 6px; font-size: 0.72rem; }
   .hero-text-right .hero-actions,
   .hero-text-right .hero-launch,
   .hero-phone { justify-content: center; }
