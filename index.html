@@ -199,20 +199,36 @@
 
     <div class="estimate-card reveal" data-reveal data-delay="1">
       <div class="estimate-input-group">
+        <label for="estimateService">Service</label>
+        <select id="estimateService" class="estimate-select">
+          <option value="Nettoyage de toiture">Nettoyage de toiture</option>
+          <option value="Nettoyage de bardage">Nettoyage de bardage</option>
+          <option value="Nettoyage de façade">Nettoyage de façade</option>
+          <option value="Nettoyage de panneaux solaires photovoltaïques">Nettoyage de panneaux solaires photovoltaïques</option>
+        </select>
+
         <label for="estimateArea">Surface à traiter</label>
         <div class="estimate-input-wrap">
           <input type="number" id="estimateArea" min="0" step="50" placeholder="saisissez votre surface à nettoyer" inputmode="numeric" aria-describedby="estimateRate">
           <span class="estimate-unit">m²</span>
         </div>
-        <span class="estimate-rate" id="estimateRate">Base indicative — 5&nbsp;€&nbsp;/&nbsp;m²</span>
+        <span class="estimate-rate" id="estimateRate">Base indicative — 6&nbsp;€&nbsp;HT&nbsp;/&nbsp;m²</span>
       </div>
 
       <div class="estimate-divider" aria-hidden="true"></div>
 
       <div class="estimate-output-group">
         <span class="estimate-output-label">Cadrage budgétaire estimé</span>
-        <span class="estimate-output" id="estimateOutput">0&nbsp;€</span>
-        <a href="contact.html" class="btn btn-primary" id="estimateCta" data-cursor="link">Demander un devis détaillé</a>
+        <div class="estimate-breakdown">
+          <div class="estimate-breakdown-row"><span>Prix HT</span><span id="estimateHT">0&nbsp;€</span></div>
+          <div class="estimate-breakdown-row"><span>TVA (20&nbsp;%)</span><span id="estimateVAT">0&nbsp;€</span></div>
+          <div class="estimate-breakdown-row estimate-breakdown-total"><span>Prix TTC</span><span class="estimate-output" id="estimateOutput">0&nbsp;€</span></div>
+        </div>
+        <input type="text" id="estimateClientName" class="estimate-name-input" placeholder="Nom / société — pour personnaliser le PDF (optionnel)" aria-label="Nom ou société, pour personnaliser le PDF">
+        <div class="estimate-actions">
+          <a href="contact.html" class="btn btn-primary" id="estimateCta" data-cursor="link">Demander un devis détaillé</a>
+          <button type="button" class="btn btn-ghost" id="estimatePdfBtn" data-cursor="link">Télécharger le PDF</button>
+        </div>
       </div>
     </div>
 
@@ -364,7 +380,7 @@
         <span class="cap-index">02</span>
         <svg class="cap-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="7" y="7" width="18" height="18" stroke="currentColor" stroke-width="1.3"/><path d="M7 14h18M14 7v18" stroke="currentColor" stroke-width="1.3"/></svg>
         <h3>Toitures &amp; Panneaux Solaires</h3>
-        <p>Élimination des débris et nettoyage sans risque pour les panneaux, qui restaure le rendement sans compromettre la membrane ni les cellules.</p>
+        <p>Élimination des débris et nettoyage sans risque pour les panneaux solaires photovoltaïques, qui restaure le rendement sans compromettre la membrane ni les cellules.</p>
         <div class="cap-card-links">
           <a href="/blog/nettoyage-toiture-par-drone-avantages.html" class="cap-card-link" data-cursor="link">Nettoyage de toiture par drone →</a>
           <a href="/blog/nettoyage-panneaux-solaires-par-drone.html" class="cap-card-link" data-cursor="link">Panneaux solaires →</a>
@@ -648,13 +664,25 @@
   <!-- SECTEURS -->
   <section class="industries">
     <p class="eyebrow reveal" data-reveal style="text-align:center;">Déployé Dans</p>
-    <div class="industries-row reveal" data-reveal data-delay="1">
-      <span>Collectivités &amp; Mairies</span>
-      <span>Chantiers BTP</span>
-      <span>Tours Tertiaires</span>
-      <span>Bâtiments Patrimoniaux</span>
-      <span>Plateformes Logistiques</span>
-      <span>Fermes Solaires</span>
+    <div class="industries-rail reveal" data-reveal data-delay="1">
+      <div class="industries-row" id="industriesTrack">
+        <span>Collectivités &amp; Mairies</span>
+        <span>Chantiers BTP</span>
+        <span>Tours Tertiaires</span>
+        <span>Bâtiments Patrimoniaux</span>
+        <span>Plateformes Logistiques</span>
+        <span>Fermes Solaires</span>
+        <!-- Duplicate set, hidden from assistive tech: makes the track exactly
+             2x one full set wide, so animating to translate3d(-50%) always
+             lands pixel-for-pixel back on the start — same seamless-loop
+             technique as #galleryTrack above. -->
+        <span aria-hidden="true">Collectivités &amp; Mairies</span>
+        <span aria-hidden="true">Chantiers BTP</span>
+        <span aria-hidden="true">Tours Tertiaires</span>
+        <span aria-hidden="true">Bâtiments Patrimoniaux</span>
+        <span aria-hidden="true">Plateformes Logistiques</span>
+        <span aria-hidden="true">Fermes Solaires</span>
+      </div>
     </div>
   </section>
 

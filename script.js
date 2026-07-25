@@ -170,11 +170,35 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentScrollY = targetScrollY;
   window.addEventListener('scroll', () => { targetScrollY = window.scrollY; }, { passive: true });
 
+  // Hide-on-scroll-down / show-on-scroll-up: tracked off the raw target
+  // (not the lerped currentScrollY) so direction flips register immediately
+  // instead of through the smoothing lag. Distance is accumulated rather
+  // than toggled on every frame delta, so small trackpad jitter right at a
+  // scroll reversal doesn't flicker the nav in and out.
+  let lastRawScrollY = targetScrollY;
+  let navHideAccum = 0;
+
   const scrollTick = () => {
     currentScrollY += (targetScrollY - currentScrollY) * 0.25;
     if (Math.abs(targetScrollY - currentScrollY) < 0.05) currentScrollY = targetScrollY;
 
     nav.classList.toggle('scrolled', currentScrollY > 40);
+
+    if (!nav.classList.contains('menu-open')) {
+      const rawDelta = targetScrollY - lastRawScrollY;
+      navHideAccum += rawDelta;
+      if (targetScrollY < 120) {
+        nav.classList.remove('nav-hidden');
+        navHideAccum = 0;
+      } else if (navHideAccum > 14) {
+        nav.classList.add('nav-hidden');
+        navHideAccum = 0;
+      } else if (navHideAccum < -14) {
+        nav.classList.remove('nav-hidden');
+        navHideAccum = 0;
+      }
+    }
+    lastRawScrollY = targetScrollY;
 
     const scrollable = root.scrollHeight - window.innerHeight;
     const progress = scrollable > 0 ? currentScrollY / scrollable : 0;
@@ -411,23 +435,60 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  /* ---------- Industries tag row: pure-CSS infinite marquee ----------
+     Same pause pattern as the gallery marquee above — pointerenter/leave
+     for mouse, touchstart/touchend for touch, never :hover, for the same
+     reason (a touch tap's lingering :hover would wedge it paused). */
+  const industriesTrack = document.getElementById('industriesTrack');
+  if (industriesTrack && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const pause = () => industriesTrack.classList.add('is-paused');
+    const resume = () => industriesTrack.classList.remove('is-paused');
+
+    industriesTrack.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') pause(); });
+    industriesTrack.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') resume(); });
+
+    let industriesTouchResumeTimer = null;
+    industriesTrack.addEventListener('touchstart', () => {
+      clearTimeout(industriesTouchResumeTimer);
+      pause();
+    }, { passive: true });
+    industriesTrack.addEventListener('touchend', () => {
+      clearTimeout(industriesTouchResumeTimer);
+      industriesTouchResumeTimer = setTimeout(resume, 1800);
+    }, { passive: true });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') resume();
+      else pause();
+    });
+  }
+
   /* ---------- Instant quote calculator ---------- */
   const estimateArea = document.getElementById('estimateArea');
+  const estimateService = document.getElementById('estimateService');
   const estimateOutput = document.getElementById('estimateOutput');
+  const estimateHT = document.getElementById('estimateHT');
+  const estimateVAT = document.getElementById('estimateVAT');
   const estimateCta = document.getElementById('estimateCta');
-  const RATE_PER_SQM = 5;
+  const estimatePdfBtn = document.getElementById('estimatePdfBtn');
+  const estimateClientName = document.getElementById('estimateClientName');
+  const RATE_PER_SQM_HT = 6;
+  const VAT_RATE = 0.20;
 
   if (estimateArea && estimateOutput) {
     const fmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
-    let displayed = 0;
-    let target = 0;
+    let displayedTTC = 0;
+    let targetHT = 0, targetVAT = 0, targetTTC = 0;
     let animating = false;
 
+    // Only the big TTC figure gets the lerp-in animation (matches the
+    // original single-number treatment) — HT/TVA are secondary line items,
+    // updated in lockstep with it on every input so nothing ever looks stale.
     const renderOutput = () => {
-      displayed += (target - displayed) * 0.18;
-      if (Math.abs(target - displayed) < 1) displayed = target;
-      estimateOutput.innerHTML = `${fmt.format(Math.round(displayed))}&nbsp;€`;
-      if (displayed !== target) {
+      displayedTTC += (targetTTC - displayedTTC) * 0.18;
+      if (Math.abs(targetTTC - displayedTTC) < 1) displayedTTC = targetTTC;
+      estimateOutput.innerHTML = `${fmt.format(Math.round(displayedTTC))}&nbsp;€`;
+      if (displayedTTC !== targetTTC) {
         requestAnimationFrame(renderOutput);
       } else {
         animating = false;
@@ -436,19 +497,208 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateEstimate = () => {
       const area = Math.max(0, parseFloat(estimateArea.value) || 0);
-      target = area * RATE_PER_SQM;
+      targetHT = area * RATE_PER_SQM_HT;
+      targetVAT = targetHT * VAT_RATE;
+      targetTTC = targetHT + targetVAT;
+      if (estimateHT) estimateHT.innerHTML = `${fmt.format(Math.round(targetHT))}&nbsp;€`;
+      if (estimateVAT) estimateVAT.innerHTML = `${fmt.format(Math.round(targetVAT))}&nbsp;€`;
       if (!animating) { animating = true; requestAnimationFrame(renderOutput); }
     };
 
     estimateArea.addEventListener('input', updateEstimate);
+    estimateService?.addEventListener('change', updateEstimate);
 
     if (estimateCta) {
       estimateCta.addEventListener('click', (e) => {
         e.preventDefault();
         const area = Math.max(0, parseFloat(estimateArea.value) || 0);
-        const price = area * RATE_PER_SQM;
-        const params = area > 0 ? `?area=${Math.round(area)}&budget=${Math.round(price)}` : '';
+        const service = estimateService ? estimateService.value : '';
+        const ht = area * RATE_PER_SQM_HT;
+        const ttc = ht * (1 + VAT_RATE);
+        const params = area > 0
+          ? `?area=${Math.round(area)}&ttc=${Math.round(ttc)}&service=${encodeURIComponent(service)}`
+          : '';
         window.location.href = `/contact${params}`;
+      });
+    }
+
+    /* ---------- PDF quote (jsPDF, loaded lazily) ----------
+       The library is only fetched on the visitor's first click of
+       "Télécharger le PDF" — nobody pays for it on page load, and most
+       visitors never click it at all. Same lazy-injection pattern as the
+       chat widget below, just gated on a click instead of window load. */
+    let jsPdfLoadPromise = null;
+    const loadJsPdf = () => {
+      if (window.jspdf?.jsPDF) return Promise.resolve();
+      if (!jsPdfLoadPromise) {
+        jsPdfLoadPromise = new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          s.onload = resolve;
+          s.onerror = () => reject(new Error('jsPDF failed to load'));
+          document.body.appendChild(s);
+        });
+      }
+      return jsPdfLoadPromise;
+    };
+
+    let cachedLogoDataUrl = null;
+    const loadLogoDataUrl = () => {
+      if (cachedLogoDataUrl) return Promise.resolve(cachedLogoDataUrl);
+      return fetch('/images/pdf/logo-pdf.png')
+        .then(r => r.blob())
+        .then(blob => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => { cachedLogoDataUrl = reader.result; resolve(cachedLogoDataUrl); };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        }))
+        .catch(() => null); // missing logo shouldn't block the quote itself
+    };
+
+    const slugifyForFilename = (str) => {
+      const cleaned = (str || '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+      return cleaned || 'Client';
+    };
+
+    if (estimatePdfBtn) {
+      estimatePdfBtn.addEventListener('click', async () => {
+        const area = Math.max(0, parseFloat(estimateArea.value) || 0);
+        if (area <= 0) { estimateArea.focus(); return; }
+
+        const originalLabel = estimatePdfBtn.textContent;
+        estimatePdfBtn.disabled = true;
+        estimatePdfBtn.textContent = 'Génération…';
+
+        try {
+          await loadJsPdf();
+          const { jsPDF } = window.jspdf;
+          const logoDataUrl = await loadLogoDataUrl();
+
+          const service = estimateService ? estimateService.value : 'Nettoyage par drone';
+          const ht = area * RATE_PER_SQM_HT;
+          const vat = ht * VAT_RATE;
+          const ttc = ht + vat;
+          const clientName = (estimateClientName?.value || '').trim();
+          const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+          const dateStr = dateFmt.format(new Date());
+          const validUntil = dateFmt.format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+          // jsPDF's standard fonts only cover WinAnsi — Intl.NumberFormat('fr-FR')
+          // groups thousands with a narrow no-break space (U+202F), which isn't in
+          // that encoding and renders as a stray "/" glyph. Swap it for a plain
+          // space so the PDF (this function only — the on-page display is HTML
+          // and renders U+202F correctly) shows "4 000" instead of "4/000".
+          const pdfSafe = (str) => str.replace(/[  ]/g, ' ');
+          const fmtArea = (n) => pdfSafe(new Intl.NumberFormat('fr-FR').format(n));
+          const fmt2 = (n) => pdfSafe(`${new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)} €`);
+
+          const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+          const pageWidth = doc.internal.pageSize.getWidth();
+          const marginX = 20;
+          let y = 20;
+
+          if (logoDataUrl) {
+            const logoW = 40, logoH = logoW * (270 / 480);
+            doc.addImage(logoDataUrl, 'PNG', (pageWidth - logoW) / 2, y, logoW, logoH);
+            y += logoH + 8;
+          }
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(18);
+          doc.setTextColor(20, 22, 27);
+          doc.text('Devis — Exadrone Enterprise', pageWidth / 2, y, { align: 'center' });
+
+          y += 9;
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          doc.setTextColor(90, 96, 105);
+          ['Exadrone Enterprise', '31 rue du Saint Gothard, 75014 Paris, France', 'contact@exadrone-enterprise.com · 07 70 02 21 72']
+            .forEach((line) => { doc.text(line, pageWidth / 2, y, { align: 'center' }); y += 5; });
+
+          y += 8;
+          doc.setDrawColor(220, 222, 227);
+          doc.line(marginX, y, pageWidth - marginX, y);
+          y += 12;
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.setTextColor(20, 22, 27);
+          doc.text('Détails du devis', marginX, y);
+          y += 9;
+
+          const rows = [
+            ['Date', dateStr],
+            ...(clientName ? [['Client', clientName]] : []),
+            ['Service', service],
+            ['Surface', `${fmtArea(area)} m²`],
+            ['Prix unitaire', `${RATE_PER_SQM_HT.toFixed(2)} € HT / m²`]
+          ];
+          doc.setFontSize(10.5);
+          rows.forEach(([label, value]) => {
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(60, 64, 70);
+            doc.text(`${label} :`, marginX, y);
+            doc.setFont('helvetica', 'normal');
+            doc.text(String(value), marginX + 45, y);
+            y += 7;
+          });
+
+          y += 5;
+          doc.setDrawColor(220, 222, 227);
+          doc.line(marginX, y, pageWidth - marginX, y);
+          y += 12;
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(11);
+          doc.setTextColor(60, 64, 70);
+          doc.text('Prix Hors Taxe (HT)', marginX, y);
+          doc.text(fmt2(ht), pageWidth - marginX, y, { align: 'right' });
+          y += 8;
+          doc.text('TVA 20%', marginX, y);
+          doc.text(fmt2(vat), pageWidth - marginX, y, { align: 'right' });
+          y += 10;
+
+          doc.setDrawColor(31, 111, 235);
+          doc.setLineWidth(0.6);
+          doc.line(marginX, y - 5, pageWidth - marginX, y - 5);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(14);
+          doc.setTextColor(31, 111, 235);
+          doc.text('PRIX TTC', marginX, y + 2);
+          doc.text(fmt2(ttc), pageWidth - marginX, y + 2, { align: 'right' });
+          doc.setLineWidth(0.2);
+
+          y += 20;
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(9);
+          doc.setTextColor(120, 126, 134);
+          doc.text(`Devis valable 30 jours, jusqu'au ${validUntil}. Tarif indicatif — devis ferme après étude du site.`, marginX, y, { maxWidth: pageWidth - marginX * 2 });
+
+          y += 22;
+          doc.setDrawColor(220, 222, 227);
+          doc.line(marginX, y, marginX + 60, y);
+          y += 6;
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          doc.setTextColor(60, 64, 70);
+          doc.text('Responsable : Chloé', marginX, y);
+          y += 5;
+          doc.setFontSize(9);
+          doc.setTextColor(120, 126, 134);
+          doc.text('Exadrone Enterprise', marginX, y);
+
+          const filename = `Devis_Exadrone_${slugifyForFilename(clientName)}_${new Date().toISOString().slice(0, 10)}.pdf`;
+          doc.save(filename);
+        } catch (err) {
+          console.error('PDF generation failed:', err);
+          alert('La génération du PDF a échoué — réessayez ou contactez-nous directement.');
+        } finally {
+          estimatePdfBtn.disabled = false;
+          estimatePdfBtn.textContent = originalLabel;
+        }
       });
     }
   }
@@ -503,14 +753,19 @@ document.addEventListener('DOMContentLoaded', () => {
   if (prefillNote) {
     const params = new URLSearchParams(window.location.search);
     const area = parseFloat(params.get('area'));
-    const budget = parseFloat(params.get('budget'));
+    // 'ttc' is the current param (post-VAT total); 'budget' kept as a fallback
+    // so any already-shared/bookmarked links from before the pricing update
+    // still prefill correctly instead of silently showing "undefined €".
+    const ttc = parseFloat(params.get('ttc') ?? params.get('budget'));
+    const service = params.get('service') || '';
     if (area > 0) {
       const fmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
+      const serviceLine = service ? `Service : ${service} — ` : '';
       const message = document.querySelector('#briefForm textarea[name="message"]');
       if (message) {
-        message.value = `Surface estimée : ${fmt.format(area)} m² — Budget estimé : ${fmt.format(budget)} €. Merci de m'envoyer une proposition PDF détaillée.`;
+        message.value = `${serviceLine}Surface estimée : ${fmt.format(area)} m² — Prix TTC estimé : ${fmt.format(ttc)} €. Merci de m'envoyer une proposition PDF détaillée.`;
       }
-      prefillNote.textContent = `Pré-rempli à partir de votre estimation instantanée : ${fmt.format(area)} m² · ${fmt.format(budget)} €`;
+      prefillNote.textContent = `Pré-rempli à partir de votre estimation instantanée : ${service ? service + ' · ' : ''}${fmt.format(area)} m² · ${fmt.format(ttc)} € TTC`;
       prefillNote.classList.add('is-visible');
     }
   }

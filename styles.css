@@ -78,6 +78,28 @@
    a page that doesn't scroll. */
 html { scroll-behavior: smooth; overflow-x: hidden; max-width: 100%; }
 
+/* ---------- Native cross-page view transitions ----------
+   Chromium-only progressive enhancement: opts every same-origin navigation
+   (including the plain <a href> links this multi-page site is built on)
+   into the browser's built-in cross-fade between the outgoing and incoming
+   document. No JS, no per-page wiring — browsers without support just
+   navigate exactly as before, so this can't break or flash anything. */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: .35s;
+  animation-timing-function: var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
 body {
   /* --scroll-bg is written by JS on scroll, interpolating between the dark
      palette stops below; the static var(--obsidian) is just the no-JS/initial
@@ -400,19 +422,32 @@ a, button, input, select, textarea { touch-action: manipulation; }
   text-transform: uppercase;
   padding: 16px 30px;
   border-radius: 100px;
-  transition: transform .35s var(--ease), background-color .3s, color .3s, border-color .3s;
+  transition: transform .35s var(--ease), background-color .3s, color .3s, border-color .3s, box-shadow .35s var(--ease);
 }
 .btn-primary {
   background: var(--paper);
   color: var(--obsidian);
 }
-.btn-primary:hover { transform: translateY(-2px); background: var(--signal); color: #fff; }
+.btn-primary:hover, .btn-primary:focus-visible {
+  transform: translateY(-2px) scale(1.03);
+  background: var(--signal);
+  color: #fff;
+  box-shadow: 0 14px 28px -10px rgba(31, 111, 235, 0.45);
+}
 .btn-ghost {
   border: 1px solid var(--line);
   color: var(--paper);
 }
-.btn-ghost:hover { transform: translateY(-2px); border-color: var(--paper); }
+.btn-ghost:hover, .btn-ghost:focus-visible {
+  transform: translateY(-2px) scale(1.03);
+  border-color: var(--paper);
+  box-shadow: 0 12px 24px -12px rgba(17, 21, 28, 0.25);
+}
 .btn-wide { width: 100%; padding: 18px; }
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary:hover, .btn-primary:focus-visible,
+  .btn-ghost:hover, .btn-ghost:focus-visible { transform: none; }
+}
 
 /* ============================================================
    BORDER BEAM — rotating conic-gradient light effect, electric blue.
@@ -482,8 +517,17 @@ a, button, input, select, textarea { touch-action: manipulation; }
   background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(12px) saturate(150%);
   -webkit-backdrop-filter: blur(12px) saturate(150%);
-  transition: background-color .4s var(--ease), backdrop-filter .4s, padding .3s var(--ease), border-color .4s, box-shadow .4s;
+  transition: background-color .4s var(--ease), backdrop-filter .4s, padding .3s var(--ease), border-color .4s, box-shadow .4s, transform .4s var(--ease);
   border-bottom: 1px solid var(--line-dark);
+}
+/* Hide-on-scroll-down / reveal-on-scroll-up — toggled in script.js off the
+   same decoupled scroll loop that already drives .scrolled, so this costs
+   one extra class check per frame rather than a new listener. Never
+   applied while the mobile drawer is open (see script.js). */
+.site-nav.nav-hidden { transform: translateY(-100%); }
+@media (prefers-reduced-motion: reduce) {
+  .site-nav { transition: background-color .4s, backdrop-filter .4s, border-color .4s, box-shadow .4s; }
+  .site-nav.nav-hidden { transform: none; }
 }
 .site-nav.scrolled {
   background: var(--slate-glass-strong);
@@ -1225,9 +1269,14 @@ a, button, input, select, textarea { touch-action: manipulation; }
   gap: 10px;
   border-bottom: 1px solid var(--line);
   padding-bottom: 14px;
-  transition: border-color .25s;
+  transition: border-color .25s, box-shadow .25s;
 }
-.estimate-input-wrap:focus-within { border-color: var(--signal); }
+/* Underline-style field (no box), so the "glow ring" is a soft shadow cast
+   under the baseline rather than a ring around the whole control. */
+.estimate-input-wrap:focus-within { border-color: var(--signal); box-shadow: 0 4px 16px -4px var(--signal-soft); }
+@media (prefers-reduced-motion: reduce) {
+  .estimate-input-wrap { transition: border-color .25s; }
+}
 .estimate-input-wrap input {
   background: none;
   border: none;
@@ -1254,6 +1303,27 @@ a, button, input, select, textarea { touch-action: manipulation; }
 .estimate-unit { font-family: var(--font-mono); font-weight: 600; color: var(--steel); font-size: 1.1rem; }
 .estimate-rate { font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; color: var(--signal); letter-spacing: 0.04em; }
 
+/* Service dropdown — underline style to match .estimate-input-wrap rather
+   than the boxed .cta-form select, since this card uses its own minimal
+   "label above, thin rule below" language throughout. */
+.estimate-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M6 9l6 6 6-6' stroke='%234c525c' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right center/14px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 24px 10px 0;
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color .25s, box-shadow .25s;
+}
+.estimate-select:focus { outline: none; border-color: var(--signal); box-shadow: 0 4px 16px -4px var(--signal-soft); }
+@media (prefers-reduced-motion: reduce) {
+  .estimate-select { transition: border-color .25s; }
+}
+
 .estimate-divider { width: 1px; align-self: stretch; background: var(--line); }
 
 .estimate-output-group { display: flex; flex-direction: column; gap: 18px; }
@@ -1272,7 +1342,52 @@ a, button, input, select, textarea { touch-action: manipulation; }
   letter-spacing: -0.01em;
   color: var(--cro-blue);
 }
-.estimate-output-group .btn { align-self: flex-start; }
+
+.estimate-breakdown { display: flex; flex-direction: column; gap: 4px; }
+.estimate-breakdown-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  color: var(--steel);
+}
+.estimate-breakdown-row span:last-child { color: var(--paper); font-weight: 600; }
+.estimate-breakdown-total {
+  align-items: flex-end;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.estimate-breakdown-total span:first-child {
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+.estimate-breakdown-total span:last-child { color: var(--cro-blue); }
+
+.estimate-name-input {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  transition: border-color .25s, box-shadow .25s;
+}
+.estimate-name-input::placeholder { color: var(--steel-dark); }
+.estimate-name-input:focus { outline: none; border-color: var(--signal); box-shadow: 0 4px 16px -4px var(--signal-soft); }
+@media (prefers-reduced-motion: reduce) {
+  .estimate-name-input { transition: border-color .25s; }
+}
+
+.estimate-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.estimate-actions .btn { flex: 0 0 auto; }
+#estimatePdfBtn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 @media (max-width: 980px) {
   .estimate-card { grid-template-columns: 1fr; }
@@ -1672,17 +1787,38 @@ a, button, input, select, textarea { touch-action: manipulation; }
   margin: 0 auto;
   text-align: center;
 }
+/* Pure-CSS infinite marquee — same duplicate-track technique as
+   .gallery-track: animating to exactly -50% on a track that's 2x one full
+   set wide always lands back on the start with no JS distance measurement
+   or reset-jump. Pause-on-hover/touch is wired in script.js (mirrors
+   #galleryTrack) rather than a :hover rule, since a touch tap can leave a
+   lingering :hover with nothing to clear it. */
+.industries-rail {
+  margin-top: 28px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 6%, black 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 6%, black 94%, transparent);
+}
 .industries-row {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-wrap: nowrap;
+  width: max-content;
   gap: 14px;
-  margin-top: 28px;
+  animation: industries-marquee 32s linear infinite;
+}
+.industries-row.is-paused { animation-play-state: paused; }
+@keyframes industries-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .industries-row { animation: none; flex-wrap: wrap; justify-content: center; width: auto; }
 }
 .industries-row span {
   font-family: var(--font-mono);
   font-size: 0.82rem;
   letter-spacing: 0.03em;
+  white-space: nowrap;
   padding: 10px 20px;
   background: var(--slate-glass);
   backdrop-filter: blur(16px) saturate(140%);
@@ -1736,7 +1872,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
   color: var(--paper);
   font-family: var(--font-body);
   font-size: 1rem; /* >=16px prevents iOS Safari auto-zoom on focus */
-  transition: border-color .25s;
+  transition: border-color .25s, box-shadow .25s;
   resize: vertical;
 }
 .cta-form input:focus,
@@ -1744,6 +1880,10 @@ a, button, input, select, textarea { touch-action: manipulation; }
 .cta-form textarea:focus {
   outline: none;
   border-color: var(--signal);
+  box-shadow: 0 0 0 4px var(--signal-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cta-form input, .cta-form select, .cta-form textarea { transition: border-color .25s; }
 }
 .cta-form input[aria-invalid="true"],
 .cta-form select[aria-invalid="true"],
@@ -1854,6 +1994,25 @@ a, button, input, select, textarea { touch-action: manipulation; }
     transition: transform .45s var(--ease); }
   .nav-links.open { transform: translateX(0); }
   .nav-links a { font-size: 1.1rem; }
+  /* Staggered entrance for the drawer's links — each waits on the drawer's
+     own .45s slide (see .nav-links transition above) plus a small per-item
+     offset, so the text follows the panel in rather than popping in at t=0
+     while the drawer is still sliding. */
+  .nav-links a {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity .35s var(--ease), transform .35s var(--ease);
+    transition-delay: 0s;
+  }
+  .nav-links.open a { opacity: 1; transform: translateY(0); }
+  .nav-links.open a:nth-child(1) { transition-delay: .12s; }
+  .nav-links.open a:nth-child(2) { transition-delay: .17s; }
+  .nav-links.open a:nth-child(3) { transition-delay: .22s; }
+  .nav-links.open a:nth-child(4) { transition-delay: .27s; }
+  .nav-links.open a:nth-child(5) { transition-delay: .32s; }
+  .nav-links.open a:nth-child(6) { transition-delay: .37s; }
+  .nav-links.open a:nth-child(7) { transition-delay: .42s; }
+  .nav-links.open a:nth-child(8) { transition-delay: .47s; }
   .nav-toggle { display: flex; z-index: 101; }
   .cap-grid { grid-template-columns: 1fr; }
   .timeline-item { grid-template-columns: 40px 1fr; gap: 18px; }
@@ -1861,6 +2020,10 @@ a, button, input, select, textarea { touch-action: manipulation; }
   .footer-inner { flex-direction: column; }
   .stat-strip-inner { grid-template-columns: 1fr 1fr; }
   .footer-meta { align-items: flex-start; }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  .nav-links, .nav-links a { transition: none; transition-delay: 0s; }
+  .nav-links a { opacity: 1; transform: none; }
 }
 
 /* Smallest phones (iPhone SE / mini, narrow Android) — extra typography restraint */
@@ -2180,14 +2343,16 @@ body:has(#cookieBanner.is-visible) .whatsapp-fab { bottom: 104px; }
 #reliability { contain-intrinsic-size: auto 800px; }
 .eco-section { contain-intrinsic-size: auto 800px; }
 .trust-section { contain-intrinsic-size: auto 250px; }
-.industries { contain-intrinsic-size: auto 400px; }
+/* Re-measured for the single-line marquee layout (was 400/520px when the
+   row could wrap to 2-3 lines of pills). */
+.industries { contain-intrinsic-size: auto 260px; }
 .cta-section { contain-intrinsic-size: auto 700px; }
 .site-footer { contain-intrinsic-size: auto 300px; }
 @media (max-width: 760px), (orientation: portrait) {
   #capabilities { contain-intrinsic-size: auto 1600px; }
   #process { contain-intrinsic-size: auto 1050px; }
   .trust-section { contain-intrinsic-size: auto 400px; }
-  .industries { contain-intrinsic-size: auto 520px; }
+  .industries { contain-intrinsic-size: auto 230px; }
   .cta-section { contain-intrinsic-size: auto 550px; }
   .site-footer { contain-intrinsic-size: auto 670px; }
 }

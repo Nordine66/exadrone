@@ -77,8 +77,8 @@ Contraintes SEO :
 - Mot-clé utilisé naturellement 4 à 6 fois dans le texte
 - Sous-titres H2 descriptifs et informatifs
 - Paragraphes courts (3-5 lignes max)
-- Mentionner au moins 2 services Exadrone (nettoyage façade, toiture, cartographie, thermographie, bardage) avec suggestion de liens internes vers les pages /renovation-facade.html et /collectivites-territoriales.html
-- Chiffres concrets : 5–6 €/m², surfaces 500–5000 m², réduction 30–50% vs échafaudage
+- Mentionner au moins 2 services Exadrone (nettoyage façade, toiture, bardage, panneaux solaires photovoltaïques, cartographie, thermographie) avec suggestion de liens internes vers les pages /renovation-facade.html et /collectivites-territoriales.html
+- Chiffres concrets : 6 €/m² HT (TVA 20% en sus), devis adapté à toute taille de projet, réduction 30–50% vs échafaudage
 
 Ton : expert technique, pédagogique, rassurant pour décideurs publics et privés.
 
