@@ -276,12 +276,42 @@ document.addEventListener('DOMContentLoaded', () => {
     for (let i = 0; i < HERO_FRAME_COUNT; i++) {
       const img = new Image();
       img.decoding = 'async';
+      heroImages.push(img);
+    }
+
+    // Fetch in bisected order (0, last, midpoint, quarter-points, ...)
+    // rather than strict 1→49 — on a slow connection the tail frames
+    // otherwise only start downloading once ~48 requests ahead of them
+    // finish, so the nearest-loaded-frame fallback above has nothing near
+    // the end to fall back to yet. Bisection gets *some* frame loaded
+    // across the whole range within the first handful of requests, so a
+    // scroll to the end quickly finds something close by even before
+    // every frame is in.
+    const loadOrder = [];
+    const queued = new Set();
+    const enqueue = (i) => { if (!queued.has(i)) { queued.add(i); loadOrder.push(i); } };
+    enqueue(0);
+    enqueue(HERO_FRAME_COUNT - 1);
+    let ranges = [[0, HERO_FRAME_COUNT - 1]];
+    while (ranges.length) {
+      const next = [];
+      for (const [lo, hi] of ranges) {
+        if (hi - lo <= 1) continue;
+        const mid = Math.floor((lo + hi) / 2);
+        enqueue(mid);
+        next.push([lo, mid], [mid, hi]);
+      }
+      ranges = next;
+    }
+    for (let i = 0; i < HERO_FRAME_COUNT; i++) enqueue(i);
+
+    loadOrder.forEach((i) => {
+      const img = heroImages[i];
       img.src = `/images/hero-frames/drone3d/drone3D_${String(i + 1).padStart(4, '0')}.jpg`;
       if (i === 0) {
         img.addEventListener('load', () => { sizeHeroCanvas(); drawHeroFrame(0, true); });
       }
-      heroImages.push(img);
-    }
+    });
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       // No scrub — land on one representative frame.
