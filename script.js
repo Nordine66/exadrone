@@ -305,13 +305,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     for (let i = 0; i < HERO_FRAME_COUNT; i++) enqueue(i);
 
-    loadOrder.forEach((i) => {
+    // Started with limited concurrency rather than all 49 at once — under
+    // a throttled connection, firing every request together just splits
+    // the same bandwidth 49 ways (HTTP/2 multiplexing shares it roughly
+    // evenly across in-flight streams), so *nothing* finishes any sooner
+    // than the last one. A small pool lets the earliest (bisection-
+    // priority) requests actually finish quickly instead of all of them
+    // limping along together.
+    const HERO_LOAD_CONCURRENCY = 6;
+    let heroLoadCursor = 0;
+    const startNextHeroLoad = () => {
+      if (heroLoadCursor >= loadOrder.length) return;
+      const i = loadOrder[heroLoadCursor++];
       const img = heroImages[i];
-      img.src = `/images/hero-frames/drone3d/drone3D_${String(i + 1).padStart(4, '0')}.jpg`;
+      img.addEventListener('load', startNextHeroLoad, { once: true });
+      img.addEventListener('error', startNextHeroLoad, { once: true });
       if (i === 0) {
         img.addEventListener('load', () => { sizeHeroCanvas(); drawHeroFrame(0, true); });
       }
-    });
+      img.src = `/images/hero-frames/drone3d/drone3D_${String(i + 1).padStart(4, '0')}.jpg`;
+    };
+    for (let c = 0; c < HERO_LOAD_CONCURRENCY; c++) startNextHeroLoad();
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       // No scrub — land on one representative frame.
