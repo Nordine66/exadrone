@@ -683,21 +683,25 @@ a, button, input, select, textarea { touch-action: manipulation; }
     radial-gradient(ellipse at 50% 45%, transparent 32%, rgba(10, 14, 20, 0.32) 100%);
 }
 
-/* ---------- Title, always visible, zero scroll required ----------
+/* ---------- Title block, always visible, zero scroll required ----------
    Sits just under the REC/specs row (which bottoms out around 127px, see
    .hud-rec/.hud-specs top:108px below) rather than centered — high in the
-   frame so it never sits over the drone itself, per the brief. */
-.cine-title {
+   frame so it never sits over the drone itself, per the brief. Wraps the
+   title plus the cycling keyword row directly beneath it so the two move
+   together as one block regardless of viewport width. */
+.cine-title-block {
   position: absolute;
   top: 148px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 4;
   width: 100%;
-  margin: 0;
   padding: 0 24px;
   text-align: center;
   pointer-events: none;
+}
+.cine-title {
+  margin: 0;
   font-family: var(--font-display);
   font-weight: 800;
   text-transform: uppercase;
@@ -710,23 +714,33 @@ a, button, input, select, textarea { touch-action: manipulation; }
 .cine-title .accent { color: #0067CC; }
 
 /* ============================================================
-   SIDE WORDS — the two symmetric word-pairs (Façade/Toiture, then
-   Bardage/Photovoltaïque). Positioned relative to .cine-stage (not the
-   narrower canvas), vertically centered, mirrored margins from the left/
-   right edge — the strict symmetry the brief asks for. Left/right start
-   just past the vertical HUD label strip (.hud-vertical, inset 22px) so
-   the two don't collide. Every visible property (opacity/filter/transform)
-   is written per-frame by script.js's updateSideWords rather than a CSS
-   transition — same "continuous, scroll-scrubbed" approach as the canvas
-   itself, so stopping mid-scroll shows a partially-materialized word, not
-   an all-or-nothing snap.
+   WORD ROW — the four service keywords (Façade, Toiture, Photovoltaïque,
+   Bardage) cycle through this one spot below the title, one at a time.
+   Each .cine-word is absolutely stacked on top of the row (inset: 0) so
+   they all share the exact same position — only ever one has non-zero
+   opacity at a time, so there is never a moment with two words visible
+   together, just a continuous handoff. Every visible property (opacity/
+   filter/transform) is written per-frame by script.js's updateSideWords
+   rather than a CSS transition — same "continuous, scroll-scrubbed"
+   approach as the canvas itself, so stopping mid-scroll shows a
+   partially-materialized word, not an all-or-nothing snap.
    ============================================================ */
-.cine-side-word {
+.cine-word-row {
+  position: relative;
+  margin: 14px auto 0;
+  width: 100%;
+  max-width: 640px;
+  height: 1.3em;
+  font-size: clamp(1.05rem, 2.5vw, 2rem);
+}
+.cine-word {
   position: absolute;
-  top: 50%;
-  z-index: 3;
-  max-width: 44%;
+  inset: 0;
   margin: 0;
+  display: block;
+  width: 100%;
+  font-size: inherit;
+  line-height: 1.3;
   /* Same font/weight/letter-spacing as the "EXADRONE ENTERPRISE" wordmark
      in the nav (see .nav-mark) — near-black rather than the HUD's light
      grey, since these sit in the least-vignetted, still-fairly-light
@@ -735,23 +749,16 @@ a, button, input, select, textarea { touch-action: manipulation; }
   font-family: var(--font-display);
   font-weight: 600;
   text-transform: uppercase;
-  line-height: 0.96;
   letter-spacing: 0.04em;
   color: var(--paper);
   text-shadow: 0 2px 24px rgba(255, 255, 255, 0.6), 0 1px 3px rgba(255, 255, 255, 0.5);
-  /* Same size for all four words — the size that used to be pair 2's
-     smaller variant (originally chosen so "Photovoltaïque" wouldn't
-     overrun the stage), now applied uniformly. */
-  font-size: clamp(1.125rem, 2.55vw, 2.4rem);
   opacity: 0;
   filter: blur(16px);
   pointer-events: none;
 }
-.cine-side-word-left { left: 56px; text-align: left; }
-.cine-side-word-right { right: 56px; text-align: right; }
 
 @media (prefers-reduced-motion: reduce) {
-  .cine-side-word { transition: none; }
+  .cine-word { transition: none; }
 }
 
 /* ============================================================
@@ -978,13 +985,9 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 @media (max-width: 760px) {
   /* Same "just under REC" rule as desktop — mobile REC/specs sit at
      top:90px with ~18px of content, so 116px clears them. */
-  .cine-title { font-size: clamp(1.5rem, 7.4vw, 2.3rem); top: 116px; padding: 0 16px; }
-  /* The vertical edge labels are hidden below (display:none) at this
-     width, so the side words can sit right at the edge instead of
-     clearing that strip like they do on desktop. */
-  .cine-side-word-left { left: 14px; }
-  .cine-side-word-right { right: 14px; }
-  .cine-side-word { max-width: 46%; font-size: clamp(0.735rem, 3.75vw, 1.125rem); }
+  .cine-title-block { top: 116px; padding: 0 16px; }
+  .cine-title { font-size: clamp(1.5rem, 7.4vw, 2.3rem); }
+  .cine-word-row { font-size: clamp(0.85rem, 4.4vw, 1.25rem); margin-top: 10px; }
   .hud-corner { width: 18px; height: 18px; }
   /* Mobile nav is shorter (~74px) than desktop but still fixed/opaque —
      same clearance fix as the desktop rules above, just a smaller offset. */
@@ -1308,27 +1311,66 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
    setup; this file only handles layout/paint.
 
    .action-pin is a plain native horizontally-scrollable row by default
-   (overflow-x + scroll-snap) — that's the whole story on mobile and under
-   prefers-reduced-motion. On desktop with motion allowed, script.js adds
-   .is-pinned-scroll once GSAP takes over: overflow switches to hidden and
-   scroll-snap is dropped, since the horizontal motion is then driven by
-   .action-track's transform instead of native scrolling.
+   (overflow-x + scroll-snap) — that's only ever the actual behavior under
+   prefers-reduced-motion, or if GSAP fails to load. Otherwise, on every
+   device, script.js adds .is-pinned-scroll once GSAP takes over: overflow
+   switches to hidden and scroll-snap is dropped, since the horizontal
+   motion is then driven by .action-track's transform instead of native
+   scrolling. .action-pin-kicker and .action-scroll-hint are absolutely
+   positioned overlays on top of that same box, so they stay put in the
+   same spot the whole time the cards glide past underneath — the "page
+   pauses, content moves" read.
    ============================================================ */
 .action-pin {
+  position: relative;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
   border-radius: 20px;
+  padding: clamp(20px, 3vw, 32px) 0;
 }
 .action-pin.is-pinned-scroll {
   overflow: hidden;
   scroll-snap-type: none;
 }
+.action-pin-kicker {
+  position: absolute;
+  top: clamp(4px, 1vw, 12px);
+  left: clamp(2px, 1vw, 10px);
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--steel-dark);
+  pointer-events: none;
+}
+.action-scroll-hint {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(-6px, -0.4vw, 2px);
+  z-index: 2;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--steel-dark);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: action-hint-nudge 2.6s var(--ease) infinite;
+}
+@keyframes action-hint-nudge {
+  0%, 100% { transform: translateX(-50%); }
+  50% { transform: translateX(calc(-50% + 6px)); }
+}
 .action-track {
   display: flex;
-  gap: clamp(16px, 2.2vw, 26px);
+  align-items: center;
+  gap: clamp(16px, 2.2vw, 28px);
   width: max-content;
+  padding-right: clamp(24px, 6vw, 72px);
   will-change: transform;
 }
 .action-card {
@@ -1336,67 +1378,64 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   isolation: isolate;
   flex: 0 0 auto;
   scroll-snap-align: start;
-  width: clamp(240px, 30vw, 400px);
-  aspect-ratio: 4 / 5;
-  border-radius: 20px;
+  width: clamp(300px, 46vw, 620px);
+  aspect-ratio: 4 / 3;
+  min-height: 320px;
+  border-radius: 24px;
   overflow: hidden;
   display: block;
   text-decoration: none;
-  /* Fallback fill until the real photos land in images/action/ — a flat
-     broken-image icon would look unfinished, this at least reads as
-     deliberate. */
+  /* Fallback fill in case a photo is ever missing — a flat broken-image
+     icon would look unfinished, this at least reads as deliberate. */
   background: linear-gradient(155deg, var(--panel-dark), #1a2230);
   box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 18px 36px -22px rgba(0,0,0,0.55);
   transition: transform .35s var(--ease);
 }
-.action-card:hover { transform: translateY(-3px); }
+.action-card:hover { transform: translateY(-4px); }
+.action-card picture { display: contents; }
 .action-card img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 38%;
   -webkit-user-drag: none;
   pointer-events: none;
 }
+/* Only darkens the lower slice of the photo — just enough for the title
+   + link to stay legible — so the photo itself stays the focal point
+   instead of getting buried under text, per the "on ne voit plus les
+   images" feedback that had this section carrying a numeral, a kicker,
+   a full description AND a divider on top of every image. */
 .action-card-scrim {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(180deg, rgba(10,14,20,0) 35%, rgba(10,14,20,0.82) 100%);
+  background: linear-gradient(180deg, rgba(10,14,20,0) 58%, rgba(10,14,20,0.38) 75%, rgba(10,14,20,0.85) 100%);
   pointer-events: none;
 }
-.action-index {
+.action-card-body {
   position: absolute;
-  top: 22px;
-  left: 24px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 2;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 1.05rem;
-  letter-spacing: 0.02em;
-  color: var(--cro-blue);
+  padding: clamp(18px, 2.4vw, 28px);
 }
 .action-card-title {
-  position: absolute;
-  left: 24px;
-  right: 24px;
-  bottom: 56px;
-  z-index: 2;
+  margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(1.2rem, 1.7vw, 1.5rem);
+  font-size: clamp(1.3rem, 2vw, 1.7rem);
   line-height: 1.15;
   color: #fbfbfc;
 }
 .action-card-link {
-  position: absolute;
-  left: 24px;
-  bottom: 22px;
-  z-index: 2;
   display: inline-flex;
+  margin-top: 10px;
   font-family: var(--font-mono);
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   letter-spacing: 0.02em;
   color: rgba(251, 251, 252, 0.82);
   transition: color .3s var(--ease), transform .3s var(--ease);
@@ -1405,6 +1444,9 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 @media (hover: none) {
   .action-card:hover { transform: none; }
   .action-card:hover .action-card-link { color: rgba(251, 251, 252, 0.82); transform: none; }
+}
+@media (max-width: 760px) {
+  .action-card { min-height: 260px; }
 }
 
 /* ---------- Sector cards (B2B audience grid, homepage) ---------- */
@@ -1501,7 +1543,15 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   isolation: isolate;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  /* minmax(0, 1fr), not a bare 1fr — a bare 1fr track's automatic minimum
+     is its content's min-content size, so it refuses to shrink below
+     that and instead grows the whole grid past the card's own edge the
+     moment any child holds an unbreakable string wider than the column
+     (exactly what the big TTC price is: one nbsp-joined run). That's how
+     the price was overflowing past the visible card, clipped invisible
+     by overflow:hidden above, on narrow phones. minmax(0, …) lets the
+     track actually shrink to the space available. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: clamp(28px, 5vw, 56px);
   background: var(--slate-glass);
@@ -1605,9 +1655,10 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 .estimate-breakdown { display: flex; flex-direction: column; gap: 4px; }
 .estimate-breakdown-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
+  gap: 4px 16px;
   font-family: var(--font-mono);
   font-size: 0.88rem;
   color: var(--steel);
@@ -1649,7 +1700,7 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 #estimatePdfBtn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 @media (max-width: 980px) {
-  .estimate-card { grid-template-columns: 1fr; }
+  .estimate-card { grid-template-columns: minmax(0, 1fr); }
   .estimate-divider { width: 100%; height: 1px; }
 }
 

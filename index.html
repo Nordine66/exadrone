@@ -26,7 +26,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="styles.css?v=20260727">
+<link rel="stylesheet" href="styles.css?v=20260729">
 <!-- First frame of the drone3D hero sequence — the actual LCP element now
      that the hook is a canvas frame-scrub instead of a background video
      (see .cine-canvas below and "Cinematic hero scrub" in script.js). -->
@@ -125,10 +125,11 @@
        #cineLoading before the scene is ever shown. The title is plain
        static markup (always full opacity, no scroll-gated reveal), sat
        just under the REC/specs line rather than centered so it never
-       covers the drone. The four .cine-side-word elements are the two
-       symmetric word-pairs (Façade/Toiture, then Bardage/Photovoltaïque)
-       that materialize from and dissolve back into a soft blur/mist as
-       the scrub crosses each pair's window — see updateSideWords in
+       covers the drone. Directly under it, .cine-word-row cycles through
+       the four service keywords (Façade → Toiture → Photovoltaïque →
+       Bardage) one at a time in that single spot — never two at once —
+       each materializing from and dissolving back into a soft blur/mist
+       as the scrub crosses its own window, see updateSideWords in
        script.js. The HUD chrome (#cineHud) is pointer-events:none and
        purely decorative except the sound button, which also unlocks/
        drives a synthesized drone engine (Web Audio, no audio file
@@ -144,17 +145,21 @@
       <canvas class="cine-canvas" id="cineCanvas" role="img" aria-label="Drone Exadrone en vol stationnaire, vue du dessus, séquence de nettoyage par drone"></canvas>
       <div class="cine-vignette" aria-hidden="true"></div>
 
-      <h1 class="cine-title">Nettoyage par <span class="accent">drone</span></h1>
+      <div class="cine-title-block">
+        <h1 class="cine-title">Nettoyage par <span class="accent">drone</span></h1>
 
-      <!-- Two word-pairs, perfectly symmetric left/right, materialize from
-           and dissolve back into a soft mist (blur+opacity+scale+drift —
-           see updateSideWords in script.js) as the scrub crosses each
-           pair's window. Never both fully visible at once; brief overlap
-           windows around 0.45-0.55 give the crossfade between them. -->
-      <div class="cine-side-word cine-side-word-left" id="wordFacade">Façade</div>
-      <div class="cine-side-word cine-side-word-right" id="wordToiture">Toiture</div>
-      <div class="cine-side-word cine-side-word-left" id="wordBardage">Bardage</div>
-      <div class="cine-side-word cine-side-word-right" id="wordPhotovoltaique">Photovoltaïque</div>
+        <!-- One word at a time, always in the same spot, never two
+             visible together: each materializes from and dissolves back
+             into a soft mist (blur+opacity+scale+drift — see
+             updateSideWords in script.js) as the scrub crosses its own
+             window, then the next takes its place. Same size throughout. -->
+        <div class="cine-word-row">
+          <span class="cine-word" id="wordFacade">Façade</span>
+          <span class="cine-word" id="wordToiture">Toiture</span>
+          <span class="cine-word" id="wordPhotovoltaique">Photovoltaïque</span>
+          <span class="cine-word" id="wordBardage">Bardage</span>
+        </div>
+      </div>
 
       <div class="cine-hud" id="cineHud" aria-hidden="true">
         <div class="hud-grid"></div>
@@ -310,22 +315,19 @@
 
   <!-- LE DRONE SUR LE TERRAIN — merges the old "En Intervention" gallery and
        "Capacités" grid into one GSAP ScrollTrigger horizontal-scroll
-       section: on desktop, with motion allowed, the section pins and
+       section, styled after a pinned "flip through titled photos" scrub:
+       the section pins (on every device, not just desktop) and
        .action-track translates right-to-left as the page scrolls
-       vertically (see script.js "Action cards horizontal scroll"); on
-       mobile and under prefers-reduced-motion it's a plain native-swipe
+       vertically (see script.js "Action cards horizontal scroll") — the
+       page itself holds still while the cards do the moving; once all
+       five have gone by, the pin releases and the scroll carries straight
+       on into "Solutions par secteur". Only under prefers-reduced-motion
+       (or if GSAP fails to load) does it fall back to a plain native-swipe
        horizontally scrollable row instead — no pin, no JS, just
        overflow-x + scroll-snap.
        id="capabilities" is kept (not "gallery") because every other page's
        nav/footer link to index.html#capabilities — renaming it would
-       break every one of those links.
-       PLACEHOLDER CONTENT: the 5 cards below stand in for the 5 titled
-       photos you're going to drop into images/action/ (action-01.jpg …
-       action-05.jpg) — titles/links are drawn from the site's own real
-       service categories (the same four the old gallery + capabilities
-       sections already covered) so the section works end-to-end today,
-       but re-check both the titles and the blog links once your actual
-       photos replace them, they may suggest a different pairing. -->
+       break every one of those links. -->
   <section class="section action-section" id="capabilities">
     <div class="section-head">
       <p class="eyebrow reveal" data-reveal>En Intervention</p>
@@ -341,47 +343,65 @@
          moment the section scrolls into view, before the horizontal
          scroll ever reveals them. -->
     <div class="action-pin">
+      <span class="action-pin-kicker">5 chantiers types</span>
       <div class="action-track" id="actionTrack">
         <a href="/blog/nettoyage-facade-par-drone-avantages-cout.html" class="action-card" data-cursor="link">
-          <img src="images/action/action-01.jpg" alt="" loading="lazy" decoding="async">
+          <picture>
+            <source type="image/webp" srcset="images/action/action-facade.webp">
+            <img src="images/action/action-facade.jpg" alt="Drone Exadrone en train de nettoyer la façade en pierre d'une maison" loading="lazy" decoding="async">
+          </picture>
           <span class="action-card-scrim" aria-hidden="true"></span>
-          <span class="action-index">01</span>
-          <h3 class="action-card-title">Nettoyage de Façade</h3>
-          <span class="action-card-link">Lire l'article →</span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Nettoyage de Façade</h3>
+            <span class="action-card-link">Lire l'article →</span>
+          </div>
         </a>
         <a href="/blog/nettoyage-toiture-par-drone-avantages.html" class="action-card" data-cursor="link">
-          <img src="images/action/action-02.jpg" alt="" loading="lazy" decoding="async">
+          <picture>
+            <source type="image/webp" srcset="images/action/action-toiture.webp">
+            <img src="images/action/action-toiture.jpg" alt="Drone Exadrone nettoyant une toiture en ardoise couverte de mousse" loading="lazy" decoding="async">
+          </picture>
           <span class="action-card-scrim" aria-hidden="true"></span>
-          <span class="action-index">02</span>
-          <h3 class="action-card-title">Nettoyage de Toiture</h3>
-          <span class="action-card-link">Lire l'article →</span>
-        </a>
-        <a href="/blog/bardage-par-drone.html" class="action-card" data-cursor="link">
-          <img src="images/action/action-03.jpg" alt="" loading="lazy" decoding="async">
-          <span class="action-card-scrim" aria-hidden="true"></span>
-          <span class="action-index">03</span>
-          <h3 class="action-card-title">Bardage &amp; Revêtements</h3>
-          <span class="action-card-link">Lire l'article →</span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Nettoyage de Toiture</h3>
+            <span class="action-card-link">Lire l'article →</span>
+          </div>
         </a>
         <a href="/blog/nettoyage-panneaux-solaires-par-drone.html" class="action-card" data-cursor="link">
-          <img src="images/action/action-04.jpg" alt="" loading="lazy" decoding="async">
+          <picture>
+            <source type="image/webp" srcset="images/action/action-photovoltaique.webp">
+            <img src="images/action/action-photovoltaique.jpg" alt="Drone Exadrone nettoyant une centrale de panneaux photovoltaïques" loading="lazy" decoding="async">
+          </picture>
           <span class="action-card-scrim" aria-hidden="true"></span>
-          <span class="action-index">04</span>
-          <h3 class="action-card-title">Panneaux Photovoltaïques</h3>
-          <span class="action-card-link">Lire l'article →</span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Panneaux Photovoltaïques</h3>
+            <span class="action-card-link">Lire l'article →</span>
+          </div>
         </a>
-        <!-- TODO: vérifier l'URL — inspection-toiture-par-drone.html choisi
-             comme le plus représentatif, mais cartographie-par-drone-
-             batiment.html ou photogrammetrie-par-drone.html conviendraient
-             peut-être mieux selon ce que montre la 5e photo réelle. -->
-        <a href="/blog/inspection-toiture-par-drone.html" class="action-card" data-cursor="link">
-          <img src="images/action/action-05.jpg" alt="" loading="lazy" decoding="async">
+        <a href="/blog/bardage-par-drone.html" class="action-card" data-cursor="link">
+          <picture>
+            <source type="image/webp" srcset="images/action/action-bardage.webp">
+            <img src="images/action/action-bardage.jpg" alt="Drone Exadrone nettoyant un bardage métallique sombre" loading="lazy" decoding="async">
+          </picture>
           <span class="action-card-scrim" aria-hidden="true"></span>
-          <span class="action-index">05</span>
-          <h3 class="action-card-title">Inspection &amp; Cartographie</h3>
-          <span class="action-card-link">Lire l'article →</span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Bardage &amp; Revêtements</h3>
+            <span class="action-card-link">Lire l'article →</span>
+          </div>
+        </a>
+        <a href="/blog/drone-vs-nacelle-echafaudage-comparatif-couts-securite.html" class="action-card" data-cursor="link">
+          <picture>
+            <source type="image/webp" srcset="images/action/action-vitre.webp">
+            <img src="images/action/action-vitre.jpg" alt="Drone Exadrone nettoyant la façade vitrée d'une tour de bureaux" loading="lazy" decoding="async">
+          </picture>
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Vitrages en Hauteur</h3>
+            <span class="action-card-link">Lire l'article →</span>
+          </div>
         </a>
       </div>
+      <span class="action-scroll-hint">Faites défiler pour découvrir →</span>
     </div>
   </section>
 
@@ -821,7 +841,7 @@
      runs them in this same order once parsing finishes. script.js already
      wraps everything in a DOMContentLoaded listener, so execution timing
      relative to the rest of the page is unchanged. -->
-<script src="script.js?v=20260727" defer></script>
+<script src="script.js?v=20260729" defer></script>
 <!-- Chat widget: loaded after page is interactive, zero impact on LCP/FID -->
 <script>
   window.addEventListener('load', function() {

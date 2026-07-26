@@ -382,14 +382,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const hudAudioBars = document.getElementById('hudAudioBars');
     const hudMuteBtn = document.getElementById('hudMuteBtn');
 
-    // Four acts, sharing their boundaries exactly with the side-word pairs
-    // below (Aperçu → Façade/Toiture → Bardage/Photovoltaïque → the drone
-    // touching down) rather than an even split — one coherent timeline
-    // instead of two that drift out of sync with each other.
+    // Five acts, sharing their boundaries exactly with the sequential
+    // word-cycle below (Façade → Toiture → Photovoltaïque → Bardage → the
+    // drone touching down) rather than an even split — one coherent
+    // timeline instead of two that drift out of sync with each other.
     const CINE_PHASES = [
-      { label: 'Aperçu', from: 0 },
-      { label: 'Façade · Toiture', from: 0.05 },
-      { label: 'Bardage · Photovoltaïque', from: 0.5 },
+      { label: 'Façade', from: 0 },
+      { label: 'Toiture', from: 0.20 },
+      { label: 'Photovoltaïque', from: 0.45 },
+      { label: 'Bardage', from: 0.70 },
       { label: 'Atterrissage', from: 0.95 },
     ];
     const getPhaseIndex = (progress) => {
@@ -415,45 +416,55 @@ document.addEventListener('DOMContentLoaded', () => {
       return `${pad(hh)}:${pad(mm)}:${pad(ss)}:${pad(ff)}`;
     };
 
-    /* ---------- Side words (Façade/Toiture, then Bardage/Photovoltaïque) ----------
-       Two pairs, perfectly symmetric left/right (see .cine-side-word in
-       styles.css), each materializing from and dissolving back into a
-       soft blur/mist as the scrub crosses its own window. Driven
-       continuously by scroll progress — inline styles set every frame,
-       not a CSS transition — so stopping mid-scroll shows a partially-
-       formed word, never an all-or-nothing snap. The particle-dissolve
-       the brief's brief describes as the ideal is a real perf/robustness
-       gamble (a second canvas or dozens of per-letter fragment nodes just
-       for a hero background flourish); this is the "elegant fallback" it
-       explicitly sanctions instead — blur + opacity + a touch of scale and
-       horizontal drift, entirely transform/opacity/filter so it stays
-       compositor-friendly at 60fps. */
+    /* ---------- Word cycle (Façade → Toiture → Photovoltaïque → Bardage) ----------
+       One word at a time, all stacked in the exact same spot below the
+       title (see .cine-word-row in styles.css) — each rises out of a soft
+       mist into place, holds, then continues rising as it dissolves back
+       into the mist above, and only then does the next word begin
+       materializing. The windows below never overlap (each exitEnd <=
+       the next entry's enterStart), so there is no instant with two words
+       at non-zero opacity. Driven continuously by scroll progress —
+       inline styles set every frame, not a CSS transition — so stopping
+       mid-scroll shows a partially-formed word, never an all-or-nothing
+       snap. Blur + opacity + a touch of scale/vertical drift, entirely
+       transform/opacity/filter so it stays compositor-friendly at 60fps. */
     const cineSideWords = [
-      { el: document.getElementById('wordFacade'), side: -1, enterStart: 0, enterEnd: 0.05, exitStart: 0.45, exitEnd: 0.55 },
-      { el: document.getElementById('wordToiture'), side: 1, enterStart: 0, enterEnd: 0.05, exitStart: 0.45, exitEnd: 0.55 },
-      { el: document.getElementById('wordBardage'), side: -1, enterStart: 0.45, enterEnd: 0.55, exitStart: 0.95, exitEnd: 1 },
-      { el: document.getElementById('wordPhotovoltaique'), side: 1, enterStart: 0.45, enterEnd: 0.55, exitStart: 0.95, exitEnd: 1 },
+      { el: document.getElementById('wordFacade'), enterStart: 0, enterEnd: 0.035, exitStart: 0.165, exitEnd: 0.20 },
+      { el: document.getElementById('wordToiture'), enterStart: 0.20, enterEnd: 0.235, exitStart: 0.415, exitEnd: 0.45 },
+      { el: document.getElementById('wordPhotovoltaique'), enterStart: 0.45, enterEnd: 0.485, exitStart: 0.665, exitEnd: 0.70 },
+      { el: document.getElementById('wordBardage'), enterStart: 0.70, enterEnd: 0.735, exitStart: 0.915, exitEnd: 0.95 },
     ].filter((w) => w.el);
-    const SIDE_WORD_BLUR_PX = 16;
-    const SIDE_WORD_SLIDE_PX = 40;
+    const SIDE_WORD_BLUR_PX = 14;
+    const SIDE_WORD_DRIFT_PX = 18;
     let cineSideWordsEverActive = false;
 
     const updateSideWords = (progress) => {
       let anyActive = false;
-      cineSideWords.forEach(({ el, side, enterStart, enterEnd, exitStart, exitEnd }) => {
-        let t;
-        if (progress <= enterStart) t = 0;
-        else if (progress < enterEnd) t = (progress - enterStart) / (enterEnd - enterStart);
-        else if (progress < exitStart) t = 1;
-        else if (progress < exitEnd) t = 1 - (progress - exitStart) / (exitEnd - exitStart);
-        else t = 0;
-        // easeOutCubic — condenses out of the mist quickly then settles,
-        // and disperses back into it the same way in reverse.
-        const eased = 1 - Math.pow(1 - t, 3);
-        if (t > 0) anyActive = true;
+      cineSideWords.forEach(({ el, enterStart, enterEnd, exitStart, exitEnd }) => {
+        let eased, driftPx;
+        if (progress <= enterStart) {
+          eased = 0; driftPx = SIDE_WORD_DRIFT_PX;
+        } else if (progress < enterEnd) {
+          // easeOutCubic rising in from below — condenses out of the mist
+          // quickly then settles into place.
+          const t = (progress - enterStart) / (enterEnd - enterStart);
+          eased = 1 - Math.pow(1 - t, 3);
+          driftPx = (1 - eased) * SIDE_WORD_DRIFT_PX;
+        } else if (progress < exitStart) {
+          eased = 1; driftPx = 0;
+        } else if (progress < exitEnd) {
+          // easeInCubic dissolving back out, continuing the same upward
+          // drift rather than reversing it — one continuous motion.
+          const t = (progress - exitStart) / (exitEnd - exitStart);
+          eased = Math.pow(1 - t, 3);
+          driftPx = -t * SIDE_WORD_DRIFT_PX;
+        } else {
+          eased = 0; driftPx = -SIDE_WORD_DRIFT_PX;
+        }
+        if (eased > 0) anyActive = true;
         el.style.opacity = eased.toFixed(3);
         el.style.filter = `blur(${((1 - eased) * SIDE_WORD_BLUR_PX).toFixed(2)}px)`;
-        el.style.transform = `translateY(-50%) translateX(${(side * (1 - eased) * SIDE_WORD_SLIDE_PX).toFixed(2)}px) scale(${(0.92 + eased * 0.08).toFixed(3)}) translateZ(0)`;
+        el.style.transform = `translateY(${driftPx.toFixed(2)}px) scale(${(0.94 + eased * 0.06).toFixed(3)}) translateZ(0)`;
       });
       if (!cineSideWordsEverActive && anyActive) {
         cineSideWordsEverActive = true;
@@ -673,6 +684,26 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       cineScrubTick = () => {
         const rect = cineHero.getBoundingClientRect();
+        // Once the whole hero (sticky stage included) has scrolled out
+        // above the viewport there's nothing left to draw — and,
+        // critically, cut the engine sound immediately rather than let it
+        // coast on whatever gain it last held. Web Audio nodes don't stop
+        // themselves just because nobody's looking at the canvas anymore;
+        // hearing the drone hum on into later sections read as a bug, not
+        // ambience, so this is a hard, instant cut (setValueAtTime), not
+        // the usual gentle setTargetAtTime decay. Scrolling back up into
+        // the hero resumes normally next frame — only droneGain/noiseGain
+        // are touched here, not the mute button's own masterGain.
+        if (rect.bottom <= 0) {
+          if (audioCtx && droneNodes) {
+            const now = audioCtx.currentTime;
+            droneNodes.droneGain.gain.cancelScheduledValues(now);
+            droneNodes.droneGain.gain.setValueAtTime(0, now);
+            droneNodes.noiseGain.gain.cancelScheduledValues(now);
+            droneNodes.noiseGain.gain.setValueAtTime(0, now);
+          }
+          return;
+        }
         const scrollable = rect.height - window.innerHeight;
         const progress = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0;
         const frameIndex = Math.round(progress * (CINE_TOTAL_FRAMES - 1));
@@ -849,22 +880,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ---------- Action cards horizontal scroll ("Le drone, sur le terrain") ----------
      Merges the old gallery marquee + capabilities grid into one GSAP
-     ScrollTrigger horizontal pin. On desktop, with motion allowed, the
-     section pins near the top of the viewport — start:'top 90px', not
+     ScrollTrigger horizontal pin — the whole point being that the page
+     holds still and the cards do the scrolling for you, on every device:
+     the section pins near the top of the viewport — start:'top 90px', not
      'top top', leaves clearance for the fixed nav bar (the same nav-
      collision lesson learned the hard way on the cine-hero's HUD, see
      "Cinematic hero scrub" above) — and .action-track translates left by
      exactly its own overflow width while the user scrolls vertically
-     through the pin's scroll distance. Everywhere else (mobile,
-     prefers-reduced-motion, or GSAP failing to load off the CDN) it's
-     just .action-pin's own native overflow-x:auto from styles.css — no
-     JS at all, plain touch/trackpad swipe. */
+     through the pin's scroll distance; once the track is fully scrolled,
+     the pin releases and normal vertical scroll carries straight on into
+     "Solutions par secteur". Only under prefers-reduced-motion (or if
+     GSAP fails to load off the CDN) does it fall back to .action-pin's
+     own native overflow-x:auto from styles.css — plain touch/trackpad
+     swipe, no JS at all. pinType:'transform' rather than the default
+     'fixed' keeps this stable on mobile browsers whose address bar
+     resizes the viewport mid-scroll. */
   const actionPin = document.querySelector('.action-pin');
   const actionTrack = document.getElementById('actionTrack');
   if (actionPin && actionTrack && window.gsap && window.ScrollTrigger) {
     gsap.registerPlugin(ScrollTrigger);
     ScrollTrigger.matchMedia({
-      '(min-width: 761px) and (prefers-reduced-motion: no-preference)': function () {
+      '(prefers-reduced-motion: no-preference)': function () {
         actionPin.classList.add('is-pinned-scroll');
         const getScrollDistance = () => Math.max(0, actionTrack.scrollWidth - actionPin.offsetWidth);
         const tween = gsap.to(actionTrack, {
@@ -874,8 +910,9 @@ document.addEventListener('DOMContentLoaded', () => {
             trigger: actionPin,
             start: 'top 90px',
             end: () => `+=${getScrollDistance()}`,
-            scrub: 0.3,
+            scrub: 0.5,
             pin: true,
+            pinType: 'transform',
             anticipatePin: 1,
             invalidateOnRefresh: true,
           },
@@ -939,6 +976,31 @@ document.addEventListener('DOMContentLoaded', () => {
     let targetHT = 0, targetVAT = 0, targetTTC = 0;
     let animating = false;
 
+    // Auto-shrink-to-fit for the big TTC figure — a fixed clamp() alone
+    // can't guarantee it always fits: the formatted price (thousand
+    // separator included) is one unbreakable string, so on a large surface
+    // typed into a narrow phone the row can't wrap or shrink it on its
+    // own, and it was overflowing right past the card's edge (clipped by
+    // .estimate-card's overflow:hidden — invisible, not just tight).
+    // Resets to the CSS clamp() size first, then steps the font down in
+    // 1px increments only if it's still wider than the space actually
+    // left next to the "Prix TTC" label, so normal-sized totals keep
+    // their full designed size untouched.
+    const fitEstimateOutput = () => {
+      const row = estimateOutput.closest('.estimate-breakdown-total');
+      const label = row && row.querySelector('span:first-child');
+      if (!row || !label) return;
+      estimateOutput.style.fontSize = '';
+      const available = row.clientWidth - label.getBoundingClientRect().width - 16;
+      let size = parseFloat(getComputedStyle(estimateOutput).fontSize);
+      let guard = 0;
+      while (estimateOutput.scrollWidth > available && size > 15 && guard < 40) {
+        size -= 1;
+        estimateOutput.style.fontSize = `${size}px`;
+        guard++;
+      }
+    };
+
     // Only the big TTC figure gets the lerp-in animation (matches the
     // original single-number treatment) — HT/TVA are secondary line items,
     // updated in lockstep with it on every input so nothing ever looks stale.
@@ -946,6 +1008,7 @@ document.addEventListener('DOMContentLoaded', () => {
       displayedTTC += (targetTTC - displayedTTC) * 0.18;
       if (Math.abs(targetTTC - displayedTTC) < 1) displayedTTC = targetTTC;
       estimateOutput.innerHTML = `${fmt.format(Math.round(displayedTTC))}&nbsp;€`;
+      fitEstimateOutput();
       if (displayedTTC !== targetTTC) {
         requestAnimationFrame(renderOutput);
       } else {
@@ -965,6 +1028,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     estimateArea.addEventListener('input', updateEstimate);
     estimateService?.addEventListener('change', updateEstimate);
+    // Available width next to the label changes with orientation/resize —
+    // re-fit (never re-animate) so a phone rotated mid-session doesn't get
+    // stuck with a stale font size sized for the old width.
+    window.addEventListener('resize', fitEstimateOutput, { passive: true });
 
     if (estimateCta) {
       estimateCta.addEventListener('click', (e) => {
