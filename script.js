@@ -178,19 +178,20 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastRawScrollY = targetScrollY;
   let navHideAccum = 0;
 
-  // Assigned further down (see "Hero video scrub") once the drone3D canvas
-  // exists — reading it here rather than adding a second rAF loop, per the
-  // note above about not duplicating the pinned-canvas scrub's own ticker.
-  // Safe to reference before assignment: this function's *body* only runs
-  // on the next animation frame, by which point the whole synchronous
-  // DOMContentLoaded callback (including the assignment below) has run.
-  let heroScrubTick = null;
+  // Assigned further down (see "Cinematic hero scrub") once the drone3D
+  // canvas exists — reading it here rather than adding a second rAF loop,
+  // per the note above about not duplicating the pinned-canvas scrub's own
+  // ticker. Safe to reference before assignment: this function's *body*
+  // only runs on the next animation frame, by which point the whole
+  // synchronous DOMContentLoaded callback (including the assignment below)
+  // has run.
+  let cineScrubTick = null;
 
   const scrollTick = () => {
     currentScrollY += (targetScrollY - currentScrollY) * 0.25;
     if (Math.abs(targetScrollY - currentScrollY) < 0.05) currentScrollY = targetScrollY;
 
-    if (heroScrubTick) heroScrubTick();
+    if (cineScrubTick) cineScrubTick();
 
     nav.classList.toggle('scrolled', currentScrollY > 40);
 
@@ -219,80 +220,101 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   requestAnimationFrame(scrollTick);
 
-  /* ---------- Hero video scrub (drone3D) ----------
-     145 pre-rendered frames stand in for a real <video> because scroll-
+  /* ---------- Cinematic hero scrub (drone3D flip-book + camera HUD) ----------
+     49 pre-rendered frames stand in for a real <video> because scroll-
      scrubbing needs frame-accurate random access a <video> element can't
      give (seeking is async and throttled). The section is pinned
-     (position: sticky, see .hero-video-scroll/.hero-video-container in
-     styles.css) on every viewport size, and the frame shown tracks scroll
-     progress through that pinned track — computed in heroScrubTick,
-     called from the shared scrollTick loop above rather than a second
-     listener/rAF. Only the pinned track's height and the column-vs-row
-     layout change at the 760px breakpoint (shorter track, stacked
-     composition) — the scrub math itself is identical everywhere. */
-  const heroCanvas = document.getElementById('heroCanvas');
-  const heroSection = document.querySelector('.hero-video-scroll');
-  if (heroCanvas && heroSection) {
-    const HERO_FRAME_COUNT = 49;
-    const heroCtx = heroCanvas.getContext('2d');
-    const heroImages = [];
-    let heroLastDrawn = -1;
+     (position: sticky, see .cine-hero/.cine-stage in styles.css) on every
+     viewport size, and the frame shown tracks scroll progress through
+     that pinned 400vh track — computed in cineScrubTick, called from the
+     shared scrollTick loop above rather than a second listener/rAF.
+     Unlike the old boxed portrait clip, the canvas here is full-bleed
+     (100vw x 100vh) and each frame is drawn in "cover" mode (cropped to
+     the viewport's aspect ratio) — see drawCover. All 49 frames are
+     preloaded into memory behind the #cineLoading screen before the
+     scene is revealed at all; there's no progressive/partial reveal this
+     time, per the brief. */
+  const cineCanvas = document.getElementById('cineCanvas');
+  const cineHero = document.querySelector('.cine-hero');
+  if (cineCanvas && cineHero) {
+    const CINE_TOTAL_FRAMES = 49;
+    const cineCtx = cineCanvas.getContext('2d');
+    const cineImages = [];
+    let cineLastDrawn = -1;
 
     const isReady = (img) => img && img.complete && img.naturalWidth;
 
-    const drawHeroFrame = (index, force) => {
+    // Emulates CSS object-fit:cover via the 9-arg drawImage form: crops
+    // the source frame to the canvas's own aspect ratio instead of
+    // stretching it, so the (portrait) source footage always fills the
+    // (usually landscape, on desktop) viewport with no distortion.
+    const drawCover = (img) => {
+      const cw = cineCanvas.width, ch = cineCanvas.height;
+      const ir = img.naturalWidth / img.naturalHeight;
+      const cr = cw / ch;
+      let sx, sy, sw, sh;
+      if (ir > cr) {
+        sh = img.naturalHeight;
+        sw = sh * cr;
+        sy = 0;
+        sx = (img.naturalWidth - sw) / 2;
+      } else {
+        sw = img.naturalWidth;
+        sh = sw / cr;
+        sx = 0;
+        sy = (img.naturalHeight - sh) / 2;
+      }
+      cineCtx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+    };
+
+    const drawCineFrame = (index, force) => {
       let target = index;
-      if (!isReady(heroImages[target])) {
-        // The exact requested frame hasn't finished downloading yet (can
-        // happen on slower connections right after landing on the page,
-        // before all frames arrive) — rather than freezing on whatever
-        // was drawn last, show the nearest frame that HAS loaded so the
-        // sequence still visibly keeps pace with scroll and catches up
-        // to the exact frame once it's in.
+      if (!isReady(cineImages[target])) {
+        // Shouldn't normally happen (the whole point of the preload gate
+        // below is that every frame is already in memory before the scene
+        // is shown) — kept as a defensive fallback for a single dropped
+        // frame (e.g. one flaky request) rather than freezing on nothing.
         let lo = target - 1, hi = target + 1;
-        while (lo >= 0 || hi < HERO_FRAME_COUNT) {
-          if (lo >= 0 && isReady(heroImages[lo])) { target = lo; break; }
-          if (hi < HERO_FRAME_COUNT && isReady(heroImages[hi])) { target = hi; break; }
+        while (lo >= 0 || hi < CINE_TOTAL_FRAMES) {
+          if (lo >= 0 && isReady(cineImages[lo])) { target = lo; break; }
+          if (hi < CINE_TOTAL_FRAMES && isReady(cineImages[hi])) { target = hi; break; }
           lo--; hi++;
         }
       }
-      const img = heroImages[target];
+      const img = cineImages[target];
       if (!isReady(img)) return;
-      if (!force && target === heroLastDrawn) return;
-      heroLastDrawn = target;
-      heroCtx.drawImage(img, 0, 0, heroCanvas.width, heroCanvas.height);
+      if (!force && target === cineLastDrawn) return;
+      cineLastDrawn = target;
+      drawCover(img);
     };
 
-    const sizeHeroCanvas = () => {
+    const sizeCineCanvas = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const rect = heroCanvas.getBoundingClientRect();
-      if (rect.width < 1 || rect.height < 1) return;
-      heroCanvas.width = Math.round(rect.width * dpr);
-      heroCanvas.height = Math.round(rect.height * dpr);
-      drawHeroFrame(Math.max(heroLastDrawn, 0), true);
+      cineCanvas.width = Math.round(window.innerWidth * dpr);
+      cineCanvas.height = Math.round(window.innerHeight * dpr);
+      drawCineFrame(Math.max(cineLastDrawn, 0), true);
     };
-    window.addEventListener('resize', sizeHeroCanvas);
+    window.addEventListener('resize', sizeCineCanvas);
+    sizeCineCanvas();
 
-    for (let i = 0; i < HERO_FRAME_COUNT; i++) {
+    for (let i = 0; i < CINE_TOTAL_FRAMES; i++) {
       const img = new Image();
       img.decoding = 'async';
-      heroImages.push(img);
+      cineImages.push(img);
     }
 
     // Fetch in bisected order (0, last, midpoint, quarter-points, ...)
-    // rather than strict 1→49 — on a slow connection the tail frames
-    // otherwise only start downloading once ~48 requests ahead of them
-    // finish, so the nearest-loaded-frame fallback above has nothing near
-    // the end to fall back to yet. Bisection gets *some* frame loaded
-    // across the whole range within the first handful of requests, so a
-    // scroll to the end quickly finds something close by even before
-    // every frame is in.
+    // rather than strict 1→49 — gets *some* frame loaded across the whole
+    // range within the first handful of requests, so the nearest-loaded-
+    // frame fallback in drawCineFrame has something close by even before
+    // every frame is confirmed in (and so the loading bar doesn't look
+    // like it's stalled on one end of the sequence).
     const loadOrder = [];
     const queued = new Set();
     const enqueue = (i) => { if (!queued.has(i)) { queued.add(i); loadOrder.push(i); } };
     enqueue(0);
-    enqueue(HERO_FRAME_COUNT - 1);
-    let ranges = [[0, HERO_FRAME_COUNT - 1]];
+    enqueue(CINE_TOTAL_FRAMES - 1);
+    let ranges = [[0, CINE_TOTAL_FRAMES - 1]];
     while (ranges.length) {
       const next = [];
       for (const [lo, hi] of ranges) {
@@ -303,96 +325,362 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       ranges = next;
     }
-    for (let i = 0; i < HERO_FRAME_COUNT; i++) enqueue(i);
+    for (let i = 0; i < CINE_TOTAL_FRAMES; i++) enqueue(i);
 
-    // Started with limited concurrency rather than all 49 at once — under
-    // a throttled connection, firing every request together just splits
-    // the same bandwidth 49 ways (HTTP/2 multiplexing shares it roughly
-    // evenly across in-flight streams), so *nothing* finishes any sooner
-    // than the last one. A small pool lets the earliest (bisection-
-    // priority) requests actually finish quickly instead of all of them
-    // limping along together.
-    const HERO_LOAD_CONCURRENCY = 6;
-    let heroLoadCursor = 0;
-    const startNextHeroLoad = () => {
-      if (heroLoadCursor >= loadOrder.length) return;
-      const i = loadOrder[heroLoadCursor++];
-      const img = heroImages[i];
-      img.addEventListener('load', startNextHeroLoad, { once: true });
-      img.addEventListener('error', startNextHeroLoad, { once: true });
-      if (i === 0) {
-        img.addEventListener('load', () => { sizeHeroCanvas(); drawHeroFrame(0, true); });
+    /* ---------- Full preload gate + loading screen ----------
+       The brief wants every frame decoded in memory *before* the scene is
+       shown at all, instead of the old progressive reveal — still fetched
+       with limited concurrency (a throttled connection doesn't finish any
+       sooner by splitting its bandwidth 49 ways at once) so time-to-first-
+       frame on the loading bar stays reasonable. */
+    const cineLoading = document.getElementById('cineLoading');
+    const cineLoadingFill = document.getElementById('cineLoadingFill');
+    const cineLoadingLabel = document.getElementById('cineLoadingLabel');
+    const CINE_LOAD_CONCURRENCY = 6;
+    let cineLoadedCount = 0;
+    let cineRevealed = false;
+
+    const revealCineHero = () => {
+      if (cineRevealed) return;
+      cineRevealed = true;
+      drawCineFrame(0, true);
+      cineLoading && cineLoading.classList.add('is-done');
+    };
+    // Safety net — a stuck request (dead connection, a bad 404) must never
+    // leave a visitor staring at a loading screen forever.
+    const cineRevealTimeout = setTimeout(revealCineHero, 12000);
+
+    const onCineFrameSettled = () => {
+      cineLoadedCount++;
+      const pct = Math.round((cineLoadedCount / CINE_TOTAL_FRAMES) * 100);
+      if (cineLoadingFill) cineLoadingFill.style.width = `${pct}%`;
+      if (cineLoadingLabel) cineLoadingLabel.textContent = `Chargement ${pct}%`;
+      if (cineLoadedCount >= CINE_TOTAL_FRAMES) {
+        clearTimeout(cineRevealTimeout);
+        revealCineHero();
       }
+    };
+
+    let cineLoadCursor = 0;
+    const startNextCineLoad = () => {
+      if (cineLoadCursor >= loadOrder.length) return;
+      const i = loadOrder[cineLoadCursor++];
+      const img = cineImages[i];
+      img.addEventListener('load', () => { onCineFrameSettled(); startNextCineLoad(); }, { once: true });
+      img.addEventListener('error', () => { onCineFrameSettled(); startNextCineLoad(); }, { once: true });
       img.src = `/images/hero-frames/drone3d/drone3D_${String(i + 1).padStart(4, '0')}.jpg`;
     };
-    for (let c = 0; c < HERO_LOAD_CONCURRENCY; c++) startNextHeroLoad();
+    for (let c = 0; c < CINE_LOAD_CONCURRENCY; c++) startNextCineLoad();
 
-    const heroTextLeft = document.getElementById('heroTextLeft');
-    const heroTextRight = document.getElementById('heroTextRight');
+    /* ---------- HUD (timecode / section label / frame counter / scrub bar) ---------- */
+    const hudTimecode = document.getElementById('hudTimecode');
+    const hudSectionLabel = document.getElementById('hudSectionLabel');
+    const hudSectionCount = document.getElementById('hudSectionCount');
+    const hudFrameCounter = document.getElementById('hudFrameCounter');
+    const hudTicksActive = document.getElementById('hudTicksActive');
+    const hudScrubFillBg = document.getElementById('hudScrubFillBg');
+    const hudAudioBars = document.getElementById('hudAudioBars');
+    const hudMuteBtn = document.getElementById('hudMuteBtn');
+
+    // Four acts, sharing their boundaries exactly with the side-word pairs
+    // below (Aperçu → Façade/Toiture → Bardage/Photovoltaïque → the drone
+    // touching down) rather than an even split — one coherent timeline
+    // instead of two that drift out of sync with each other.
+    const CINE_PHASES = [
+      { label: 'Aperçu', from: 0 },
+      { label: 'Façade · Toiture', from: 0.05 },
+      { label: 'Bardage · Photovoltaïque', from: 0.5 },
+      { label: 'Atterrissage', from: 0.95 },
+    ];
+    const getPhaseIndex = (progress) => {
+      let idx = 0;
+      for (let i = 0; i < CINE_PHASES.length; i++) {
+        if (progress >= CINE_PHASES[i].from) idx = i;
+      }
+      return idx;
+    };
+    const CINE_VIRTUAL_DURATION_S = 118; // purely cosmetic — just gives the HUD timecode somewhere to count up to
+    const CINE_VIRTUAL_FPS = 24;
+    let cineLastSectionIdx = -1;
+    let cineLastProgress = 0;
+
+    const formatTimecode = (totalSeconds) => {
+      const totalFrames = Math.max(0, Math.round(totalSeconds * CINE_VIRTUAL_FPS));
+      const ff = totalFrames % CINE_VIRTUAL_FPS;
+      const wholeSeconds = Math.floor(totalFrames / CINE_VIRTUAL_FPS);
+      const ss = wholeSeconds % 60;
+      const mm = Math.floor(wholeSeconds / 60) % 60;
+      const hh = Math.floor(wholeSeconds / 3600);
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${pad(hh)}:${pad(mm)}:${pad(ss)}:${pad(ff)}`;
+    };
+
+    /* ---------- Side words (Façade/Toiture, then Bardage/Photovoltaïque) ----------
+       Two pairs, perfectly symmetric left/right (see .cine-side-word in
+       styles.css), each materializing from and dissolving back into a
+       soft blur/mist as the scrub crosses its own window. Driven
+       continuously by scroll progress — inline styles set every frame,
+       not a CSS transition — so stopping mid-scroll shows a partially-
+       formed word, never an all-or-nothing snap. The particle-dissolve
+       the brief's brief describes as the ideal is a real perf/robustness
+       gamble (a second canvas or dozens of per-letter fragment nodes just
+       for a hero background flourish); this is the "elegant fallback" it
+       explicitly sanctions instead — blur + opacity + a touch of scale and
+       horizontal drift, entirely transform/opacity/filter so it stays
+       compositor-friendly at 60fps. */
+    const cineSideWords = [
+      { el: document.getElementById('wordFacade'), side: -1, enterStart: 0, enterEnd: 0.05, exitStart: 0.45, exitEnd: 0.55 },
+      { el: document.getElementById('wordToiture'), side: 1, enterStart: 0, enterEnd: 0.05, exitStart: 0.45, exitEnd: 0.55 },
+      { el: document.getElementById('wordBardage'), side: -1, enterStart: 0.45, enterEnd: 0.55, exitStart: 0.95, exitEnd: 1 },
+      { el: document.getElementById('wordPhotovoltaique'), side: 1, enterStart: 0.45, enterEnd: 0.55, exitStart: 0.95, exitEnd: 1 },
+    ].filter((w) => w.el);
+    const SIDE_WORD_BLUR_PX = 16;
+    const SIDE_WORD_SLIDE_PX = 40;
+    let cineSideWordsEverActive = false;
+
+    const updateSideWords = (progress) => {
+      let anyActive = false;
+      cineSideWords.forEach(({ el, side, enterStart, enterEnd, exitStart, exitEnd }) => {
+        let t;
+        if (progress <= enterStart) t = 0;
+        else if (progress < enterEnd) t = (progress - enterStart) / (enterEnd - enterStart);
+        else if (progress < exitStart) t = 1;
+        else if (progress < exitEnd) t = 1 - (progress - exitStart) / (exitEnd - exitStart);
+        else t = 0;
+        // easeOutCubic — condenses out of the mist quickly then settles,
+        // and disperses back into it the same way in reverse.
+        const eased = 1 - Math.pow(1 - t, 3);
+        if (t > 0) anyActive = true;
+        el.style.opacity = eased.toFixed(3);
+        el.style.filter = `blur(${((1 - eased) * SIDE_WORD_BLUR_PX).toFixed(2)}px)`;
+        el.style.transform = `translateY(-50%) translateX(${(side * (1 - eased) * SIDE_WORD_SLIDE_PX).toFixed(2)}px) scale(${(0.92 + eased * 0.08).toFixed(3)}) translateZ(0)`;
+      });
+      if (!cineSideWordsEverActive && anyActive) {
+        cineSideWordsEverActive = true;
+        cineSideWords.forEach(({ el }) => { el.style.willChange = 'opacity, filter, transform'; });
+      }
+    };
+
+    /* ---------- Synthesized drone sound (Web Audio, no audio file) ----------
+       Three close-detuned sawtooth oscillators (engine "beat"/chorus)
+       summed through a fast ~48Hz gain-modulated LFO (rotor-blade thrum),
+       plus a thin bed of filtered white noise (air rush). Pitch and volume
+       both track scroll progress: a quick rev-up in the first 6%, then a
+       long descent toward near-silence as the drone reaches the ground by
+       the last frame — matches the footage (already airborne at frame 1,
+       touching down at frame 49). Everything is built lazily on first use
+       so a visitor who never touches sound never pays for an AudioContext
+       at all. Browsers block audible output before any interaction — ANY
+       click/tap on the page warms the context up (see the pointerdown/
+       keydown listeners below) so there's no first-click lag once sound
+       IS requested, but actual volume stays at 0 until the HUD button is
+       explicitly switched on: going audible the instant a context unlocks
+       would be a surprise, not a feature. */
+    const DRONE_DETUNE = [1, 1.012, 0.986];
+    let audioCtx = null;
+    let droneNodes = null;
+    let soundEnabled = false;
+
+    const buildDroneGraph = () => {
+      if (droneNodes) return;
+      const ctx = audioCtx;
+      const now = ctx.currentTime;
+
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(0, now);
+      masterGain.connect(ctx.destination);
+
+      const droneGain = ctx.createGain();
+      droneGain.gain.setValueAtTime(0.001, now);
+      droneGain.connect(masterGain);
+      const oscillators = DRONE_DETUNE.map((mult) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(90 * mult, now);
+        osc.connect(droneGain);
+        osc.start();
+        return osc;
+      });
+
+      // Rotor-blade thrum — an audio-rate LFO modulating the drone gain's
+      // own AudioParam (the standard Web Audio "connect an oscillator into
+      // a gain param" modulation trick), not an audible tone on its own.
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(48, now);
+      const lfoDepth = ctx.createGain();
+      lfoDepth.gain.setValueAtTime(0.05, now);
+      lfo.connect(lfoDepth);
+      lfoDepth.connect(droneGain.gain);
+      lfo.start();
+
+      // Filtered white noise — a soft "air rush" bed under the tonal drone.
+      const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      const noiseData = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < noiseData.length; i++) noiseData[i] = Math.random() * 2 - 1;
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      noiseSource.loop = true;
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'lowpass';
+      noiseFilter.frequency.setValueAtTime(1100, now);
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.001, now);
+      noiseSource.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(masterGain);
+      noiseSource.start();
+
+      droneNodes = { masterGain, droneGain, oscillators, noiseGain };
+    };
+
+    const ensureAudioContext = () => {
+      if (!audioCtx) {
+        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextCtor) return;
+        try {
+          audioCtx = new AudioContextCtor();
+          buildDroneGraph();
+        } catch (e) { audioCtx = null; }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    };
+    ['pointerdown', 'keydown'].forEach((evt) => {
+      window.addEventListener(evt, ensureAudioContext, { once: true, passive: true });
+    });
+
+    const setSoundEnabled = (on) => {
+      soundEnabled = on;
+      if (!audioCtx || !droneNodes) return;
+      const now = audioCtx.currentTime;
+      droneNodes.masterGain.gain.cancelScheduledValues(now);
+      droneNodes.masterGain.gain.setTargetAtTime(on ? 1 : 0, now, 0.2);
+    };
+
+    // A one-shot synthesized "touchdown" thump — a sine burst that drops in
+    // pitch and decays fast, layered on top of the engine drone right as it
+    // fades out. Built fresh each time (oscillators can only ever be
+    // started once, unlike the persistent engine graph above) and routed
+    // through the same masterGain so it respects the mute state/overall
+    // volume rather than bypassing it.
+    const playLandingThud = () => {
+      if (!audioCtx || !droneNodes) return;
+      const now = audioCtx.currentTime;
+      const thudOsc = audioCtx.createOscillator();
+      thudOsc.type = 'sine';
+      thudOsc.frequency.setValueAtTime(130, now);
+      thudOsc.frequency.exponentialRampToValueAtTime(34, now + 0.22);
+      const thudGain = audioCtx.createGain();
+      thudGain.gain.setValueAtTime(0.0001, now);
+      thudGain.gain.exponentialRampToValueAtTime(0.32, now + 0.012);
+      thudGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+      thudOsc.connect(thudGain);
+      thudGain.connect(droneNodes.masterGain);
+      thudOsc.start(now);
+      thudOsc.stop(now + 0.6);
+    };
+    let landingThudArmed = true;
+    const LANDING_THUD_AT = 0.95;
+
+    const updateDroneAudio = (progress) => {
+      if (!audioCtx || !droneNodes) return;
+      const now = audioCtx.currentTime;
+      // Quick rev-up in the first 6%, then a straight-line descent all the
+      // way to true silence (not a floor above zero) by progress 1 — the
+      // drone is on the ground by the last frame, so there must be nothing
+      // left playing under the landing thump below.
+      const REV_UP_END = 0.06;
+      const intensity = progress < REV_UP_END
+        ? 0.7 + (progress / REV_UP_END) * 0.3
+        : Math.max(0, 1 - (progress - REV_UP_END) / (1 - REV_UP_END));
+      const baseFreq = 55 + intensity * 55;
+      droneNodes.oscillators.forEach((osc, i) => {
+        osc.frequency.setTargetAtTime(baseFreq * DRONE_DETUNE[i], now, 0.1);
+      });
+      // Cut roughly in half from the first pass — three summed detuned
+      // sawtooths build up more perceived loudness/harshness than each
+      // individual gain value suggests.
+      droneNodes.droneGain.gain.setTargetAtTime(intensity * 0.09, now, 0.12);
+      droneNodes.noiseGain.gain.setTargetAtTime(intensity * 0.025, now, 0.12);
+
+      if (progress >= LANDING_THUD_AT) {
+        if (landingThudArmed && soundEnabled) {
+          landingThudArmed = false;
+          playLandingThud();
+        }
+      } else if (progress < LANDING_THUD_AT - 0.03) {
+        landingThudArmed = true;
+      }
+    };
+
+    hudMuteBtn && hudMuteBtn.addEventListener('click', () => {
+      ensureAudioContext(); // covers this click also being the first interaction
+      setSoundEnabled(!soundEnabled);
+      hudMuteBtn.setAttribute('aria-pressed', String(soundEnabled));
+      hudMuteBtn.textContent = soundEnabled ? 'Coupez le son' : 'Activer le son';
+      hudAudioBars && hudAudioBars.classList.toggle('is-muted', !soundEnabled);
+      if (soundEnabled) updateDroneAudio(cineLastProgress);
+    });
+
+    // Water-spray hook — fires once as the scrub crosses into the Façade/
+    // Toiture window, and re-arms if the visitor scrolls back above the
+    // threshold so it can play again on a second pass through. A clean,
+    // optional slot for a real recording later (see /audio/hero-water-
+    // spray.mp3) rather than a requirement — every entry point into it is
+    // wrapped so a missing file can never throw, and it only ever plays
+    // once sound is actually switched on.
+    let cineWaterAudio;
+    try { cineWaterAudio = new Audio('/audio/hero-water-spray.mp3'); cineWaterAudio.preload = 'auto'; } catch (e) { cineWaterAudio = null; }
+    let waterSoundArmed = true;
+    const WATER_SOUND_THRESHOLD = 0.05;
+
+    const updateHud = (progress, frameIndex) => {
+      const sectionIdx = getPhaseIndex(progress);
+      if (sectionIdx !== cineLastSectionIdx) {
+        cineLastSectionIdx = sectionIdx;
+        if (hudSectionLabel) hudSectionLabel.textContent = `${String(sectionIdx + 1).padStart(2, '0')} · ${CINE_PHASES[sectionIdx].label.toUpperCase()}`;
+        if (hudSectionCount) hudSectionCount.textContent = `SECTION ${String(sectionIdx + 1).padStart(2, '0')} / ${String(CINE_PHASES.length).padStart(2, '0')}`;
+      }
+      if (hudTimecode) hudTimecode.textContent = formatTimecode(progress * CINE_VIRTUAL_DURATION_S);
+      if (hudFrameCounter) hudFrameCounter.textContent = `CADRE ${String(frameIndex + 1).padStart(3, '0')} / ${String(CINE_TOTAL_FRAMES).padStart(3, '0')}`;
+      const pct = `${(progress * 100).toFixed(2)}%`;
+      if (hudTicksActive) hudTicksActive.style.width = pct;
+      if (hudScrubFillBg) hudScrubFillBg.style.width = pct;
+
+      if (cineWaterAudio) {
+        if (progress >= WATER_SOUND_THRESHOLD) {
+          if (waterSoundArmed && soundEnabled) {
+            waterSoundArmed = false;
+            try { cineWaterAudio.currentTime = 0; } catch (e) { /* not seekable yet, fine */ }
+            cineWaterAudio.play().catch(() => {});
+          }
+        } else if (progress < WATER_SOUND_THRESHOLD - 0.03) {
+          waterSoundArmed = true;
+        }
+      }
+    };
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      // No scrub, no blur-reveal — land on one representative frame with
-      // the text already fully in place (CSS default: no filter/opacity/
-      // transform applied, so this is just leaving the elements alone).
-      const stillIndex = Math.floor(HERO_FRAME_COUNT * 0.45);
-      heroImages[stillIndex].addEventListener('load', () => drawHeroFrame(stillIndex, true));
+      // No scrub — land on one representative frame with the HUD and side
+      // words reflecting that same static point, instead of ticking off
+      // scroll.
+      const stillIndex = Math.floor(CINE_TOTAL_FRAMES * 0.3);
+      const stillProgress = stillIndex / (CINE_TOTAL_FRAMES - 1);
+      cineLastProgress = stillProgress;
+      updateHud(stillProgress, stillIndex);
+      updateSideWords(stillProgress);
+      cineImages[stillIndex].addEventListener('load', () => drawCineFrame(stillIndex, true));
     } else {
-      // Same scrub math on every viewport size — the pinned track's own
-      // height (280vh desktop, shorter on mobile, see .hero-video-scroll
-      // in styles.css) is what changes, not this calculation.
-      //
-      // Text reveal is tied to the *same* progress value rather than a
-      // one-shot IntersectionObserver transition: stopping the scroll
-      // partway must show partially-blurred, partially-offset text, not
-      // an all-or-nothing state. Reaches fully sharp at 60% of the pinned
-      // track, leaving the rest of the scroll to just admire the video.
-      const TEXT_REVEAL_END = 0.6;
-      const BLUR_PX = 20;
-      const SLIDE_PX = 48;
-      let heroTextEverActive = false;
-
-      const updateHeroText = (progress) => {
-        const t = Math.min(1, progress / TEXT_REVEAL_END);
-        // easeOutCubic — fast start, settles gently rather than linearly,
-        // so the last bit of blur/slide resolves smoothly instead of
-        // arriving at a constant rate all the way to 0.
-        const eased = 1 - Math.pow(1 - t, 3);
-        const blur = (1 - eased) * BLUR_PX;
-        // Opacity floors at 0.5 rather than 0 — the brief for this is
-        // "text starts completely blurred", not invisible: at 20px of
-        // blur the text is already illegible on its own, fading it to
-        // fully transparent on top of that just hides it a beat earlier
-        // than stopping mid-scroll should.
-        const opacity = 0.5 + eased * 0.5;
-        if (heroTextLeft) {
-          heroTextLeft.style.opacity = opacity;
-          heroTextLeft.style.filter = `blur(${blur.toFixed(2)}px)`;
-          heroTextLeft.style.transform = `translateX(${((1 - eased) * -SLIDE_PX).toFixed(2)}px)`;
-        }
-        if (heroTextRight) {
-          heroTextRight.style.opacity = opacity;
-          heroTextRight.style.filter = `blur(${blur.toFixed(2)}px)`;
-          heroTextRight.style.transform = `translateX(${((1 - eased) * SLIDE_PX).toFixed(2)}px)`;
-        }
-        if (!heroTextEverActive && t > 0) {
-          heroTextEverActive = true;
-          heroTextLeft && (heroTextLeft.style.willChange = 'opacity, filter, transform');
-          heroTextRight && (heroTextRight.style.willChange = 'opacity, filter, transform');
-        }
-      };
-      updateHeroText(0); // set the initial blurred/offset state before first paint
-
-      heroCanvas.style.willChange = 'transform';
-      heroScrubTick = () => {
-        const rect = heroSection.getBoundingClientRect();
+      cineScrubTick = () => {
+        const rect = cineHero.getBoundingClientRect();
         const scrollable = rect.height - window.innerHeight;
         const progress = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0;
-        drawHeroFrame(Math.round(progress * (HERO_FRAME_COUNT - 1)));
-        updateHeroText(progress);
-        // Slow push-in across the whole scrub (independent of the 60%
-        // text-reveal window) — a static frame sequence reads as more
-        // "alive" with a bit of continuous motion under it.
-        heroCanvas.style.transform = `scale(${(1 + progress * 0.15).toFixed(4)})`;
+        const frameIndex = Math.round(progress * (CINE_TOTAL_FRAMES - 1));
+        cineLastProgress = progress;
+        drawCineFrame(frameIndex);
+        updateHud(progress, frameIndex);
+        updateSideWords(progress);
+        updateDroneAudio(progress);
       };
     }
   }
@@ -423,39 +711,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-
-  /* ---------- Hero title: split into per-character spans ----------
-     Runs once, before the reveal observer below attaches, so each line's
-     existing data-reveal/data-delay still gates *when* it animates — only
-     *what* animates changes, from the whole line to each individual
-     letter (see .hero-title .char in styles.css for the blur-to-focus
-     transition itself; this is purely a one-time DOM write, not a
-     per-frame loop). Each word is wrapped in its own inline-block span —
-     line-wrapping can only happen between those word boxes, never between
-     two character spans inside one — so the browser still wraps at word
-     boundaries exactly like plain text, instead of mid-word. */
-  document.querySelectorAll('.hero-title .reveal').forEach((line) => {
-    const text = line.textContent;
-    line.setAttribute('aria-label', text);
-    line.setAttribute('role', 'text');
-    line.innerHTML = '';
-    let i = 0;
-    const words = text.split(' ');
-    words.forEach((word, wi) => {
-      const wordSpan = document.createElement('span');
-      wordSpan.className = 'word';
-      word.split('').forEach((ch) => {
-        const span = document.createElement('span');
-        span.className = 'char';
-        span.setAttribute('aria-hidden', 'true');
-        span.style.setProperty('--i', i++);
-        span.textContent = ch;
-        wordSpan.appendChild(span);
-      });
-      line.appendChild(wordSpan);
-      if (wi < words.length - 1) line.appendChild(document.createTextNode(' '));
-    });
-  });
 
   /* ---------- Reveal on scroll ---------- */
   // will-change is applied here in JS, only for the duration of the actual
@@ -592,34 +847,49 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ---------- "Reels-style" gallery: pure-CSS infinite marquee ----------
-     The loop itself is just the gallery-marquee CSS animation in
-     styles.css (translate3d, GPU-composited, no JS in the motion path).
-     This block only toggles one pause class — on pointerenter/leave for
-     mouse, and touchstart/touchend for touch, never a CSS :hover rule:
-     a touch tap can leave a lingering :hover with nothing to clear it,
-     which would wedge the marquee paused forever with no way back. */
-  const galleryTrack = document.getElementById('galleryTrack');
-  if (galleryTrack && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    const pause = () => galleryTrack.classList.add('is-paused');
-    const resume = () => galleryTrack.classList.remove('is-paused');
-
-    galleryTrack.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') pause(); });
-    galleryTrack.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') resume(); });
-
-    let touchResumeTimer = null;
-    galleryTrack.addEventListener('touchstart', () => {
-      clearTimeout(touchResumeTimer);
-      pause();
-    }, { passive: true });
-    galleryTrack.addEventListener('touchend', () => {
-      clearTimeout(touchResumeTimer);
-      touchResumeTimer = setTimeout(resume, 1800);
-    }, { passive: true });
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') resume();
-      else pause();
+  /* ---------- Action cards horizontal scroll ("Le drone, sur le terrain") ----------
+     Merges the old gallery marquee + capabilities grid into one GSAP
+     ScrollTrigger horizontal pin. On desktop, with motion allowed, the
+     section pins near the top of the viewport — start:'top 90px', not
+     'top top', leaves clearance for the fixed nav bar (the same nav-
+     collision lesson learned the hard way on the cine-hero's HUD, see
+     "Cinematic hero scrub" above) — and .action-track translates left by
+     exactly its own overflow width while the user scrolls vertically
+     through the pin's scroll distance. Everywhere else (mobile,
+     prefers-reduced-motion, or GSAP failing to load off the CDN) it's
+     just .action-pin's own native overflow-x:auto from styles.css — no
+     JS at all, plain touch/trackpad swipe. */
+  const actionPin = document.querySelector('.action-pin');
+  const actionTrack = document.getElementById('actionTrack');
+  if (actionPin && actionTrack && window.gsap && window.ScrollTrigger) {
+    gsap.registerPlugin(ScrollTrigger);
+    ScrollTrigger.matchMedia({
+      '(min-width: 761px) and (prefers-reduced-motion: no-preference)': function () {
+        actionPin.classList.add('is-pinned-scroll');
+        const getScrollDistance = () => Math.max(0, actionTrack.scrollWidth - actionPin.offsetWidth);
+        const tween = gsap.to(actionTrack, {
+          x: () => -getScrollDistance(),
+          ease: 'none',
+          scrollTrigger: {
+            trigger: actionPin,
+            start: 'top 90px',
+            end: () => `+=${getScrollDistance()}`,
+            scrub: 0.3,
+            pin: true,
+            anticipatePin: 1,
+            invalidateOnRefresh: true,
+          },
+        });
+        // GSAP calls this automatically once the query above stops
+        // matching (resize down to mobile, reduced-motion toggled mid-
+        // session) — tears down exactly what the query set up.
+        return () => {
+          tween.scrollTrigger && tween.scrollTrigger.kill();
+          tween.kill();
+          gsap.set(actionTrack, { clearProps: 'transform' });
+          actionPin.classList.remove('is-pinned-scroll');
+        };
+      },
     });
   }
 

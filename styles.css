@@ -57,11 +57,6 @@
      frame, the same way a phone screen's bezel doesn't follow page theme. */
   --panel-dark: #0a0b0d;
 
-  /* Exact backdrop color baked into the drone3D render frames (sampled
-     from the source JPEGs) — used on the hero's own container/canvas so
-     there's no visible seam between the video and the page around it. */
-  --hero-video-bg: #ededef;
-
   --ink: var(--obsidian);
 
   /* Apple system-font stack — renders true San Francisco on Mac/iPhone/iPad,
@@ -84,7 +79,7 @@
 /* overflow-x: clip (not hidden) — hidden/auto/scroll on either axis force
    the *other* axis to compute as auto too if it isn't already non-visible,
    which turns html/body into an unintended scroll container. That broke
-   position: sticky on .hero-video-container entirely (verified via CDP:
+   position: sticky on .cine-stage entirely (verified via CDP:
    its getBoundingClientRect().top was tracking scrollY 1:1 instead of
    staying pinned) — clip suppresses the overflow without triggering that
    auto-scroll-container pairing. */
@@ -387,7 +382,6 @@ a, button, input, select, textarea { touch-action: manipulation; }
    60fps-safe); box-shadow and the shimmer sweep are one-shot transitions
    fired once per card the moment it enters the viewport, not a per-frame
    scroll cost. */
-.cap-card.is-visible,
 .estimate-card.is-visible,
 .eco-card.is-visible,
 .reliability-list li.is-visible {
@@ -397,13 +391,10 @@ a, button, input, select, textarea { touch-action: manipulation; }
 }
 .estimate-card.is-visible { box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 24px 48px -24px rgba(0,0,0,0.55), 0 20px 40px rgba(15, 118, 110, 0.08); }
 .eco-card.is-visible { box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 20px 40px -20px rgba(0,0,0,0.5), 0 20px 40px rgba(15, 118, 110, 0.08); }
-.cap-card.is-visible { box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 18px 36px -22px rgba(0,0,0,0.55), 0 20px 40px rgba(15, 118, 110, 0.08); }
 .reliability-list li.is-visible { box-shadow: 0 20px 40px rgba(15, 118, 110, 0.08); }
 
 /* Glass-glare sweep — uses ::before, since ::after is already the
-   border-beam ring on every one of these cards (and, on .cap-card,
-   ::before is already the pointer-glow — see its background-position
-   animation below instead). */
+   border-beam ring on every one of these cards. */
 .estimate-card::before,
 .eco-card::before,
 .reliability-list li::before {
@@ -422,7 +413,6 @@ a, button, input, select, textarea { touch-action: manipulation; }
   animation: card-shimmer .9s var(--ease) forwards;
   animation-delay: calc(var(--d, 0) * 90ms + .15s);
 }
-.cap-card.is-visible { /* shimmer removed — background-position is non-composited */ }
 @keyframes card-shimmer {
   0% { transform: translateX(-130%) skewX(-12deg); opacity: 0; }
   15% { opacity: 1; }
@@ -432,7 +422,6 @@ a, button, input, select, textarea { touch-action: manipulation; }
   to { background-position: 130% 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cap-card.is-visible,
   .estimate-card.is-visible,
   .eco-card.is-visible,
   .reliability-list li.is-visible {
@@ -498,13 +487,13 @@ a, button, input, select, textarea { touch-action: manipulation; }
   inherits: false;
   initial-value: 0deg;
 }
-.btn, .cap-card, .stat, .timeline-item, .reliability-list li, .estimate-card, .glass,
-.gallery-card, .trust-card {
+.btn, .stat, .timeline-item, .reliability-list li, .estimate-card, .glass,
+.action-card, .trust-card {
   position: relative;
   isolation: isolate;
 }
-.btn::after, .cap-card::after, .stat::after, .timeline-item::after, .reliability-list li::after, .estimate-card::after, .glass::after,
-.gallery-card::after, .trust-card::after {
+.btn::after, .stat::after, .timeline-item::after, .reliability-list li::after, .estimate-card::after, .glass::after,
+.action-card::after, .trust-card::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -524,18 +513,18 @@ a, button, input, select, textarea { touch-action: manipulation; }
 }
 .btn::after { padding: 1.25px; }
 .btn:hover::after, .btn:focus-visible::after { opacity: 1; animation-duration: 3.2s; }
-.cap-card:hover::after, .stat:hover::after, .timeline-item:hover::after,
+.stat:hover::after, .timeline-item:hover::after,
 .reliability-list li:hover::after, .estimate-card:hover::after, .glass:hover::after,
-.gallery-card:hover::after, .trust-card:hover::after { opacity: 0.85; }
+.action-card:hover::after, .trust-card:hover::after { opacity: 0.85; }
 
 @keyframes beam-spin {
   to { --beam-angle: 360deg; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .btn::after, .cap-card::after, .stat::after, .timeline-item::after,
+  .btn::after, .stat::after, .timeline-item::after,
   .reliability-list li::after, .estimate-card::after, .glass::after,
-  .gallery-card::after, .trust-card::after {
+  .action-card::after, .trust-card::after {
     animation: none;
   }
 }
@@ -634,135 +623,439 @@ a, button, input, select, textarea { touch-action: manipulation; }
 
 
 /* ============================================================
-   HERO — portrait drone3D reveal. A tall pinned (position: sticky)
-   section scrubs through the 145 pre-rendered frames as the user
-   scrolls (see script.js "Hero video scrub" — a real <video> can't
-   give the frame-accurate random access scroll-scrubbing needs, so
-   playback is a canvas blitting whichever frame matches scroll
-   progress). Text sits in flex columns either side of the video,
-   "wrapping" the empty space rather than overlaying the footage —
-   unlike the old dark full-bleed hook video, there's no scrim/white
-   text treatment to worry about: .eyebrow/.hero-title/.hero-sub/
-   .hero-actions/.hero-launch/.hero-phone all keep their ordinary
-   light-background styling used everywhere else on the page.
+   CINEMATIC HERO — flip-book scroll-scrub with a camera-HUD overlay.
+   .cine-stage is a position:sticky, full-bleed 100vh canvas stage pinned
+   for the 400vh track below (see script.js "Cinematic hero scrub"); the
+   frame shown tracks scroll progress exactly like the old hero canvas
+   did, just full-bleed/cover-fit instead of a boxed portrait clip. Dark
+   brand palette throughout (#0A0E14 base, #0067CC/#4DA3FF accents,
+   #D9DEE5/#8A94A3 text, #FF3B30 reserved for the REC dot only) — see the
+   HUD chrome rules below the title.
    ============================================================ */
-.hero-video-scroll {
+.cine-hero {
   position: relative;
-  height: 280vh;
-  background: var(--hero-video-bg);
+  height: 400vh;
+  background: #0A0E14;
 }
-.hero-video-container {
+.cine-stage {
   position: sticky;
   top: 0;
   height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background: #0A0E14;
+}
+.cine-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* Own compositor layer — this is what actually gets redrawn/repositioned
+     every scroll frame, so it shouldn't drag the rest of the stage's paint
+     along with it. */
+  transform: translateZ(0);
+  will-change: transform;
+}
+/* Darkens the frame's own edges so the (deliberately light, product-shot)
+   source footage blends into the dark HUD chrome instead of showing a
+   hard seam — also just reads as a normal cinematic vignette. */
+.cine-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* The source frames are a light, clean product-shot backdrop, not a
+     moody dark scene — without this, the HUD's light-grey text (#D9DEE5/
+     #8A94A3) sits directly on near-white pixels and disappears entirely.
+     Top/bottom bands carry most of the darkening (that's where the REC/
+     specs/corner brackets and the scrub bar live); the radial term adds a
+     lighter overall grade everywhere else so the vertical edge labels and
+     corners stay legible too, without crushing the drone shot itself. */
+  background:
+    linear-gradient(180deg,
+      rgba(10, 14, 20, 0.8) 0%,
+      rgba(10, 14, 20, 0.25) 16%,
+      transparent 30%,
+      transparent 68%,
+      rgba(10, 14, 20, 0.3) 84%,
+      rgba(10, 14, 20, 0.82) 100%),
+    radial-gradient(ellipse at 50% 45%, transparent 32%, rgba(10, 14, 20, 0.32) 100%);
+}
+
+/* ---------- Title, always visible, zero scroll required ----------
+   Sits just under the REC/specs row (which bottoms out around 127px, see
+   .hud-rec/.hud-specs top:108px below) rather than centered — high in the
+   frame so it never sits over the drone itself, per the brief. */
+.cine-title {
+  position: absolute;
+  top: 148px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  width: 100%;
+  margin: 0;
+  padding: 0 24px;
+  text-align: center;
+  pointer-events: none;
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: #D9DEE5;
+  text-shadow: 0 6px 40px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.5);
+  font-size: clamp(1.7rem, 4.2vw, 3.6rem);
+}
+.cine-title .accent { color: #0067CC; }
+
+/* ============================================================
+   SIDE WORDS — the two symmetric word-pairs (Façade/Toiture, then
+   Bardage/Photovoltaïque). Positioned relative to .cine-stage (not the
+   narrower canvas), vertically centered, mirrored margins from the left/
+   right edge — the strict symmetry the brief asks for. Left/right start
+   just past the vertical HUD label strip (.hud-vertical, inset 22px) so
+   the two don't collide. Every visible property (opacity/filter/transform)
+   is written per-frame by script.js's updateSideWords rather than a CSS
+   transition — same "continuous, scroll-scrubbed" approach as the canvas
+   itself, so stopping mid-scroll shows a partially-materialized word, not
+   an all-or-nothing snap.
+   ============================================================ */
+.cine-side-word {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  max-width: 44%;
+  margin: 0;
+  /* Same font/weight/letter-spacing as the "EXADRONE ENTERPRISE" wordmark
+     in the nav (see .nav-mark) — near-black rather than the HUD's light
+     grey, since these sit in the least-vignetted, still-fairly-light
+     center band of the frame (see .cine-vignette), where dark text reads
+     better than light. */
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 0.96;
+  letter-spacing: 0.04em;
+  color: var(--paper);
+  text-shadow: 0 2px 24px rgba(255, 255, 255, 0.6), 0 1px 3px rgba(255, 255, 255, 0.5);
+  /* Same size for all four words — the size that used to be pair 2's
+     smaller variant (originally chosen so "Photovoltaïque" wouldn't
+     overrun the stage), now applied uniformly. */
+  font-size: clamp(1.125rem, 2.55vw, 2.4rem);
+  opacity: 0;
+  filter: blur(16px);
+  pointer-events: none;
+}
+.cine-side-word-left { left: 56px; text-align: left; }
+.cine-side-word-right { right: 56px; text-align: right; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cine-side-word { transition: none; }
+}
+
+/* ============================================================
+   HUD — camera viewfinder overlay. Entirely pointer-events:none except
+   the mute button; every value (timecode/section/frame counter/scrub
+   fill) is written by script.js's cineScrubTick, gated to only touch the
+   DOM when its own value actually changes. Condensed/technical feel
+   reuses --font-mono (already the site's "technical label" font, see
+   .eyebrow) rather than importing a new typeface just for this. */
+.cine-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  color: #D9DEE5;
+  /* Extra contrast insurance on top of .cine-vignette — belt and braces
+     against the light product-shot frames underneath. */
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+.hud-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(138, 148, 163, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(138, 148, 163, 0.05) 1px, transparent 1px);
+  background-size: 5% 8.3333%;
+}
+.hud-corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid #D9DEE5;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.6));
+}
+/* top:104/96px, not a flush 20px — the site's own fixed nav (position:
+   fixed, ~91px tall on desktop, see .site-nav) sits at z-index:100, well
+   above the HUD's z-index:3, and fully hides anything placed higher than
+   that (verified via a real render: the REC row and corner brackets were
+   invisible, not just low-contrast, until pushed below the nav's box). */
+.hud-corner-tl { top: 100px; left: 20px; border-right: none; border-bottom: none; }
+.hud-corner-tr { top: 100px; right: 20px; border-left: none; border-bottom: none; }
+.hud-corner-bl { bottom: 96px; left: 20px; border-right: none; border-top: none; }
+.hud-corner-br { bottom: 96px; right: 20px; border-left: none; border-top: none; }
+
+.hud-rec {
+  position: absolute;
+  top: 108px;
+  left: 54px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: clamp(16px, 3.5vw, 56px);
-  overflow: hidden;
-  padding: clamp(88px, 12vw, 120px) clamp(20px, 4vw, 56px) clamp(32px, 6vw, 64px);
-  background: var(--hero-video-bg);
-}
-.hero-canvas-wrapper {
-  flex: 0 0 auto;
-  display: flex;
-  height: min(74vh, 860px);
-}
-.hero-canvas-portrait {
-  height: 100%;
-  width: auto;
-  aspect-ratio: 1248 / 1660;
-  display: block;
-  background: var(--hero-video-bg);
-}
-.hero-text-left,
-.hero-text-right {
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 400px;
-}
-.hero-text-left {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-}
-.hero-text-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-}
-.hero-text-left .hero-title { align-items: flex-end; }
-.hero-text-right .hero-actions,
-.hero-text-right .hero-launch { justify-content: flex-start; }
-/* Base .hero-title sizing (styles.css §hero-title below) is tuned for a
-   narrow side column rather than the old full-width centered statement. */
-
-/* Service keywords flanking the video, split across both columns —
-   reuses the eyebrow's mono/uppercase treatment at a smaller size. */
-.hero-tags {
-  margin: 14px 0;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
+  gap: 8px;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--steel);
+}
+.hud-rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #FF3B30;
+  animation: hud-rec-pulse 1.1s ease-in-out infinite;
+}
+@keyframes hud-rec-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+.hud-rec-label { color: #D9DEE5; }
+.hud-timecode { color: #D9DEE5; opacity: 0.85; font-variant-numeric: tabular-nums; }
+
+.hud-specs {
+  position: absolute;
+  top: 108px;
+  right: 54px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8A94A3;
 }
 
-@media (max-width: 1100px) {
-  .hero-text-left, .hero-text-right { max-width: 300px; }
-  .hero-canvas-wrapper { height: min(70vh, 760px); }
+.hud-vertical {
+  position: absolute;
+  top: 50%;
+  writing-mode: vertical-rl;
+  transform: translateY(-50%) rotate(180deg);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #8A94A3;
 }
+.hud-vertical-left { left: 22px; }
+.hud-vertical-right { right: 22px; }
 
-/* Below this width the two side-by-side columns no longer have room next
-   to the portrait video — the hero stays pinned/scrubbed exactly like
-   desktop (same heroScrubTick math in script.js, just a shorter track:
-   phones scroll more per swipe, and there's less vertical room to hunt
-   for a frame across), but the row becomes a compact vertical stack so
-   the whole composition still fits one screen height while pinned. */
+/* ---------- Bottom scrub timeline ---------- */
+.hud-scrubbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Right padding is wider than the left — clears the permanent WhatsApp
+     FAB (position:fixed, 60px circle at right:24/bottom:24, z-index:210 —
+     see .whatsapp-fab) so "SECTION 0X/05" and "SCRUB ACTIF" never run
+     underneath it. */
+  padding: 10px 108px 14px 20px;
+  background: linear-gradient(180deg, rgba(10, 14, 20, 0) 0%, rgba(10, 14, 20, 0.55) 40%, rgba(10, 14, 20, 0.88) 100%);
+  transition: transform 0.3s var(--ease);
+}
+/* The cookie banner (#cookieBanner, position:fixed, bottom:0, z-index:200
+   — see styles.css further down) sits directly on top of this bar for
+   every first-time visitor, hiding the mute button and section/frame
+   counters underneath it. Same fix already used for .whatsapp-fab:
+   shift up out of the way for as long as the banner is showing. Offsets
+   measured against the banner's actual rendered height rather than
+   guessed — it reflows at two widths (row layout above 640px, up to
+   ~175px tall; stacked column layout at/below 640px, up to ~247px). */
+body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px); }
+@media (max-width: 640px) {
+  body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-266px); }
+}
+.hud-scrubbar-top {
+  display: flex;
+  align-items: center;
+  /* wrap, not nowrap — "Bardage · Photovoltaïque" plus the audio bars/
+     mute button/ISO-WB-section meta doesn't reliably fit on one line
+     between roughly 760-900px (verified via a real render: .hud-meta was
+     overflowing past .hud-scrubbar-top's own right edge, creeping into
+     the padding reserved for the WhatsApp FAB). Wrapping the meta group
+     onto its own line there is a cleaner outcome than a horizontal
+     overflow that keeps shrinking the closer it gets to that FAB. */
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.hud-section-label { color: #0067CC; flex: 0 0 auto; }
+.hud-audio-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+.hud-audio-bars span {
+  width: 2px;
+  height: 100%;
+  background: #0067CC;
+  animation: hud-audio-bounce 0.9s ease-in-out infinite;
+  transform-origin: bottom;
+}
+.hud-audio-bars span:nth-child(1) { animation-delay: 0s; }
+.hud-audio-bars span:nth-child(2) { animation-delay: 0.15s; }
+.hud-audio-bars span:nth-child(3) { animation-delay: 0.3s; }
+.hud-audio-bars span:nth-child(4) { animation-delay: 0.1s; }
+.hud-audio-bars span:nth-child(5) { animation-delay: 0.25s; }
+@keyframes hud-audio-bounce {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+.hud-audio-bars.is-muted span { animation-play-state: paused; opacity: 0.3; transform: scaleY(0.25); }
+.hud-mute-btn {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid rgba(138, 148, 163, 0.4);
+  border-radius: 3px;
+  color: #8A94A3;
+  font-family: inherit;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color 0.25s var(--ease), color 0.25s var(--ease);
+}
+.hud-mute-btn:hover, .hud-mute-btn:focus-visible { border-color: #0067CC; color: #D9DEE5; }
+.hud-meta {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+  color: #8A94A3;
+  white-space: nowrap;
+}
+.hud-ticks-wrap {
+  position: relative;
+  height: 12px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  border-radius: 1px;
+}
+.hud-scrub-fill-bg {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background: #4DA3FF;
+  opacity: 0.22;
+}
+.hud-ticks-base,
+.hud-ticks-active {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(to right, currentColor 0, currentColor 1.5px, transparent 1.5px, transparent 9px);
+}
+.hud-ticks-base { color: #8A94A3; }
+.hud-ticks-active { width: 0%; color: #0067CC; }
+.hud-bottom-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #D9DEE5;
+}
+.hud-scrub-active { color: #0067CC; }
+
 @media (max-width: 760px) {
-  .hero-video-scroll { height: 220vh; }
-  .hero-video-container {
-    flex-direction: column;
-    justify-content: center;
-    padding: clamp(78px, 20vw, 100px) 20px 16px;
-    gap: 8px;
-  }
-  .hero-canvas-wrapper { height: min(32vh, 300px); }
-  .hero-canvas-portrait { margin: 0 auto; }
-  .hero-text-left, .hero-text-right {
-    display: block;
-    max-width: 480px;
-    width: 100%;
-    margin: 0 auto;
-    text-align: center;
-  }
-  .hero-text-left .hero-title { display: block; }
-  .hero-title .reveal { display: block; }
-  /* Tightened type scale + spacing — the desktop side-column sizing
-     leaves no room once everything stacks in a single pinned screen. */
-  .hero-title { font-size: clamp(1.3rem, 6vw, 1.7rem); }
-  .eyebrow { font-size: 0.68rem; margin-bottom: 6px; }
-  .hero-tags { margin: 6px 0; font-size: 0.66rem; }
-  .hero-sub { margin-top: 6px; font-size: 0.82rem; line-height: 1.35; }
-  .hero-actions { margin-top: 10px; gap: 8px; }
-  .hero-actions .btn { padding: 11px 18px; font-size: 0.74rem; }
-  .hero-launch { margin-top: 8px; font-size: 0.66rem; }
-  .hero-phone { margin-top: 6px; font-size: 0.72rem; }
-  .hero-text-right .hero-actions,
-  .hero-text-right .hero-launch,
-  .hero-phone { justify-content: center; }
+  /* Same "just under REC" rule as desktop — mobile REC/specs sit at
+     top:90px with ~18px of content, so 116px clears them. */
+  .cine-title { font-size: clamp(1.5rem, 7.4vw, 2.3rem); top: 116px; padding: 0 16px; }
+  /* The vertical edge labels are hidden below (display:none) at this
+     width, so the side words can sit right at the edge instead of
+     clearing that strip like they do on desktop. */
+  .cine-side-word-left { left: 14px; }
+  .cine-side-word-right { right: 14px; }
+  .cine-side-word { max-width: 46%; font-size: clamp(0.735rem, 3.75vw, 1.125rem); }
+  .hud-corner { width: 18px; height: 18px; }
+  /* Mobile nav is shorter (~74px) than desktop but still fixed/opaque —
+     same clearance fix as the desktop rules above, just a smaller offset. */
+  .hud-corner-tl, .hud-corner-tr { top: 84px; }
+  .hud-corner-bl, .hud-corner-br { bottom: 168px; }
+  .hud-corner-tl, .hud-corner-bl { left: 14px; }
+  .hud-corner-tr, .hud-corner-br { right: 14px; }
+  .hud-rec { top: 90px; left: 36px; font-size: 0.62rem; gap: 6px; }
+  .hud-specs { top: 90px; right: 36px; font-size: 0.56rem; letter-spacing: 0.1em; }
+  .hud-vertical { display: none; }
+  .hud-scrubbar { padding: 8px 78px 12px 14px; }
+  .hud-scrubbar-top { flex-wrap: wrap; gap: 8px 12px; font-size: 0.58rem; }
+  .hud-meta { gap: 8px; width: 100%; order: 3; margin-left: 0; }
+  .hud-meta span:nth-child(1), .hud-meta span:nth-child(2) { display: none; }
+  .hud-bottom-meta { font-size: 0.56rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero-canvas-portrait { animation: none; }
+  .hud-rec-dot { animation: none; }
+  .hud-audio-bars span { animation: none; transform: scaleY(0.6); }
+}
+
+/* ============================================================
+   LOADING SCREEN — shown until every cinematic frame is decoded in
+   memory (see script.js), then fades out for good; never reappears.
+   ============================================================ */
+.cine-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: #0A0E14;
+  transition: opacity 0.5s var(--ease), visibility 0.5s var(--ease);
+}
+.cine-loading.is-done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.cine-loading-bar {
+  width: min(240px, 60vw);
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(217, 222, 229, 0.15);
+  overflow: hidden;
+}
+.cine-loading-fill {
+  height: 100%;
+  width: 0%;
+  background: #0067CC;
+  transition: width 0.2s var(--ease);
+}
+.cine-loading-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8A94A3;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cine-loading { transition: none; }
 }
 
 /* ============================================================
    VIDEO OVERLAP — applied to whichever section immediately follows the
-   pinned canvas (the proof section): slides up to overlap the bottom of
-   the video once the sequence finishes, then settles onto solid ground.
+   pinned canvas (now .hero-lede): slides up to overlap the bottom of the
+   video once the sequence finishes, then settles onto solid ground.
    Purely a layout/paint effect (negative margin + z-index + fade-to-solid
    backdrop) — does not touch the canvas/pin/scrub logic at all.
    ============================================================ */
@@ -781,65 +1074,30 @@ a, button, input, select, textarea { touch-action: manipulation; }
   .video-overlap { --overlap: 56px; }
 }
 
+/* ---------- Hero lede — pitch/CTA/phone right after the cinematic hero,
+   centered, in ordinary light-background flow (reuses .eyebrow/.hero-sub/
+   .hero-actions/.hero-launch/.hero-phone as-is). ---------- */
+.hero-lede {
+  padding: clamp(64px, 10vw, 96px) clamp(20px, 4vw, 56px) clamp(48px, 8vw, 80px);
+}
+.hero-lede-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.hero-lede .hero-actions,
+.hero-lede .hero-launch,
+.hero-lede .hero-phone { justify-content: center; }
+
 .section-lead {
   margin: 0 auto;
   max-width: 56ch;
   color: var(--steel);
   font-size: clamp(1.125rem, 1.3vw, 1.25rem);
   line-height: 1.7;
-}
-.hero-title {
-  font-family: var(--font-display);
-  font-weight: 800;
-  /* Sized for the hero's narrow side column (max-width 400px, see
-     .hero-text-left/.hero-text-right) rather than the old full-bleed
-     centered statement — 2.6rem ceiling keeps "Nettoyage de toiture" from
-     overflowing a 400px column at desktop widths. The 1.7rem floor still
-     comfortably clears the mobile cookie banner once the column drops to
-     full-width centered layout under 760px. */
-  font-size: clamp(1.7rem, 2.6vw, 2.6rem);
-  line-height: 1.0;
-  letter-spacing: -0.02em;
-  display: flex;
-  flex-direction: column;
-  transition: color 0.35s var(--ease);
-}
-/* Character-by-character blur-to-focus entrance (see script.js, which
-   splits each line's text into one .char span per letter at load time).
-   The line itself (.reveal) no longer fades/slides on its own — it sits
-   at its final opacity/position immediately, and every visible motion
-   comes from its individual letters instead, gated by the same
-   IntersectionObserver-driven .is-visible class the rest of the page
-   already uses, so the existing eyebrow → title → subtitle cascade
-   timing (--d delays) is preserved untouched. */
-.hero-title .reveal {
-  opacity: 1;
-  transform: none;
-  transition: none;
-}
-.hero-title .word {
-  display: inline-block;
-}
-.hero-title .char {
-  display: inline-block;
-  opacity: 0;
-  filter: blur(10px);
-  transform: translateY(10px);
-  transition: opacity 0.6s var(--ease), filter 0.6s var(--ease), transform 0.6s var(--ease);
-  transition-delay: calc(var(--d, 0) * 90ms + var(--i, 0) * 22ms);
-}
-.hero-title .reveal.is-visible .char {
-  opacity: 1;
-  filter: blur(0);
-  transform: translateY(0);
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-title .char {
-    transition: none;
-    opacity: 1;
-    filter: none;
-    transform: none;
-  }
 }
 .hero-sub {
   margin-top: 24px;
@@ -1044,50 +1302,55 @@ a, button, input, select, textarea { touch-action: manipulation; }
 }
 
 /* ============================================================
-   GALLERY — "Reels-style" infinite marquee, pure CSS transform loop.
-   The track holds the 4 cards twice back to back (width: max-content);
-   animating to translate3d(-50%) always lands exactly on the start of the
-   second (identical) set, so the loop has no seam and needs no JS to
-   measure distances — see script.js for the pause-on-hover/touch toggle.
+   ACTION CARDS — "Le drone, sur le terrain." GSAP ScrollTrigger
+   horizontal-pin section (merges the old gallery marquee + capabilities
+   grid). See script.js "Action cards horizontal scroll" for the pin/scrub
+   setup; this file only handles layout/paint.
+
+   .action-pin is a plain native horizontally-scrollable row by default
+   (overflow-x + scroll-snap) — that's the whole story on mobile and under
+   prefers-reduced-motion. On desktop with motion allowed, script.js adds
+   .is-pinned-scroll once GSAP takes over: overflow switches to hidden and
+   scroll-snap is dropped, since the horizontal motion is then driven by
+   .action-track's transform instead of native scrolling.
    ============================================================ */
-.gallery-rail {
-  width: 100%;
-  max-width: min(100%, 460px);
-  margin: 0 auto;
+.action-pin {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  border-radius: 20px;
+}
+.action-pin.is-pinned-scroll {
   overflow: hidden;
-  cursor: grab;
-  -webkit-mask-image: linear-gradient(90deg, transparent, black 2%, black 98%, transparent);
-  mask-image: linear-gradient(90deg, transparent, black 2%, black 98%, transparent);
+  scroll-snap-type: none;
 }
-.gallery-rail:active { cursor: grabbing; }
-.gallery-track {
+.action-track {
   display: flex;
-  gap: clamp(14px, 2.4vw, 22px);
+  gap: clamp(16px, 2.2vw, 26px);
   width: max-content;
-  padding: 4px 0 28px;
   will-change: transform;
-  animation: gallery-marquee 26s linear infinite;
 }
-.gallery-track.is-paused { animation-play-state: paused; }
-@keyframes gallery-marquee {
-  from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(-50%, 0, 0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .gallery-track { animation: none; }
-}
-.gallery-card {
+.action-card {
   position: relative;
   isolation: isolate;
   flex: 0 0 auto;
-  width: clamp(220px, 62vw, 300px);
-  aspect-ratio: 9 / 16;
-  border-radius: 22px;
+  scroll-snap-align: start;
+  width: clamp(240px, 30vw, 400px);
+  aspect-ratio: 4 / 5;
+  border-radius: 20px;
   overflow: hidden;
-  background: var(--slate-2);
-  box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 18px 36px -22px rgba(17,21,28,0.22);
+  display: block;
+  text-decoration: none;
+  /* Fallback fill until the real photos land in images/action/ — a flat
+     broken-image icon would look unfinished, this at least reads as
+     deliberate. */
+  background: linear-gradient(155deg, var(--panel-dark), #1a2230);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 18px 36px -22px rgba(0,0,0,0.55);
+  transition: transform .35s var(--ease);
 }
-.gallery-card img {
+.action-card:hover { transform: translateY(-3px); }
+.action-card img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1096,95 +1359,53 @@ a, button, input, select, textarea { touch-action: manipulation; }
   -webkit-user-drag: none;
   pointer-events: none;
 }
-
-/* ============================================================
-   CAPABILITIES
-   ============================================================ */
-.cap-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: clamp(12px, 2vw, 18px);
-}
-.cap-card {
-  /* background-image/-position/-size/-repeat are split out from the
-     background shorthand (rather than left implicit) so the reveal-shimmer
-     below can animate background-position alone — cap-card's ::before and
-     ::after are already spoken for (pointer-glow + border-beam), so this
-     stands in for the ::after sweep used on the other reveal cards. */
-  background-color: var(--slate-glass);
-  background-image: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.45) 50%, transparent 65%);
-  background-repeat: no-repeat;
-  background-size: 250% 100%;
-  background-position: -130% 0;
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: clamp(28px, 4vw, 44px);
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 18px 36px -22px rgba(0,0,0,0.55);
-  transition: border-color .35s var(--ease), transform .35s var(--ease);
-}
-.cap-card:hover { border-color: var(--line-strong); transform: translateY(-3px); }
-.cap-card::before {
-  content: "";
+.action-card-scrim {
   position: absolute;
   inset: 0;
-  z-index: 0;
-  border-radius: inherit;
-  background: radial-gradient(280px circle at var(--mx, 50%) var(--my, 0%), rgba(31,111,235,0.09), transparent 70%);
-  opacity: 0;
-  transition: opacity .4s var(--ease);
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(10,14,20,0) 35%, rgba(10,14,20,0.82) 100%);
   pointer-events: none;
 }
-.cap-card:hover::before { opacity: 1; }
-@media (hover: none) { .cap-card::before { display: none; } }
-.cap-index {
+.action-index {
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  z-index: 2;
   font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 0.78rem;
-  color: var(--cro-blue);
-  display: block;
-  margin-bottom: 32px;
-  position: relative;
-  z-index: 1;
-}
-.cap-icon { color: var(--paper); margin-bottom: 22px; position: relative; z-index: 1; }
-.cap-card h3 {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  font-weight: 600;
-  margin-bottom: 12px;
-  position: relative;
-  z-index: 1;
-  color: var(--paper);
-}
-.cap-card p {
-  color: var(--steel);
-  font-size: 0.95rem;
-  max-width: 40ch;
-  position: relative;
-  z-index: 1;
-}
-
-.cap-card-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin-top: 14px;
-  position: relative;
-  z-index: 1;
-}
-.cap-card-link {
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
+  font-weight: 700;
+  font-size: 1.05rem;
   letter-spacing: 0.02em;
   color: var(--cro-blue);
-  text-decoration: none;
 }
-.cap-card-link:hover { color: var(--signal); text-decoration: underline; }
+.action-card-title {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 56px;
+  z-index: 2;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.2rem, 1.7vw, 1.5rem);
+  line-height: 1.15;
+  color: #fbfbfc;
+}
+.action-card-link {
+  position: absolute;
+  left: 24px;
+  bottom: 22px;
+  z-index: 2;
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.02em;
+  color: rgba(251, 251, 252, 0.82);
+  transition: color .3s var(--ease), transform .3s var(--ease);
+}
+.action-card:hover .action-card-link { color: #fbfbfc; transform: translateX(4px); }
+@media (hover: none) {
+  .action-card:hover { transform: none; }
+  .action-card:hover .action-card-link { color: rgba(251, 251, 252, 0.82); transform: none; }
+}
 
 /* ---------- Sector cards (B2B audience grid, homepage) ---------- */
 .sector-grid {
@@ -1825,12 +2046,11 @@ a, button, input, select, textarea { touch-action: manipulation; }
   margin: 0 auto;
   text-align: center;
 }
-/* Pure-CSS infinite marquee — same duplicate-track technique as
-   .gallery-track: animating to exactly -50% on a track that's 2x one full
-   set wide always lands back on the start with no JS distance measurement
-   or reset-jump. Pause-on-hover/touch is wired in script.js (mirrors
-   #galleryTrack) rather than a :hover rule, since a touch tap can leave a
-   lingering :hover with nothing to clear it. */
+/* Pure-CSS infinite marquee — duplicate-track technique: animating to
+   exactly -50% on a track that's 2x one full set wide always lands back
+   on the start with no JS distance measurement or reset-jump.
+   Pause-on-hover/touch is wired in script.js rather than a :hover rule,
+   since a touch tap can leave a lingering :hover with nothing to clear it. */
 .industries-rail {
   margin-top: 28px;
   overflow: hidden;
@@ -2048,7 +2268,6 @@ a, button, input, select, textarea { touch-action: manipulation; }
   .nav-links.open a:nth-child(7) { transition-delay: .42s; }
   .nav-links.open a:nth-child(8) { transition-delay: .47s; }
   .nav-toggle { display: flex; z-index: 101; }
-  .cap-grid { grid-template-columns: 1fr; }
   .timeline-item { grid-template-columns: 40px 1fr; gap: 18px; }
   .form-row { grid-template-columns: 1fr; }
   .footer-inner { flex-direction: column; }
@@ -2354,8 +2573,11 @@ body:has(#cookieBanner.is-visible) .whatsapp-fab { bottom: 104px; }
    below the pinned hero scrub and aren't involved in any scroll-distance
    measurement, so it can't affect ScrollTrigger/pin math. The intrinsic
    sizes below are real measured heights (mobile/desktop) for each
-   section, used only as a placeholder until the browser has a real one. */
-#capabilities,
+   section, used only as a placeholder until the browser has a real one.
+   #capabilities is deliberately NOT in this list any more — it's now the
+   GSAP ScrollTrigger horizontal-pin section (see .action-section), and
+   content-visibility:auto skipping its descendants' layout while
+   off-screen would fight with ScrollTrigger's own measurements of it. */
 #fleet,
 #process,
 #reliability,
@@ -2366,7 +2588,6 @@ body:has(#cookieBanner.is-visible) .whatsapp-fab { bottom: 104px; }
 .site-footer {
   content-visibility: auto;
 }
-#capabilities { contain-intrinsic-size: auto 1200px; }
 #fleet { contain-intrinsic-size: auto 720px; }
 #process { contain-intrinsic-size: auto 1150px; }
 #reliability { contain-intrinsic-size: auto 800px; }
@@ -2378,7 +2599,6 @@ body:has(#cookieBanner.is-visible) .whatsapp-fab { bottom: 104px; }
 .cta-section { contain-intrinsic-size: auto 700px; }
 .site-footer { contain-intrinsic-size: auto 300px; }
 @media (max-width: 760px), (orientation: portrait) {
-  #capabilities { contain-intrinsic-size: auto 1600px; }
   #process { contain-intrinsic-size: auto 1050px; }
   .trust-section { contain-intrinsic-size: auto 400px; }
   .industries { contain-intrinsic-size: auto 230px; }

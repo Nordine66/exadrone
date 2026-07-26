@@ -29,7 +29,7 @@
 <link rel="stylesheet" href="styles.css?v=20260727">
 <!-- First frame of the drone3D hero sequence — the actual LCP element now
      that the hook is a canvas frame-scrub instead of a background video
-     (see .hero-canvas-portrait below and "Hero video scrub" in script.js). -->
+     (see .cine-canvas below and "Cinematic hero scrub" in script.js). -->
 <link rel="preload" as="image" href="/images/hero-frames/drone3d/drone3D_0001.jpg" fetchpriority="high">
 <script type="application/ld+json">
 {
@@ -117,53 +117,119 @@
 
 <main id="top">
 
-  <!-- HERO — drone3D portrait reveal, scrubbed against scroll on every
-       viewport size (see script.js "Hero video scrub"); text wraps the
-       video left/right, filling the space a plain centered portrait clip
-       would otherwise leave empty. Stacks to a compact single column
-       (still pinned/scrubbed, just a shorter track) under 760px — see
-       .hero-video-scroll media queries in styles.css. -->
-  <section class="hero-video-scroll" id="hook">
-    <div class="hero-video-container">
-      <div class="hero-text-left" id="heroTextLeft">
-        <p class="eyebrow">Prestataire Drone — BTP &amp; Collectivités</p>
-        <h1 class="hero-title">
-          <span class="reveal" data-reveal data-delay="1">Nettoyage par drone</span>
-        </h1>
-        <p class="hero-tags">Façade · Toiture</p>
-      </div>
+  <!-- HERO — cinematic flip-book scroll-scrub with a camera-HUD overlay.
+       .cine-canvas is a position:sticky, full-bleed (100vw x 100vh) canvas
+       that blits whichever of the 49 drone3D frames matches scroll
+       progress through the 400vh track below (see script.js "Cinematic
+       hero scrub"). All 49 frames are preloaded into memory behind
+       #cineLoading before the scene is ever shown. The title is plain
+       static markup (always full opacity, no scroll-gated reveal), sat
+       just under the REC/specs line rather than centered so it never
+       covers the drone. The four .cine-side-word elements are the two
+       symmetric word-pairs (Façade/Toiture, then Bardage/Photovoltaïque)
+       that materialize from and dissolve back into a soft blur/mist as
+       the scrub crosses each pair's window — see updateSideWords in
+       script.js. The HUD chrome (#cineHud) is pointer-events:none and
+       purely decorative except the sound button, which also unlocks/
+       drives a synthesized drone engine (Web Audio, no audio file
+       required — see "Synthesized drone sound" in script.js). -->
 
-      <div class="hero-canvas-wrapper">
-        <canvas class="hero-canvas-portrait" id="heroCanvas" role="img" aria-label="Drone Exadrone en vol stationnaire, vue du dessus"></canvas>
-      </div>
+  <section class="cine-hero" id="hook">
+    <div class="cine-loading" id="cineLoading" aria-hidden="true">
+      <div class="cine-loading-bar"><div class="cine-loading-fill" id="cineLoadingFill"></div></div>
+      <p class="cine-loading-label" id="cineLoadingLabel">Chargement 0%</p>
+    </div>
 
-      <div class="hero-text-right" id="heroTextRight">
-        <p class="hero-tags">Photovoltaïques · Bardage</p>
-        <p class="hero-sub">
-          Sans échafaudage. Sans interruption d'activité. Partout en France,
-          pour le BTP, les collectivités et la rénovation de façade.
-        </p>
-        <div class="hero-actions">
-          <a href="#contact" class="btn btn-primary" data-cursor="link">Demander un devis</a>
-          <a href="#secteurs" class="btn btn-ghost" data-cursor="link">Solutions par secteur</a>
+    <div class="cine-stage">
+      <canvas class="cine-canvas" id="cineCanvas" role="img" aria-label="Drone Exadrone en vol stationnaire, vue du dessus, séquence de nettoyage par drone"></canvas>
+      <div class="cine-vignette" aria-hidden="true"></div>
+
+      <h1 class="cine-title">Nettoyage par <span class="accent">drone</span></h1>
+
+      <!-- Two word-pairs, perfectly symmetric left/right, materialize from
+           and dissolve back into a soft mist (blur+opacity+scale+drift —
+           see updateSideWords in script.js) as the scrub crosses each
+           pair's window. Never both fully visible at once; brief overlap
+           windows around 0.45-0.55 give the crossfade between them. -->
+      <div class="cine-side-word cine-side-word-left" id="wordFacade">Façade</div>
+      <div class="cine-side-word cine-side-word-right" id="wordToiture">Toiture</div>
+      <div class="cine-side-word cine-side-word-left" id="wordBardage">Bardage</div>
+      <div class="cine-side-word cine-side-word-right" id="wordPhotovoltaique">Photovoltaïque</div>
+
+      <div class="cine-hud" id="cineHud" aria-hidden="true">
+        <div class="hud-grid"></div>
+
+        <span class="hud-corner hud-corner-tl"></span>
+        <span class="hud-corner hud-corner-tr"></span>
+        <span class="hud-corner hud-corner-bl"></span>
+        <span class="hud-corner hud-corner-br"></span>
+
+        <div class="hud-rec">
+          <span class="hud-rec-dot"></span>
+          <span class="hud-rec-label">REC</span>
+          <span class="hud-timecode" id="hudTimecode">00:00:00:00</span>
         </div>
-        <div class="hero-launch">
-          <span class="dot"></span> Lancement&nbsp;en&nbsp;<strong>juillet&nbsp;2026</strong>
-        </div>
-        <div class="hero-phone">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
-          <span>Appelez-nous&nbsp;:&nbsp;</span><a href="tel:+33770022172" aria-label="Appeler Exadrone Enterprise au 07 70 02 21 72" class="hero-phone-number">07&nbsp;70&nbsp;02&nbsp;21&nbsp;72</a>
+
+        <div class="hud-specs">4K · 30 FPS · F2.8 · 1/50</div>
+
+        <div class="hud-vertical hud-vertical-left">Défilez pour explorer</div>
+        <div class="hud-vertical hud-vertical-right">Exadrone // Nettoyage</div>
+
+        <div class="hud-scrubbar">
+          <div class="hud-scrubbar-top">
+            <span class="hud-section-label" id="hudSectionLabel">01 · APERÇU</span>
+            <div class="hud-audio-bars is-muted" id="hudAudioBars">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <!-- Starts muted — browsers block audio before any interaction
+                 anyway (see script.js), so the button starts as an "opt in"
+                 rather than an "opt out". -->
+            <button type="button" class="hud-mute-btn" id="hudMuteBtn" aria-pressed="false">Activer le son</button>
+            <div class="hud-meta">
+              <span>ISO 800</span>
+              <span>WB 5600K</span>
+              <span id="hudSectionCount">SECTION 01 / 04</span>
+            </div>
+          </div>
+          <div class="hud-ticks-wrap">
+            <div class="hud-scrub-fill-bg" id="hudScrubFillBg"></div>
+            <div class="hud-ticks-base"></div>
+            <div class="hud-ticks-active" id="hudTicksActive"></div>
+          </div>
+          <div class="hud-bottom-meta">
+            <span id="hudFrameCounter">CADRE 001 / 049</span>
+            <span class="hud-scrub-active">SCRUB ACTIF</span>
+          </div>
         </div>
       </div>
     </div>
+
     <noscript>
       <img src="/images/hero-frames/drone3d/drone3D_0001.jpg" alt="Drone Exadrone en vol stationnaire, vue du dessus" style="display:block;max-width:320px;margin:40px auto;">
     </noscript>
   </section>
 
-  <!-- STAT STRIP — cartes de données bento; video-overlap fades its top
-       edge in over the tail of the pinned hero canvas above. -->
-  <section class="stat-strip video-overlap">
+  <!-- HERO LEDE — pitch/CTA/phone, no longer squeezed inside the pinned
+       cinematic track (the HUD needed the full frame to itself). Plain
+       normal-flow section right after it, so video-overlap still fades
+       the tail of the scrub into solid ground exactly like before, just
+       one section earlier in the DOM. -->
+  <section class="hero-lede video-overlap">
+    <div class="hero-lede-inner">
+      <p class="eyebrow reveal" data-reveal>Prestataire Drone — BTP &amp; Collectivités</p>
+      <p class="hero-sub reveal" data-reveal data-delay="1">
+        Sans échafaudage. Sans interruption d'activité. Partout en France,
+        pour le BTP, les collectivités et la rénovation de façade.
+      </p>
+      <div class="hero-phone reveal" data-reveal data-delay="2">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+        <span>Appelez-nous&nbsp;:&nbsp;</span><a href="tel:+33770022172" aria-label="Appeler Exadrone Enterprise au 07 70 02 21 72" class="hero-phone-number">07&nbsp;70&nbsp;02&nbsp;21&nbsp;72</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- STAT STRIP — cartes de données bento. -->
+  <section class="stat-strip">
     <div class="stat-strip-inner">
       <div class="stat reveal" data-reveal>
         <svg class="stat-icon" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 20h16M7 20V10l5-6 5 6v10" stroke="currentColor" stroke-width="1.4"/></svg>
@@ -242,172 +308,80 @@
     </ul>
   </section>
 
-  <!-- SOLUTION — présentation du système aérien autonome, juste avant la démonstration -->
-  <section class="section" id="solution">
-    <div class="section-head">
-      <p class="eyebrow reveal" data-reveal>Systèmes Aériens Autonomes</p>
-      <h2 class="section-title reveal" data-reveal data-delay="1">Précision en altitude.</h2>
-    </div>
-    <p class="section-lead reveal" data-reveal data-delay="2">
-      Notre système aérien autonome nettoie les façades et les toitures par drone, pour
-      les bâtiments inaccessibles à l'échafaudage et qui ne tolèrent aucune interruption
-      d'activité.
-    </p>
-  </section>
-
-
-  <!-- GALERIE — carrousel "Reels-style" des 4 visuels verticaux -->
-  <section class="section gallery-section video-overlap" id="gallery">
+  <!-- LE DRONE SUR LE TERRAIN — merges the old "En Intervention" gallery and
+       "Capacités" grid into one GSAP ScrollTrigger horizontal-scroll
+       section: on desktop, with motion allowed, the section pins and
+       .action-track translates right-to-left as the page scrolls
+       vertically (see script.js "Action cards horizontal scroll"); on
+       mobile and under prefers-reduced-motion it's a plain native-swipe
+       horizontally scrollable row instead — no pin, no JS, just
+       overflow-x + scroll-snap.
+       id="capabilities" is kept (not "gallery") because every other page's
+       nav/footer link to index.html#capabilities — renaming it would
+       break every one of those links.
+       PLACEHOLDER CONTENT: the 5 cards below stand in for the 5 titled
+       photos you're going to drop into images/action/ (action-01.jpg …
+       action-05.jpg) — titles/links are drawn from the site's own real
+       service categories (the same four the old gallery + capabilities
+       sections already covered) so the section works end-to-end today,
+       but re-check both the titles and the blog links once your actual
+       photos replace them, they may suggest a different pairing. -->
+  <section class="section action-section" id="capabilities">
     <div class="section-head">
       <p class="eyebrow reveal" data-reveal>En Intervention</p>
       <h2 class="section-title reveal" data-reveal data-delay="1">Le drone, sur le terrain.</h2>
     </div>
-    <div class="gallery-rail reveal" data-reveal data-delay="1">
-      <div class="gallery-track" id="galleryTrack">
-        <!-- Carousel images are served from images/carousel/ — 480w/900w
-             WebP (primary) + JPEG (fallback) derivatives generated from the
-             source files in "image verticale/", which were a flat 8-10MB
-             PNG each (35MB total) at up to 1888px wide for a card that never
-             renders past 300px. sizes mirrors .gallery-card's actual CSS
-             width (clamp(220px, 62vw, 300px)); loading=lazy since this
-             section sits well below the fold. -->
-        <figure class="gallery-card">
-          <picture>
-            <source type="image/webp" srcset="images/carousel/drone-sol-480.webp 480w, images/carousel/drone-sol-900.webp 900w" sizes="(max-width: 760px) 62vw, 300px">
-            <img src="images/carousel/drone-sol-900.jpg" srcset="images/carousel/drone-sol-480.jpg 480w, images/carousel/drone-sol-900.jpg 900w" sizes="(max-width: 760px) 62vw, 300px" alt="Drone Exadrone Enterprise déployé au sol devant une résidence, avec plaque de certification BAPD et CATS" width="502" height="900" draggable="false" loading="lazy" decoding="async">
-          </picture>
-        </figure>
-        <figure class="gallery-card">
-          <picture>
-            <source type="image/webp" srcset="images/carousel/drone-clocher-480.webp 480w, images/carousel/drone-clocher-900.webp 900w" sizes="(max-width: 760px) 62vw, 300px">
-            <img src="images/carousel/drone-clocher-900.jpg" srcset="images/carousel/drone-clocher-480.jpg 480w, images/carousel/drone-clocher-900.jpg 900w" sizes="(max-width: 760px) 62vw, 300px" alt="Drone Exadrone Enterprise en vol stationnaire près d'un clocher, survolant les toits de la ville" width="748" height="900" draggable="false" loading="lazy" decoding="async">
-          </picture>
-        </figure>
-        <figure class="gallery-card">
-          <picture>
-            <source type="image/webp" srcset="images/carousel/drone-pulverisation-480.webp 480w, images/carousel/drone-pulverisation-900.webp 900w" sizes="(max-width: 760px) 62vw, 300px">
-            <img src="images/carousel/drone-pulverisation-900.jpg" srcset="images/carousel/drone-pulverisation-480.jpg 480w, images/carousel/drone-pulverisation-900.jpg 900w" sizes="(max-width: 760px) 62vw, 300px" alt="Vue rapprochée du drone Exadrone Enterprise pulvérisant de l'eau sur des tuiles de toiture envahies de mousse" width="502" height="900" draggable="false" loading="lazy" decoding="async">
-          </picture>
-        </figure>
-        <figure class="gallery-card">
-          <picture>
-            <source type="image/webp" srcset="images/carousel/drone-comparatif-480.webp 480w, images/carousel/drone-comparatif-900.webp 900w" sizes="(max-width: 760px) 62vw, 300px">
-            <img src="images/carousel/drone-comparatif-900.jpg" srcset="images/carousel/drone-comparatif-480.jpg 480w, images/carousel/drone-comparatif-900.jpg 900w" sizes="(max-width: 760px) 62vw, 300px" alt="Comparatif avant/après d'une toiture restaurée par nettoyage aérien Exadrone Enterprise" width="502" height="900" draggable="false" loading="lazy" decoding="async">
-          </picture>
-        </figure>
-        <!-- Duplicate set, hidden from assistive tech: makes the track exactly
-             2x one full set wide, so animating to translate3d(-50%) always
-             lands pixel-for-pixel back on the start — a seamless loop with
-             no JS distance measurement and no reset-jump. Same URLs as above
-             so the browser serves these from cache, no extra download. -->
-        <figure class="gallery-card" aria-hidden="true">
-          <picture>
-            <source type="image/webp" srcset="images/carousel/drone-sol-480.webp 480w, images/carousel/drone-sol-900.webp 900w" sizes="(max-width: 760px) 62vw, 300px">
-            <img src="images/carousel/drone-sol-900.jpg" srcset="images/carousel/drone-sol-480.jpg 480w, images/carousel/drone-sol-900.jpg 900w" sizes="(max-width: 760px) 62vw, 300px" alt="" width="502" height="900" draggable="false" loading="lazy" decoding="async" fetchpriority="low">
-          </picture>
-        </figure>
-        <figure class="gallery-card" aria-hidden="true">
-          <picture>
-            <source type="image/webp" srcset="images/carousel/drone-clocher-480.webp 480w, images/carousel/drone-clocher-900.webp 900w" sizes="(max-width: 760px) 62vw, 300px">
-            <img src="images/carousel/drone-clocher-900.jpg" srcset="images/carousel/drone-clocher-480.jpg 480w, images/carousel/drone-clocher-900.jpg 900w" sizes="(max-width: 760px) 62vw, 300px" alt="" width="748" height="900" draggable="false" loading="lazy" decoding="async" fetchpriority="low">
-          </picture>
-        </figure>
-        <figure class="gallery-card" aria-hidden="true">
-          <picture>
-            <source type="image/webp" srcset="images/carousel/drone-pulverisation-480.webp 480w, images/carousel/drone-pulverisation-900.webp 900w" sizes="(max-width: 760px) 62vw, 300px">
-            <img src="images/carousel/drone-pulverisation-900.jpg" srcset="images/carousel/drone-pulverisation-480.jpg 480w, images/carousel/drone-pulverisation-900.jpg 900w" sizes="(max-width: 760px) 62vw, 300px" alt="" width="502" height="900" draggable="false" loading="lazy" decoding="async" fetchpriority="low">
-          </picture>
-        </figure>
-        <figure class="gallery-card" aria-hidden="true">
-          <picture>
-            <source type="image/webp" srcset="images/carousel/drone-comparatif-480.webp 480w, images/carousel/drone-comparatif-900.webp 900w" sizes="(max-width: 760px) 62vw, 300px">
-            <img src="images/carousel/drone-comparatif-900.jpg" srcset="images/carousel/drone-comparatif-480.jpg 480w, images/carousel/drone-comparatif-900.jpg 900w" sizes="(max-width: 760px) 62vw, 300px" alt="" width="502" height="900" draggable="false" loading="lazy" decoding="async" fetchpriority="low">
-          </picture>
-        </figure>
+
+    <!-- No .reveal/data-reveal here on purpose — this is the GSAP pin
+         target (see script.js), and the reveal IntersectionObserver would
+         also fire on the individual cards while they're still off to the
+         side of the horizontal track: overflow:hidden on an ancestor
+         doesn't stop a clipped descendant from geometrically intersecting
+         the viewport, so per-card reveals would all fire together the
+         moment the section scrolls into view, before the horizontal
+         scroll ever reveals them. -->
+    <div class="action-pin">
+      <div class="action-track" id="actionTrack">
+        <a href="/blog/nettoyage-facade-par-drone-avantages-cout.html" class="action-card" data-cursor="link">
+          <img src="images/action/action-01.jpg" alt="" loading="lazy" decoding="async">
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <span class="action-index">01</span>
+          <h3 class="action-card-title">Nettoyage de Façade</h3>
+          <span class="action-card-link">Lire l'article →</span>
+        </a>
+        <a href="/blog/nettoyage-toiture-par-drone-avantages.html" class="action-card" data-cursor="link">
+          <img src="images/action/action-02.jpg" alt="" loading="lazy" decoding="async">
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <span class="action-index">02</span>
+          <h3 class="action-card-title">Nettoyage de Toiture</h3>
+          <span class="action-card-link">Lire l'article →</span>
+        </a>
+        <a href="/blog/bardage-par-drone.html" class="action-card" data-cursor="link">
+          <img src="images/action/action-03.jpg" alt="" loading="lazy" decoding="async">
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <span class="action-index">03</span>
+          <h3 class="action-card-title">Bardage &amp; Revêtements</h3>
+          <span class="action-card-link">Lire l'article →</span>
+        </a>
+        <a href="/blog/nettoyage-panneaux-solaires-par-drone.html" class="action-card" data-cursor="link">
+          <img src="images/action/action-04.jpg" alt="" loading="lazy" decoding="async">
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <span class="action-index">04</span>
+          <h3 class="action-card-title">Panneaux Photovoltaïques</h3>
+          <span class="action-card-link">Lire l'article →</span>
+        </a>
+        <!-- TODO: vérifier l'URL — inspection-toiture-par-drone.html choisi
+             comme le plus représentatif, mais cartographie-par-drone-
+             batiment.html ou photogrammetrie-par-drone.html conviendraient
+             peut-être mieux selon ce que montre la 5e photo réelle. -->
+        <a href="/blog/inspection-toiture-par-drone.html" class="action-card" data-cursor="link">
+          <img src="images/action/action-05.jpg" alt="" loading="lazy" decoding="async">
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <span class="action-index">05</span>
+          <h3 class="action-card-title">Inspection &amp; Cartographie</h3>
+          <span class="action-card-link">Lire l'article →</span>
+        </a>
       </div>
-    </div>
-  </section>
-
-  <!-- AVANT / APRÈS — la preuve, juste après la galerie -->
-  <section class="section" id="results">
-    <div class="section-head">
-      <p class="eyebrow reveal" data-reveal>Des Preuves, Pas des Promesses</p>
-      <h2 class="section-title reveal" data-reveal data-delay="1">Le même toit. Un seul passage autonome.</h2>
-    </div>
-
-    <div class="ba-slider reveal" data-reveal data-delay="1">
-      <div class="ba-frame" id="baFrame">
-        <picture>
-          <source type="image/webp" srcset="images/facade-after.webp 900w, images/facade-after-full.webp 1408w" sizes="(max-width: 760px) 100vw, 1200px">
-          <img class="ba-img ba-after" src="images/facade-after.jpg" alt="Toiture après nettoyage par drone Exadrone Enterprise — mousses et lichens entièrement éliminés" width="1408" height="768" draggable="false" loading="lazy" decoding="async">
-        </picture>
-        <picture>
-          <source type="image/webp" srcset="images/facade-before.webp 900w, images/facade-before-full.webp 1408w" sizes="(max-width: 760px) 100vw, 1200px">
-          <img class="ba-img ba-before" id="baBeforeImg" src="images/facade-before.jpg" alt="Toiture avant nettoyage — accumulation importante de mousses et lichens sur les tuiles" width="1408" height="768" draggable="false" loading="lazy" decoding="async">
-        </picture>
-        <div class="ba-tag ba-tag-before">Avant</div>
-        <div class="ba-tag ba-tag-after">Après</div>
-        <div class="ba-handle" id="baHandle" style="left:50%">
-          <span class="ba-handle-line"></span>
-          <span class="ba-handle-grip" id="baGrip" tabindex="0" role="slider" aria-label="Faites glisser pour comparer avant et après nettoyage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 1L1 7l4 6M9 1l4 6-4 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-        </div>
-      </div>
-      <p class="ba-hint">Faites glisser le curseur — ou cliquez n'importe où dans le cadre</p>
-    </div>
-  </section>
-
-  <!-- CAPACITÉS -->
-  <section class="section" id="capabilities">
-    <div class="section-head">
-      <p class="eyebrow reveal" data-reveal>Capacités</p>
-      <h2 class="section-title reveal" data-reveal data-delay="1">
-        Un drone. Toutes les surfaces&nbsp;verticales.
-      </h2>
-    </div>
-
-    <div class="cap-grid">
-      <article class="cap-card reveal" data-reveal>
-        <span class="cap-index">01</span>
-        <svg class="cap-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M6 26V12L16 5l10 7v14" stroke="currentColor" stroke-width="1.3"/><path d="M6 18h20" stroke="currentColor" stroke-width="1.3"/></svg>
-        <h3>Restauration de Façades</h3>
-        <p>Nettoyage du verre, de la pierre, des composites et des panneaux métalliques — calibré selon chaque support, sans aucun contact structurel.</p>
-        <div class="cap-card-links">
-          <a href="/blog/nettoyage-facade-par-drone-avantages-cout.html" class="cap-card-link" data-cursor="link">Nettoyage de façade par drone →</a>
-          <a href="/blog/bardage-par-drone.html" class="cap-card-link" data-cursor="link">Bardage par drone →</a>
-        </div>
-      </article>
-
-      <article class="cap-card reveal" data-reveal data-delay="1">
-        <span class="cap-index">02</span>
-        <svg class="cap-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="7" y="7" width="18" height="18" stroke="currentColor" stroke-width="1.3"/><path d="M7 14h18M14 7v18" stroke="currentColor" stroke-width="1.3"/></svg>
-        <h3>Toitures &amp; Panneaux Solaires</h3>
-        <p>Élimination des débris et nettoyage sans risque pour les panneaux solaires photovoltaïques, qui restaure le rendement sans compromettre la membrane ni les cellules.</p>
-        <div class="cap-card-links">
-          <a href="/blog/nettoyage-toiture-par-drone-avantages.html" class="cap-card-link" data-cursor="link">Nettoyage de toiture par drone →</a>
-          <a href="/blog/nettoyage-panneaux-solaires-par-drone.html" class="cap-card-link" data-cursor="link">Panneaux solaires →</a>
-        </div>
-      </article>
-
-      <article class="cap-card reveal" data-reveal data-delay="2">
-        <span class="cap-index">03</span>
-        <svg class="cap-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="9" stroke="currentColor" stroke-width="1.3"/><path d="M16 11v5l3 3" stroke="currentColor" stroke-width="1.3"/></svg>
-        <h3>Retrait de Revêtements &amp; Graffitis</h3>
-        <p>Traitement ciblé et à pression contrôlée des salissures de surface — sans abrasion, sans décoloration.</p>
-      </article>
-
-      <article class="cap-card reveal" data-reveal data-delay="3">
-        <span class="cap-index">04</span>
-        <svg class="cap-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M5 16h22M16 5v22" stroke="currentColor" stroke-width="1.3"/><circle cx="16" cy="16" r="11" stroke="currentColor" stroke-width="1.3"/></svg>
-        <h3>Inspection Aérienne &amp; Cartographie</h3>
-        <p>Capture LiDAR haute résolution et thermique pour établir un état des lieux avant la moindre intervention.</p>
-        <div class="cap-card-links">
-          <a href="/blog/inspection-toiture-par-drone.html" class="cap-card-link" data-cursor="link">Inspection de toiture par drone →</a>
-          <a href="/blog/cartographie-par-drone-batiment.html" class="cap-card-link" data-cursor="link">Cartographie par drone →</a>
-          <a href="/blog/photogrammetrie-par-drone.html" class="cap-card-link" data-cursor="link">Photogrammétrie →</a>
-        </div>
-      </article>
     </div>
   </section>
 
@@ -450,6 +424,49 @@
         <span class="sector-card-link">Découvrir →</span>
       </a>
     </div>
+  </section>
+
+  <!-- AVANT / APRÈS — la preuve -->
+  <section class="section" id="results">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-reveal>Des Preuves, Pas des Promesses</p>
+      <h2 class="section-title reveal" data-reveal data-delay="1">Le même toit. Un seul passage autonome.</h2>
+    </div>
+
+    <div class="ba-slider reveal" data-reveal data-delay="1">
+      <div class="ba-frame" id="baFrame">
+        <picture>
+          <source type="image/webp" srcset="images/facade-after.webp 900w, images/facade-after-full.webp 1408w" sizes="(max-width: 760px) 100vw, 1200px">
+          <img class="ba-img ba-after" src="images/facade-after.jpg" alt="Toiture après nettoyage par drone Exadrone Enterprise — mousses et lichens entièrement éliminés" width="1408" height="768" draggable="false" loading="lazy" decoding="async">
+        </picture>
+        <picture>
+          <source type="image/webp" srcset="images/facade-before.webp 900w, images/facade-before-full.webp 1408w" sizes="(max-width: 760px) 100vw, 1200px">
+          <img class="ba-img ba-before" id="baBeforeImg" src="images/facade-before.jpg" alt="Toiture avant nettoyage — accumulation importante de mousses et lichens sur les tuiles" width="1408" height="768" draggable="false" loading="lazy" decoding="async">
+        </picture>
+        <div class="ba-tag ba-tag-before">Avant</div>
+        <div class="ba-tag ba-tag-after">Après</div>
+        <div class="ba-handle" id="baHandle" style="left:50%">
+          <span class="ba-handle-line"></span>
+          <span class="ba-handle-grip" id="baGrip" tabindex="0" role="slider" aria-label="Faites glisser pour comparer avant et après nettoyage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 1L1 7l4 6M9 1l4 6-4 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+      </div>
+      <p class="ba-hint">Faites glisser le curseur — ou cliquez n'importe où dans le cadre</p>
+    </div>
+  </section>
+
+  <!-- SOLUTION — présentation du système aérien autonome -->
+  <section class="section" id="solution">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-reveal>Systèmes Aériens Autonomes</p>
+      <h2 class="section-title reveal" data-reveal data-delay="1">Précision en altitude.</h2>
+    </div>
+    <p class="section-lead reveal" data-reveal data-delay="2">
+      Notre système aérien autonome nettoie les façades et les toitures par drone, pour
+      les bâtiments inaccessibles à l'échafaudage et qui ne tolèrent aucune interruption
+      d'activité.
+    </p>
   </section>
 
   <!-- VITRINE / PANNEAU VIDÉO -->
@@ -792,7 +809,15 @@
   </svg>
 </a>
 
-<!-- defer: fetches all three in parallel instead of one at a time, then
+<!-- GSAP + ScrollTrigger — only real external JS dependency on the page,
+     used solely for the "Le drone, sur le terrain" horizontal-pin section
+     (see script.js "Action cards horizontal scroll"). Loaded before
+     script.js, still with defer, so window.gsap/ScrollTrigger exist by
+     the time script.js's DOMContentLoaded handler runs (deferred scripts
+     execute in document order). -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+<!-- defer: fetches all in parallel instead of one at a time, then
      runs them in this same order once parsing finishes. script.js already
      wraps everything in a DOMContentLoaded listener, so execution timing
      relative to the rest of the page is unchanged. -->
