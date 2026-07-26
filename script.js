@@ -684,26 +684,14 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       cineScrubTick = () => {
         const rect = cineHero.getBoundingClientRect();
-        // Once the whole hero (sticky stage included) has scrolled out
-        // above the viewport there's nothing left to draw — and,
-        // critically, cut the engine sound immediately rather than let it
-        // coast on whatever gain it last held. Web Audio nodes don't stop
-        // themselves just because nobody's looking at the canvas anymore;
-        // hearing the drone hum on into later sections read as a bug, not
-        // ambience, so this is a hard, instant cut (setValueAtTime), not
-        // the usual gentle setTargetAtTime decay. Scrolling back up into
-        // the hero resumes normally next frame — only droneGain/noiseGain
-        // are touched here, not the mute button's own masterGain.
-        if (rect.bottom <= 0) {
-          if (audioCtx && droneNodes) {
-            const now = audioCtx.currentTime;
-            droneNodes.droneGain.gain.cancelScheduledValues(now);
-            droneNodes.droneGain.gain.setValueAtTime(0, now);
-            droneNodes.noiseGain.gain.cancelScheduledValues(now);
-            droneNodes.noiseGain.gain.setValueAtTime(0, now);
-          }
-          return;
-        }
+        // Pure perf floor: once the whole 400vh block — sticky stage AND
+        // the dead-space runway below it that exists purely to build
+        // scroll distance — has scrolled out above the viewport, there is
+        // nothing left to compute, ever again, for the rest of the page.
+        // NOT where the audio gets cut (see below) — that boundary is
+        // much further down than where the hero actually looks finished.
+        if (rect.bottom <= 0) return;
+
         const scrollable = rect.height - window.innerHeight;
         const progress = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0;
         const frameIndex = Math.round(progress * (CINE_TOTAL_FRAMES - 1));
@@ -712,6 +700,29 @@ document.addEventListener('DOMContentLoaded', () => {
         updateHud(progress, frameIndex);
         updateSideWords(progress);
         updateDroneAudio(progress);
+
+        // progress reaching 1 is the moment the sticky stage un-sticks and
+        // the hero visually ends — NOT rect.bottom<=0 above: the 400vh
+        // track is only 100vh of visible scrub plus ~300vh of dead space
+        // purely to build that scroll distance, so rect.bottom stays well
+        // above 0 for a full extra viewport-and-then-some after the hero
+        // is already visually gone. Gating the cut on rect.bottom<=0 (an
+        // earlier version of this fix) left the engine hum playing right
+        // through the hero-lede/stats/estimate sections — exactly the
+        // "sound doesn't stop" bug. updateDroneAudio's own gain ramp only
+        // asymptotically approaches 0 (setTargetAtTime never truly gets
+        // there), so this is a hard, instant cut (setValueAtTime) right
+        // at the real boundary, not a fix to some already-gentle decay.
+        // Scrolling back up resumes normally next frame; only
+        // droneGain/noiseGain are touched, not the mute button's own
+        // masterGain.
+        if (progress >= 1 && audioCtx && droneNodes) {
+          const now = audioCtx.currentTime;
+          droneNodes.droneGain.gain.cancelScheduledValues(now);
+          droneNodes.droneGain.gain.setValueAtTime(0, now);
+          droneNodes.noiseGain.gain.cancelScheduledValues(now);
+          droneNodes.noiseGain.gain.setValueAtTime(0, now);
+        }
       };
     }
   }
@@ -892,9 +903,13 @@ document.addEventListener('DOMContentLoaded', () => {
      "Solutions par secteur". Only under prefers-reduced-motion (or if
      GSAP fails to load off the CDN) does it fall back to .action-pin's
      own native overflow-x:auto from styles.css — plain touch/trackpad
-     swipe, no JS at all. pinType:'transform' rather than the default
-     'fixed' keeps this stable on mobile browsers whose address bar
-     resizes the viewport mid-scroll. */
+     swipe, no JS at all. Deliberately NOT setting pinType:'transform':
+     that was tried as a mobile-stability measure and did the opposite —
+     it's meant for pinning inside a proxy/virtual scroller (Locomotive
+     Scroll, ScrollSmoother), and forcing it on a page whose scroller is
+     the plain <body> is a documented cause of visible vertical jitter
+     while pinned. GSAP already auto-selects 'fixed' for a <body> scroller
+     (the jitter-free option here), so the fix is to just not override it. */
   const actionPin = document.querySelector('.action-pin');
   const actionTrack = document.getElementById('actionTrack');
   if (actionPin && actionTrack && window.gsap && window.ScrollTrigger) {
@@ -912,7 +927,6 @@ document.addEventListener('DOMContentLoaded', () => {
             end: () => `+=${getScrollDistance()}`,
             scrub: 0.5,
             pin: true,
-            pinType: 'transform',
             anticipatePin: 1,
             invalidateOnRefresh: true,
           },
