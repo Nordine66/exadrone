@@ -379,8 +379,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const hudFrameCounter = document.getElementById('hudFrameCounter');
     const hudTicksActive = document.getElementById('hudTicksActive');
     const hudScrubFillBg = document.getElementById('hudScrubFillBg');
-    const hudAudioBars = document.getElementById('hudAudioBars');
-    const hudMuteBtn = document.getElementById('hudMuteBtn');
 
     // Five acts, sharing their boundaries exactly with the sequential
     // word-cycle below (Façade → Toiture → Photovoltaïque → Bardage → the
@@ -472,179 +470,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
 
-    /* ---------- Synthesized drone sound (Web Audio, no audio file) ----------
-       Three close-detuned sawtooth oscillators (engine "beat"/chorus)
-       summed through a fast ~48Hz gain-modulated LFO (rotor-blade thrum),
-       plus a thin bed of filtered white noise (air rush). Pitch and volume
-       both track scroll progress: a quick rev-up in the first 6%, then a
-       long descent toward near-silence as the drone reaches the ground by
-       the last frame — matches the footage (already airborne at frame 1,
-       touching down at frame 49). Everything is built lazily on first use
-       so a visitor who never touches sound never pays for an AudioContext
-       at all. Browsers block audible output before any interaction — ANY
-       click/tap on the page warms the context up (see the pointerdown/
-       keydown listeners below) so there's no first-click lag once sound
-       IS requested, but actual volume stays at 0 until the HUD button is
-       explicitly switched on: going audible the instant a context unlocks
-       would be a surprise, not a feature. */
-    const DRONE_DETUNE = [1, 1.012, 0.986];
-    let audioCtx = null;
-    let droneNodes = null;
-    let soundEnabled = false;
-
-    const buildDroneGraph = () => {
-      if (droneNodes) return;
-      const ctx = audioCtx;
-      const now = ctx.currentTime;
-
-      const masterGain = ctx.createGain();
-      masterGain.gain.setValueAtTime(0, now);
-      masterGain.connect(ctx.destination);
-
-      const droneGain = ctx.createGain();
-      droneGain.gain.setValueAtTime(0.001, now);
-      droneGain.connect(masterGain);
-      const oscillators = DRONE_DETUNE.map((mult) => {
-        const osc = ctx.createOscillator();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(90 * mult, now);
-        osc.connect(droneGain);
-        osc.start();
-        return osc;
-      });
-
-      // Rotor-blade thrum — an audio-rate LFO modulating the drone gain's
-      // own AudioParam (the standard Web Audio "connect an oscillator into
-      // a gain param" modulation trick), not an audible tone on its own.
-      const lfo = ctx.createOscillator();
-      lfo.type = 'sine';
-      lfo.frequency.setValueAtTime(48, now);
-      const lfoDepth = ctx.createGain();
-      lfoDepth.gain.setValueAtTime(0.05, now);
-      lfo.connect(lfoDepth);
-      lfoDepth.connect(droneGain.gain);
-      lfo.start();
-
-      // Filtered white noise — a soft "air rush" bed under the tonal drone.
-      const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-      const noiseData = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < noiseData.length; i++) noiseData[i] = Math.random() * 2 - 1;
-      const noiseSource = ctx.createBufferSource();
-      noiseSource.buffer = noiseBuffer;
-      noiseSource.loop = true;
-      const noiseFilter = ctx.createBiquadFilter();
-      noiseFilter.type = 'lowpass';
-      noiseFilter.frequency.setValueAtTime(1100, now);
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.001, now);
-      noiseSource.connect(noiseFilter);
-      noiseFilter.connect(noiseGain);
-      noiseGain.connect(masterGain);
-      noiseSource.start();
-
-      droneNodes = { masterGain, droneGain, oscillators, noiseGain };
-    };
-
-    const ensureAudioContext = () => {
-      if (!audioCtx) {
-        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextCtor) return;
-        try {
-          audioCtx = new AudioContextCtor();
-          buildDroneGraph();
-        } catch (e) { audioCtx = null; }
-      }
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-    };
-    ['pointerdown', 'keydown'].forEach((evt) => {
-      window.addEventListener(evt, ensureAudioContext, { once: true, passive: true });
-    });
-
-    const setSoundEnabled = (on) => {
-      soundEnabled = on;
-      if (!audioCtx || !droneNodes) return;
-      const now = audioCtx.currentTime;
-      droneNodes.masterGain.gain.cancelScheduledValues(now);
-      droneNodes.masterGain.gain.setTargetAtTime(on ? 1 : 0, now, 0.2);
-    };
-
-    // A one-shot synthesized "touchdown" thump — a sine burst that drops in
-    // pitch and decays fast, layered on top of the engine drone right as it
-    // fades out. Built fresh each time (oscillators can only ever be
-    // started once, unlike the persistent engine graph above) and routed
-    // through the same masterGain so it respects the mute state/overall
-    // volume rather than bypassing it.
-    const playLandingThud = () => {
-      if (!audioCtx || !droneNodes) return;
-      const now = audioCtx.currentTime;
-      const thudOsc = audioCtx.createOscillator();
-      thudOsc.type = 'sine';
-      thudOsc.frequency.setValueAtTime(130, now);
-      thudOsc.frequency.exponentialRampToValueAtTime(34, now + 0.22);
-      const thudGain = audioCtx.createGain();
-      thudGain.gain.setValueAtTime(0.0001, now);
-      thudGain.gain.exponentialRampToValueAtTime(0.32, now + 0.012);
-      thudGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
-      thudOsc.connect(thudGain);
-      thudGain.connect(droneNodes.masterGain);
-      thudOsc.start(now);
-      thudOsc.stop(now + 0.6);
-    };
-    let landingThudArmed = true;
-    const LANDING_THUD_AT = 0.95;
-
-    const updateDroneAudio = (progress) => {
-      if (!audioCtx || !droneNodes) return;
-      const now = audioCtx.currentTime;
-      // Quick rev-up in the first 6%, then a straight-line descent all the
-      // way to true silence (not a floor above zero) by progress 1 — the
-      // drone is on the ground by the last frame, so there must be nothing
-      // left playing under the landing thump below.
-      const REV_UP_END = 0.06;
-      const intensity = progress < REV_UP_END
-        ? 0.7 + (progress / REV_UP_END) * 0.3
-        : Math.max(0, 1 - (progress - REV_UP_END) / (1 - REV_UP_END));
-      const baseFreq = 55 + intensity * 55;
-      droneNodes.oscillators.forEach((osc, i) => {
-        osc.frequency.setTargetAtTime(baseFreq * DRONE_DETUNE[i], now, 0.1);
-      });
-      // Cut roughly in half from the first pass — three summed detuned
-      // sawtooths build up more perceived loudness/harshness than each
-      // individual gain value suggests.
-      droneNodes.droneGain.gain.setTargetAtTime(intensity * 0.09, now, 0.12);
-      droneNodes.noiseGain.gain.setTargetAtTime(intensity * 0.025, now, 0.12);
-
-      if (progress >= LANDING_THUD_AT) {
-        if (landingThudArmed && soundEnabled) {
-          landingThudArmed = false;
-          playLandingThud();
-        }
-      } else if (progress < LANDING_THUD_AT - 0.03) {
-        landingThudArmed = true;
-      }
-    };
-
-    hudMuteBtn && hudMuteBtn.addEventListener('click', () => {
-      ensureAudioContext(); // covers this click also being the first interaction
-      setSoundEnabled(!soundEnabled);
-      hudMuteBtn.setAttribute('aria-pressed', String(soundEnabled));
-      hudMuteBtn.textContent = soundEnabled ? 'Coupez le son' : 'Activer le son';
-      hudAudioBars && hudAudioBars.classList.toggle('is-muted', !soundEnabled);
-      if (soundEnabled) updateDroneAudio(cineLastProgress);
-    });
-
-    // Water-spray hook — fires once as the scrub crosses into the Façade/
-    // Toiture window, and re-arms if the visitor scrolls back above the
-    // threshold so it can play again on a second pass through. A clean,
-    // optional slot for a real recording later (see /audio/hero-water-
-    // spray.mp3) rather than a requirement — every entry point into it is
-    // wrapped so a missing file can never throw, and it only ever plays
-    // once sound is actually switched on.
-    let cineWaterAudio;
-    try { cineWaterAudio = new Audio('/audio/hero-water-spray.mp3'); cineWaterAudio.preload = 'auto'; } catch (e) { cineWaterAudio = null; }
-    let waterSoundArmed = true;
-    const WATER_SOUND_THRESHOLD = 0.05;
-
     const updateHud = (progress, frameIndex) => {
       const sectionIdx = getPhaseIndex(progress);
       if (sectionIdx !== cineLastSectionIdx) {
@@ -657,18 +482,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const pct = `${(progress * 100).toFixed(2)}%`;
       if (hudTicksActive) hudTicksActive.style.width = pct;
       if (hudScrubFillBg) hudScrubFillBg.style.width = pct;
-
-      if (cineWaterAudio) {
-        if (progress >= WATER_SOUND_THRESHOLD) {
-          if (waterSoundArmed && soundEnabled) {
-            waterSoundArmed = false;
-            try { cineWaterAudio.currentTime = 0; } catch (e) { /* not seekable yet, fine */ }
-            cineWaterAudio.play().catch(() => {});
-          }
-        } else if (progress < WATER_SOUND_THRESHOLD - 0.03) {
-          waterSoundArmed = true;
-        }
-      }
     };
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -688,8 +501,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // the dead-space runway below it that exists purely to build
         // scroll distance — has scrolled out above the viewport, there is
         // nothing left to compute, ever again, for the rest of the page.
-        // NOT where the audio gets cut (see below) — that boundary is
-        // much further down than where the hero actually looks finished.
         if (rect.bottom <= 0) return;
 
         const scrollable = rect.height - window.innerHeight;
@@ -699,30 +510,6 @@ document.addEventListener('DOMContentLoaded', () => {
         drawCineFrame(frameIndex);
         updateHud(progress, frameIndex);
         updateSideWords(progress);
-        updateDroneAudio(progress);
-
-        // progress reaching 1 is the moment the sticky stage un-sticks and
-        // the hero visually ends — NOT rect.bottom<=0 above: the 400vh
-        // track is only 100vh of visible scrub plus ~300vh of dead space
-        // purely to build that scroll distance, so rect.bottom stays well
-        // above 0 for a full extra viewport-and-then-some after the hero
-        // is already visually gone. Gating the cut on rect.bottom<=0 (an
-        // earlier version of this fix) left the engine hum playing right
-        // through the hero-lede/stats/estimate sections — exactly the
-        // "sound doesn't stop" bug. updateDroneAudio's own gain ramp only
-        // asymptotically approaches 0 (setTargetAtTime never truly gets
-        // there), so this is a hard, instant cut (setValueAtTime) right
-        // at the real boundary, not a fix to some already-gentle decay.
-        // Scrolling back up resumes normally next frame; only
-        // droneGain/noiseGain are touched, not the mute button's own
-        // masterGain.
-        if (progress >= 1 && audioCtx && droneNodes) {
-          const now = audioCtx.currentTime;
-          droneNodes.droneGain.gain.cancelScheduledValues(now);
-          droneNodes.droneGain.gain.setValueAtTime(0, now);
-          droneNodes.noiseGain.gain.cancelScheduledValues(now);
-          droneNodes.noiseGain.gain.setValueAtTime(0, now);
-        }
       };
     }
   }
@@ -929,6 +716,23 @@ document.addEventListener('DOMContentLoaded', () => {
             pin: true,
             anticipatePin: 1,
             invalidateOnRefresh: true,
+            // .is-pin-active only spans the moments the element is
+            // *actually* fixed in place (see .action-pin.is-pin-active in
+            // styles.css) — not the whole session like .is-pinned-scroll
+            // above. While actively pinned, the fixed box is only as tall
+            // as one card (a landscape photo can't get much taller
+            // without either cropping it or overflowing a phone's width),
+            // which on a tall phone screen left a big gap of plain page
+            // background below it — this class lets that box claim the
+            // rest of the viewport height and center the card within it
+            // instead, so the "gap" reads as intentional breathing room
+            // around a centered photo rather than dead space glued to the
+            // top. Scoped to onEnter/onLeave so the section doesn't sit
+            // at that inflated height in normal flow before/after the pin.
+            onEnter: () => actionPin.classList.add('is-pin-active'),
+            onEnterBack: () => actionPin.classList.add('is-pin-active'),
+            onLeave: () => actionPin.classList.remove('is-pin-active'),
+            onLeaveBack: () => actionPin.classList.remove('is-pin-active'),
           },
         });
         // GSAP calls this automatically once the query above stops
@@ -938,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
           tween.scrollTrigger && tween.scrollTrigger.kill();
           tween.kill();
           gsap.set(actionTrack, { clearProps: 'transform' });
-          actionPin.classList.remove('is-pinned-scroll');
+          actionPin.classList.remove('is-pinned-scroll', 'is-pin-active');
         };
       },
     });

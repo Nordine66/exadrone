@@ -885,13 +885,10 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 .hud-scrubbar-top {
   display: flex;
   align-items: center;
-  /* wrap, not nowrap — "Bardage · Photovoltaïque" plus the audio bars/
-     mute button/ISO-WB-section meta doesn't reliably fit on one line
-     between roughly 760-900px (verified via a real render: .hud-meta was
-     overflowing past .hud-scrubbar-top's own right edge, creeping into
-     the padding reserved for the WhatsApp FAB). Wrapping the meta group
-     onto its own line there is a cleaner outcome than a horizontal
-     overflow that keeps shrinking the closer it gets to that FAB. */
+  /* wrap, not nowrap — the section label plus the ISO/WB/section-count
+     meta doesn't reliably fit on one line at every width; wrapping the
+     meta group onto its own line is a cleaner outcome than a horizontal
+     overflow creeping into the padding reserved for the WhatsApp FAB. */
   flex-wrap: wrap;
   gap: 8px 16px;
   margin-bottom: 8px;
@@ -901,47 +898,6 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   text-transform: uppercase;
 }
 .hud-section-label { color: #0067CC; flex: 0 0 auto; }
-.hud-audio-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 12px;
-  flex: 0 0 auto;
-}
-.hud-audio-bars span {
-  width: 2px;
-  height: 100%;
-  background: #0067CC;
-  animation: hud-audio-bounce 0.9s ease-in-out infinite;
-  transform-origin: bottom;
-}
-.hud-audio-bars span:nth-child(1) { animation-delay: 0s; }
-.hud-audio-bars span:nth-child(2) { animation-delay: 0.15s; }
-.hud-audio-bars span:nth-child(3) { animation-delay: 0.3s; }
-.hud-audio-bars span:nth-child(4) { animation-delay: 0.1s; }
-.hud-audio-bars span:nth-child(5) { animation-delay: 0.25s; }
-@keyframes hud-audio-bounce {
-  0%, 100% { transform: scaleY(0.25); }
-  50% { transform: scaleY(1); }
-}
-.hud-audio-bars.is-muted span { animation-play-state: paused; opacity: 0.3; transform: scaleY(0.25); }
-.hud-mute-btn {
-  pointer-events: auto;
-  flex: 0 0 auto;
-  background: transparent;
-  border: 1px solid rgba(138, 148, 163, 0.4);
-  border-radius: 3px;
-  color: #8A94A3;
-  font-family: inherit;
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  cursor: pointer;
-  transition: border-color 0.25s var(--ease), color 0.25s var(--ease);
-}
-.hud-mute-btn:hover, .hud-mute-btn:focus-visible { border-color: #0067CC; color: #D9DEE5; }
 .hud-meta {
   display: flex;
   gap: 14px;
@@ -1006,7 +962,6 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 }
 @media (prefers-reduced-motion: reduce) {
   .hud-rec-dot { animation: none; }
-  .hud-audio-bars span { animation: none; transform: scaleY(0.6); }
 }
 
 /* ============================================================
@@ -1334,6 +1289,20 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   overflow: hidden;
   scroll-snap-type: none;
 }
+/* Only applied between the ScrollTrigger's onEnter/onLeave (see
+   script.js) — i.e. only while the box is actually fixed in place, not
+   for the whole session. A landscape photo card can't get much taller
+   without cropping it or overflowing a phone's width (see .action-card
+   below), so the fixed box was only ever as tall as one card, leaving a
+   large gap of plain page background below it on tall phone screens.
+   Claiming the rest of the viewport height here and centering the track
+   within it turns that gap into deliberate space around a centered
+   photo instead. */
+.action-pin.is-pin-active {
+  display: flex;
+  align-items: center;
+  min-height: calc(100vh - 90px);
+}
 .action-pin-kicker {
   position: absolute;
   top: clamp(4px, 1vw, 12px);
@@ -1379,8 +1348,13 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   flex: 0 0 auto;
   scroll-snap-align: start;
   width: clamp(300px, 46vw, 620px);
-  aspect-ratio: 4 / 3;
-  min-height: 320px;
+  /* Exact ratio of the actual source photos (1280×955) — not the
+     approximate 4/3 this used to say — so object-fit:cover never has to
+     crop so much as a sliver off any edge. No min-height either: that
+     used to force a taller-than-natural box at small widths, which is
+     exactly the extra cropping "il ne faut pas que les images soient
+     rognées" was about. Height now follows purely from width + ratio. */
+  aspect-ratio: 1280 / 955;
   border-radius: 24px;
   overflow: hidden;
   display: block;
@@ -1446,7 +1420,12 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   .action-card:hover .action-card-link { color: rgba(251, 251, 252, 0.82); transform: none; }
 }
 @media (max-width: 760px) {
-  .action-card { min-height: 260px; }
+  /* A landscape photo on a narrow phone is width-bound, not height-bound
+     — push the width itself out closer to full-bleed (was clamped to
+     its 300px floor on most phones) so the card actually gets bigger,
+     rather than distorting its height away from the source ratio like
+     the old min-height override did. */
+  .action-card { width: clamp(300px, 90vw, 480px); }
 }
 
 /* ---------- Sector cards (B2B audience grid, homepage) ---------- */

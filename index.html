@@ -26,7 +26,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="styles.css?v=20260729">
+<link rel="stylesheet" href="styles.css?v=20260732">
 <!-- First frame of the drone3D hero sequence — the actual LCP element now
      that the hook is a canvas frame-scrub instead of a background video
      (see .cine-canvas below and "Cinematic hero scrub" in script.js). -->
@@ -130,10 +130,10 @@
        Bardage) one at a time in that single spot — never two at once —
        each materializing from and dissolving back into a soft blur/mist
        as the scrub crosses its own window, see updateSideWords in
-       script.js. The HUD chrome (#cineHud) is pointer-events:none and
-       purely decorative except the sound button, which also unlocks/
-       drives a synthesized drone engine (Web Audio, no audio file
-       required — see "Synthesized drone sound" in script.js). -->
+       script.js. The HUD chrome (#cineHud) is entirely pointer-events:none
+       decoration — no audio (removed; was a Web Audio drone-engine synth
+       tied to a HUD mute button, cut for good after a hum that wouldn't
+       fully go away). -->
 
   <section class="cine-hero" id="hook">
     <div class="cine-loading" id="cineLoading" aria-hidden="true">
@@ -183,13 +183,6 @@
         <div class="hud-scrubbar">
           <div class="hud-scrubbar-top">
             <span class="hud-section-label" id="hudSectionLabel">01 · APERÇU</span>
-            <div class="hud-audio-bars is-muted" id="hudAudioBars">
-              <span></span><span></span><span></span><span></span><span></span>
-            </div>
-            <!-- Starts muted — browsers block audio before any interaction
-                 anyway (see script.js), so the button starts as an "opt in"
-                 rather than an "opt out". -->
-            <button type="button" class="hud-mute-btn" id="hudMuteBtn" aria-pressed="false">Activer le son</button>
             <div class="hud-meta">
               <span>ISO 800</span>
               <span>WB 5600K</span>
@@ -841,7 +834,7 @@
      runs them in this same order once parsing finishes. script.js already
      wraps everything in a DOMContentLoaded listener, so execution timing
      relative to the rest of the page is unchanged. -->
-<script src="script.js?v=20260730" defer></script>
+<script src="script.js?v=20260732" defer></script>
 <!-- Chat widget: loaded after page is interactive, zero impact on LCP/FID -->
 <script>
   window.addEventListener('load', function() {
