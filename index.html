@@ -26,7 +26,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="styles.css?v=20260732">
+<link rel="stylesheet" href="styles.css?v=20260733">
 <!-- First frame of the drone3D hero sequence — the actual LCP element now
      that the hook is a canvas frame-scrub instead of a background video
      (see .cine-canvas below and "Cinematic hero scrub" in script.js). -->
@@ -151,13 +151,39 @@
         <!-- One word at a time, always in the same spot, never two
              visible together: each materializes from and dissolves back
              into a soft mist (blur+opacity+scale+drift — see
-             updateSideWords in script.js) as the scrub crosses its own
-             window, then the next takes its place. Same size throughout. -->
+             updateSideWords in script.js, which drives the outer
+             .cine-word — the animated element) as the scrub crosses its
+             own window, then the next takes its place. Each is a glass
+             pill (frosted card, not just bare text — the previous plain-
+             text treatment wasn't visible enough against a busy photo
+             background) with a small pictogram so the keyword reads
+             instantly without waiting to parse the word. Same pill size
+             for all four, set on .cine-word-row so every pill matches. -->
         <div class="cine-word-row">
-          <span class="cine-word" id="wordFacade">Façade</span>
-          <span class="cine-word" id="wordToiture">Toiture</span>
-          <span class="cine-word" id="wordPhotovoltaique">Photovoltaïque</span>
-          <span class="cine-word" id="wordBardage">Bardage</span>
+          <span class="cine-word" id="wordFacade">
+            <span class="cine-word-pill">
+              <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="13" rx="1"/><path d="M4 8 12 3l8 5"/><rect x="10" y="14" width="4" height="7"/><rect x="6.5" y="11" width="3" height="3"/><rect x="14.5" y="11" width="3" height="3"/></svg>
+              <span class="cine-word-text">Façade</span>
+            </span>
+          </span>
+          <span class="cine-word" id="wordToiture">
+            <span class="cine-word-pill">
+              <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12 12 4l9 8"/><path d="M6 11v6M18 11v6"/><path d="M6 17h12"/></svg>
+              <span class="cine-word-text">Toiture</span>
+            </span>
+          </span>
+          <span class="cine-word" id="wordPhotovoltaique">
+            <span class="cine-word-pill">
+              <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M9 6v12M15 6v12M3 12h18"/></svg>
+              <span class="cine-word-text">Photovoltaïque</span>
+            </span>
+          </span>
+          <span class="cine-word" id="wordBardage">
+            <span class="cine-word-pill">
+              <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 9h16M4 14h16"/></svg>
+              <span class="cine-word-text">Bardage</span>
+            </span>
+          </span>
         </div>
       </div>
 
@@ -318,25 +344,37 @@
        (or if GSAP fails to load) does it fall back to a plain native-swipe
        horizontally scrollable row instead — no pin, no JS, just
        overflow-x + scroll-snap.
+       The section-head lives INSIDE .action-pin (not above it) so the
+       title stays on screen together with the cards the whole time it's
+       pinned — it used to sit outside, scrolling away the moment the pin
+       engaged, which read as "the title disappears and only photos are
+       left". .action-pin is a permanently-sized flex column (title above
+       track, both centered as a group) rather than only being sized this
+       way while actively pinned — sizing it identically before/during/
+       after the pin is what fixes the "first card flickers on entry" bug:
+       that was the box's own height suddenly jumping the instant pinning
+       kicked in (once conditionally applied only while pinned), which is
+       a layout jump, not a scroll/pin timing bug.
        id="capabilities" is kept (not "gallery") because every other page's
        nav/footer link to index.html#capabilities — renaming it would
        break every one of those links. -->
   <section class="section action-section" id="capabilities">
-    <div class="section-head">
-      <p class="eyebrow reveal" data-reveal>En Intervention</p>
-      <h2 class="section-title reveal" data-reveal data-delay="1">Le drone, sur le terrain.</h2>
-    </div>
-
-    <!-- No .reveal/data-reveal here on purpose — this is the GSAP pin
-         target (see script.js), and the reveal IntersectionObserver would
-         also fire on the individual cards while they're still off to the
-         side of the horizontal track: overflow:hidden on an ancestor
-         doesn't stop a clipped descendant from geometrically intersecting
-         the viewport, so per-card reveals would all fire together the
-         moment the section scrolls into view, before the horizontal
-         scroll ever reveals them. -->
     <div class="action-pin">
-      <span class="action-pin-kicker">5 chantiers types</span>
+      <div class="section-head action-section-head">
+        <p class="eyebrow reveal" data-reveal>En Intervention</p>
+        <h2 class="section-title reveal" data-reveal data-delay="1">Le drone, sur le terrain.</h2>
+      </div>
+
+      <!-- No .reveal/data-reveal on the track or cards on purpose — this
+           is (part of) the GSAP pin target (see script.js), and the
+           reveal IntersectionObserver would also fire on the individual
+           cards while they're still off to the side of the horizontal
+           track: overflow:hidden on an ancestor doesn't stop a clipped
+           descendant from geometrically intersecting the viewport, so
+           per-card reveals would all fire together the moment the
+           section scrolls into view, before the horizontal scroll ever
+           reveals them. -->
+      <div class="action-track-viewport">
       <div class="action-track" id="actionTrack">
         <a href="/blog/nettoyage-facade-par-drone-avantages-cout.html" class="action-card" data-cursor="link">
           <picture>
@@ -393,6 +431,7 @@
             <span class="action-card-link">Lire l'article →</span>
           </div>
         </a>
+      </div>
       </div>
       <span class="action-scroll-hint">Faites défiler pour découvrir →</span>
     </div>
@@ -834,7 +873,7 @@
      runs them in this same order once parsing finishes. script.js already
      wraps everything in a DOMContentLoaded listener, so execution timing
      relative to the rest of the page is unchanged. -->
-<script src="script.js?v=20260732" defer></script>
+<script src="script.js?v=20260733" defer></script>
 <!-- Chat widget: loaded after page is interactive, zero impact on LCP/FID -->
 <script>
   window.addEventListener('load', function() {

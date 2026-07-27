@@ -723,38 +723,69 @@ a, button, input, select, textarea { touch-action: manipulation; }
    filter/transform) is written per-frame by script.js's updateSideWords
    rather than a CSS transition — same "continuous, scroll-scrubbed"
    approach as the canvas itself, so stopping mid-scroll shows a
-   partially-materialized word, not an all-or-nothing snap.
+   partially-materialized word, not an all-or-nothing snap. The visible
+   "glass pill" (background/blur/border/icon/text) is a nested
+   .cine-word-pill rather than being on .cine-word itself, since
+   .cine-word has to stay a full-width flex-centering box for the
+   stacking above to work — a pill has to size to its own content, not
+   stretch full width.
    ============================================================ */
 .cine-word-row {
   position: relative;
-  margin: 14px auto 0;
+  margin: 18px auto 0;
   width: 100%;
-  max-width: 640px;
-  height: 1.3em;
-  font-size: clamp(1.05rem, 2.5vw, 2rem);
+  max-width: 680px;
+  /* Tall enough for the pill (text line-height plus its own padding/
+     border) at the current font-size, at any breakpoint — calc() can
+     mix a clamp() with a flat px add, so this tracks the font-size
+     clamp below instead of needing its own separately-tuned one. */
+  height: calc(clamp(1.3rem, 2.6vw, 2.15rem) * 1.3 + 34px);
+  font-size: clamp(1.3rem, 2.6vw, 2.15rem);
 }
 .cine-word {
   position: absolute;
   inset: 0;
   margin: 0;
-  display: block;
-  width: 100%;
-  font-size: inherit;
-  line-height: 1.3;
-  /* Same font/weight/letter-spacing as the "EXADRONE ENTERPRISE" wordmark
-     in the nav (see .nav-mark) — near-black rather than the HUD's light
-     grey, since these sit in the least-vignetted, still-fairly-light
-     center band of the frame (see .cine-vignette), where dark text reads
-     better than light. */
-  font-family: var(--font-display);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--paper);
-  text-shadow: 0 2px 24px rgba(255, 255, 255, 0.6), 0 1px 3px rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0;
   filter: blur(16px);
   pointer-events: none;
+}
+.cine-word-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(8px, 1.4vw, 14px);
+  padding: clamp(10px, 1.6vw, 15px) clamp(20px, 3.2vw, 32px);
+  border-radius: 999px;
+  white-space: nowrap;
+  /* Frosted glass card, not bare text sitting on the photo — the
+     previous plain-text-plus-glow treatment wasn't visible enough
+     against a busy, fairly light background (see .cine-vignette: this
+     row sits in the least-vignetted, still-fairly-light center band).
+     A real card creates its own controlled backdrop instead of
+     depending on whatever happens to be behind it. */
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 14px 32px -10px rgba(15, 23, 42, 0.32), 0 2px 10px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.cine-word-icon {
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+  color: var(--cro-blue);
+}
+.cine-word-text {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1em;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--paper);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -943,7 +974,13 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
      top:90px with ~18px of content, so 116px clears them. */
   .cine-title-block { top: 116px; padding: 0 16px; }
   .cine-title { font-size: clamp(1.5rem, 7.4vw, 2.3rem); }
-  .cine-word-row { font-size: clamp(0.85rem, 4.4vw, 1.25rem); margin-top: 10px; }
+  .cine-word-row {
+    font-size: clamp(1.05rem, 5vw, 1.5rem);
+    height: calc(clamp(1.05rem, 5vw, 1.5rem) * 1.3 + 26px);
+    margin-top: 10px;
+    max-width: 92vw;
+  }
+  .cine-word-pill { gap: 8px; padding: 9px 18px; }
   .hud-corner { width: 18px; height: 18px; }
   /* Mobile nav is shorter (~74px) than desktop but still fixed/opaque —
      same clearance fix as the desktop rules above, just a smaller offset. */
@@ -1269,57 +1306,57 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
    (overflow-x + scroll-snap) — that's only ever the actual behavior under
    prefers-reduced-motion, or if GSAP fails to load. Otherwise, on every
    device, script.js adds .is-pinned-scroll once GSAP takes over: overflow
-   switches to hidden and scroll-snap is dropped, since the horizontal
-   motion is then driven by .action-track's transform instead of native
-   scrolling. .action-pin-kicker and .action-scroll-hint are absolutely
-   positioned overlays on top of that same box, so they stay put in the
-   same spot the whole time the cards glide past underneath — the "page
-   pauses, content moves" read.
+   switches to hidden and scroll-snap is dropped on .action-track-viewport,
+   since the horizontal motion is then driven by .action-track's transform
+   instead of native scrolling. .action-scroll-hint is an absolutely
+   positioned overlay on top of the whole box, so it stays put in the same
+   spot the whole time the cards glide past underneath — the "page pauses,
+   content moves" read.
+
+   .action-pin holds the section-head (title) ABOVE .action-track-viewport
+   as ordinary stacked flex items, both centered as one group — the title
+   used to live outside .action-pin entirely, so it scrolled away the
+   moment the cards got pinned ("title disappears, only photos left").
+   Sized permanently (min-height + centering, not only while pinned): the
+   box used to only claim this height between the ScrollTrigger's
+   onEnter/onLeave, and that conditional jump — a fairly short in-flow box
+   suddenly growing taller the instant pinning kicked in — was the "first
+   card flickers on entry" bug. Same size at all times means pinning only
+   ever changes *positioning* (static → fixed), never *dimensions*, so
+   there's nothing left to jump.
    ============================================================ */
 .action-pin {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(20px, 3vw, 40px);
+  min-height: calc(100vh - 90px);
+  width: 100%;
+  border-radius: 20px;
+  padding: clamp(20px, 3vw, 32px) 0;
+}
+.action-section-head {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 0;
+}
+.action-track-viewport {
+  width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
-  border-radius: 20px;
-  padding: clamp(20px, 3vw, 32px) 0;
 }
-.action-pin.is-pinned-scroll {
+.action-pin.is-pinned-scroll .action-track-viewport {
   overflow: hidden;
   scroll-snap-type: none;
-}
-/* Only applied between the ScrollTrigger's onEnter/onLeave (see
-   script.js) — i.e. only while the box is actually fixed in place, not
-   for the whole session. A landscape photo card can't get much taller
-   without cropping it or overflowing a phone's width (see .action-card
-   below), so the fixed box was only ever as tall as one card, leaving a
-   large gap of plain page background below it on tall phone screens.
-   Claiming the rest of the viewport height here and centering the track
-   within it turns that gap into deliberate space around a centered
-   photo instead. */
-.action-pin.is-pin-active {
-  display: flex;
-  align-items: center;
-  min-height: calc(100vh - 90px);
-}
-.action-pin-kicker {
-  position: absolute;
-  top: clamp(4px, 1vw, 12px);
-  left: clamp(2px, 1vw, 10px);
-  z-index: 2;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--steel-dark);
-  pointer-events: none;
 }
 .action-scroll-hint {
   position: absolute;
   left: 50%;
-  bottom: clamp(-6px, -0.4vw, 2px);
+  bottom: clamp(4px, 1vw, 14px);
   z-index: 2;
   transform: translateX(-50%);
   font-family: var(--font-mono);

@@ -688,23 +688,28 @@ document.addEventListener('DOMContentLoaded', () => {
      through the pin's scroll distance; once the track is fully scrolled,
      the pin releases and normal vertical scroll carries straight on into
      "Solutions par secteur". Only under prefers-reduced-motion (or if
-     GSAP fails to load off the CDN) does it fall back to .action-pin's
-     own native overflow-x:auto from styles.css — plain touch/trackpad
-     swipe, no JS at all. Deliberately NOT setting pinType:'transform':
-     that was tried as a mobile-stability measure and did the opposite —
-     it's meant for pinning inside a proxy/virtual scroller (Locomotive
-     Scroll, ScrollSmoother), and forcing it on a page whose scroller is
-     the plain <body> is a documented cause of visible vertical jitter
-     while pinned. GSAP already auto-selects 'fixed' for a <body> scroller
-     (the jitter-free option here), so the fix is to just not override it. */
+     GSAP fails to load off the CDN) does it fall back to
+     .action-track-viewport's own native overflow-x:auto from styles.css
+     — plain touch/trackpad swipe, no JS at all. Deliberately NOT setting
+     pinType:'transform': that was tried as a mobile-stability measure
+     and did the opposite — it's meant for pinning inside a proxy/virtual
+     scroller (Locomotive Scroll, ScrollSmoother), and forcing it on a
+     page whose scroller is the plain <body> is a documented cause of
+     visible vertical jitter while pinned. GSAP already auto-selects
+     'fixed' for a <body> scroller (the jitter-free option here), so the
+     fix is to just not override it. .action-pin itself (title +
+     .action-track-viewport together) is what gets pinned, so the title
+     stays on screen the whole time the cards scroll — see .action-pin
+     in styles.css for why it's sized identically whether pinned or not. */
   const actionPin = document.querySelector('.action-pin');
+  const actionTrackViewport = document.querySelector('.action-track-viewport');
   const actionTrack = document.getElementById('actionTrack');
-  if (actionPin && actionTrack && window.gsap && window.ScrollTrigger) {
+  if (actionPin && actionTrackViewport && actionTrack && window.gsap && window.ScrollTrigger) {
     gsap.registerPlugin(ScrollTrigger);
     ScrollTrigger.matchMedia({
       '(prefers-reduced-motion: no-preference)': function () {
         actionPin.classList.add('is-pinned-scroll');
-        const getScrollDistance = () => Math.max(0, actionTrack.scrollWidth - actionPin.offsetWidth);
+        const getScrollDistance = () => Math.max(0, actionTrack.scrollWidth - actionTrackViewport.offsetWidth);
         const tween = gsap.to(actionTrack, {
           x: () => -getScrollDistance(),
           ease: 'none',
@@ -716,23 +721,6 @@ document.addEventListener('DOMContentLoaded', () => {
             pin: true,
             anticipatePin: 1,
             invalidateOnRefresh: true,
-            // .is-pin-active only spans the moments the element is
-            // *actually* fixed in place (see .action-pin.is-pin-active in
-            // styles.css) — not the whole session like .is-pinned-scroll
-            // above. While actively pinned, the fixed box is only as tall
-            // as one card (a landscape photo can't get much taller
-            // without either cropping it or overflowing a phone's width),
-            // which on a tall phone screen left a big gap of plain page
-            // background below it — this class lets that box claim the
-            // rest of the viewport height and center the card within it
-            // instead, so the "gap" reads as intentional breathing room
-            // around a centered photo rather than dead space glued to the
-            // top. Scoped to onEnter/onLeave so the section doesn't sit
-            // at that inflated height in normal flow before/after the pin.
-            onEnter: () => actionPin.classList.add('is-pin-active'),
-            onEnterBack: () => actionPin.classList.add('is-pin-active'),
-            onLeave: () => actionPin.classList.remove('is-pin-active'),
-            onLeaveBack: () => actionPin.classList.remove('is-pin-active'),
           },
         });
         // GSAP calls this automatically once the query above stops
@@ -742,7 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
           tween.scrollTrigger && tween.scrollTrigger.kill();
           tween.kill();
           gsap.set(actionTrack, { clearProps: 'transform' });
-          actionPin.classList.remove('is-pinned-scroll', 'is-pin-active');
+          actionPin.classList.remove('is-pinned-scroll');
         };
       },
     });
