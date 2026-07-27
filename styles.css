@@ -724,11 +724,10 @@ a, button, input, select, textarea { touch-action: manipulation; }
    rather than a CSS transition — same "continuous, scroll-scrubbed"
    approach as the canvas itself, so stopping mid-scroll shows a
    partially-materialized word, not an all-or-nothing snap. The visible
-   "glass pill" (background/blur/border/icon/text) is a nested
-   .cine-word-pill rather than being on .cine-word itself, since
-   .cine-word has to stay a full-width flex-centering box for the
-   stacking above to work — a pill has to size to its own content, not
-   stretch full width.
+   heading+caption group is nested in .cine-word-frame rather than
+   living on .cine-word itself, since .cine-word has to stay a
+   full-width flex-centering box for the stacking above to work — the
+   frame has to size to its own content, not stretch full width.
    ============================================================ */
 .cine-word-row {
   position: relative;
@@ -755,18 +754,20 @@ a, button, input, select, textarea { touch-action: manipulation; }
   pointer-events: none;
 }
 /* ---------- Word group — soft vignette + one-shot flash ----------
-   Wraps the pill + caption and groups them with a soft, edgeless
-   vignette glow (::before) instead of a bordered card or corner
-   brackets — the hero already has its own corner brackets framing the
-   whole section (.hud-corner), so a second set around this smaller
-   panel just read as redundant "framed inside a frame" clutter. The
-   vignette still visually separates the group from the drone photo
-   behind it (which is the actual legibility problem it solves — a
+   Groups the heading (icon+word) and its caption into one unified
+   block sitting on a shared soft, edgeless vignette glow (::before)
+   instead of a bordered card or corner brackets — a pill-shaped chip
+   around just the heading read as a separate piece stacked on top of
+   the plain caption text rather than one cohesive panel, and the hero
+   already has its own corner brackets framing the whole section
+   (.hud-corner), so a second set here was redundant "framed inside a
+   frame" clutter on top of that. The vignette carries all of the
+   legibility now that the heading has no background of its own — a
    photo can be light or dark from one scrubbed frame to the next, so
-   contrast can't depend on the frame content, only on this glow +
-   the text's own color/shadow below), it just fades out instead of
-   stopping at a hard edge. .cine-word-flash is the brief shutter-flash
-   pulse (script.js toggles .is-flashing on it, in lockstep with the
+   contrast can't depend on the frame content, only on this glow + the
+   text's own color/shadow — so it's a touch stronger than before to
+   compensate. .cine-word-flash is the brief shutter-flash pulse
+   (script.js toggles .is-flashing on it, in lockstep with the
    synthesized shutter click, once per word as it crosses into view). */
 .cine-word-frame {
   position: relative;
@@ -774,16 +775,16 @@ a, button, input, select, textarea { touch-action: manipulation; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(12px, 2vw, 18px);
-  padding: clamp(18px, 3vw, 28px) clamp(20px, 4.4vw, 42px);
+  gap: clamp(10px, 1.6vw, 14px);
+  padding: clamp(20px, 3.4vw, 32px) clamp(22px, 4.8vw, 46px);
 }
 .cine-word-frame::before {
   content: "";
   position: absolute;
-  inset: -10% -18%;
+  inset: -8% -14%;
   z-index: -1;
   border-radius: 999px;
-  background: radial-gradient(ellipse 62% 68% at 50% 44%, rgba(6, 10, 18, 0.7) 0%, rgba(6, 10, 18, 0.46) 42%, rgba(6, 10, 18, 0.16) 70%, transparent 100%);
+  background: radial-gradient(ellipse 64% 72% at 50% 42%, rgba(6, 10, 18, 0.78) 0%, rgba(6, 10, 18, 0.54) 42%, rgba(6, 10, 18, 0.2) 70%, transparent 100%);
   pointer-events: none;
 }
 .cine-word-flash {
@@ -807,7 +808,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
 }
 .cine-word-caption {
   font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: clamp(0.95rem, 1.7vw, 1.15rem);
+  font-size: clamp(1.05rem, 1.95vw, 1.3rem);
   font-weight: 400;
   line-height: 1.5;
   text-align: center;
@@ -820,44 +821,24 @@ a, button, input, select, textarea { touch-action: manipulation; }
   color: #D9DEE5;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7), 0 1px 3px rgba(0, 0, 0, 0.6);
 }
-.cine-word-pill {
-  position: relative;
-  isolation: isolate;
+/* No more pill/chip background here — a bordered capsule around just
+   the heading read as a separate piece bolted onto the plain caption
+   below it, not one panel. The heading now sits directly on the same
+   vignette as the caption; .cine-word-rule (a thin blue accent line)
+   is the one deliberate "premium" mark separating the two, instead of
+   a heavy shape doing it. */
+.cine-word-heading {
   display: inline-flex;
   align-items: center;
-  gap: clamp(8px, 1.4vw, 14px);
-  padding: clamp(10px, 1.6vw, 15px) clamp(20px, 3.2vw, 32px);
-  border-radius: 999px;
+  gap: clamp(10px, 1.8vw, 16px);
   white-space: nowrap;
-  /* Still glass (not an opaque card), but a real overlay this time —
-     the previous barely-there fill (0.1 alpha) let too much of the
-     photo through and the word's legibility ended up depending on
-     what was behind it frame to frame. This is darker/more opaque so
-     the label is reliably readable on its own, backed further by the
-     .cine-word-frame::before vignette around the whole group. */
-  background: rgba(8, 13, 22, 0.55);
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
-  border: 1px solid rgba(73, 198, 255, 0.45);
-  box-shadow: 0 0 24px rgba(31, 111, 235, 0.35), 0 8px 20px -12px rgba(5, 8, 14, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
-.cine-word-pill::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: inherit;
-  padding: 1.5px;
-  pointer-events: none;
-  background: conic-gradient(from var(--beam-angle), transparent 0% 76%, var(--beam-color) 87%, var(--beam-color-2) 93%, transparent 100%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0.85;
-  animation: beam-spin 7s linear infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .cine-word-pill::after { animation: none; }
+.cine-word-rule {
+  width: clamp(36px, 5vw, 56px);
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--beam-color-2) 20%, var(--beam-color) 50%, var(--beam-color-2) 80%, transparent);
+  opacity: 0.9;
 }
 .cine-word-icon {
   flex: 0 0 auto;
@@ -884,6 +865,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) {
   .cine-word { transition: none; }
 }
+
 
 /* ============================================================
    HUD — camera viewfinder overlay. Entirely pointer-events:none except
@@ -1068,15 +1050,30 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   .cine-title-block { top: 116px; padding: 0 16px; }
   .cine-title { font-size: clamp(1.5rem, 7.4vw, 2.3rem); }
   .cine-word-row {
-    font-size: clamp(1.3rem, 7vw, 1.9rem);
+    /* Capped lower than a straight "bigger is better" clamp would give —
+       "Photovoltaïque" (the longest of the four keywords) plus its icon
+       was overflowing the 92vw row at anything much past this on a
+       360-390px phone, since the heading is deliberately kept to one
+       line (white-space: nowrap) rather than wrapping mid-word. */
+    font-size: clamp(1.3rem, 7.2vw, 1.85rem);
     height: clamp(170px, 52vw, 220px);
     margin-top: 22px;
     max-width: 92vw;
   }
-  .cine-word-pill { gap: 8px; padding: 10px 20px; }
-  .cine-word-frame { gap: 10px; padding: 14px 18px; }
-  .cine-word-frame::before { inset: -8% -12%; }
-  .cine-word-caption { font-size: 0.92rem; max-width: 28ch; }
+  .cine-word-heading { gap: 8px; }
+  /* The longest keyword ("Photovoltaïque") plus its icon doesn't
+     reliably fit on one line at a comfortably large size on a
+     360-390px phone — rather than shrinking the font enough to
+     guarantee it always does (which punished the other three, shorter
+     words), the text is allowed to wrap to two lines here specifically.
+     .cine-word-heading itself stays nowrap (desktop is untouched by
+     this block); only the word span gets the override. */
+  .cine-word-heading { max-width: 100%; }
+  .cine-word-text { white-space: normal; overflow-wrap: break-word; text-align: center; line-height: 1.08; min-width: 0; }
+  .cine-word-rule { width: 32px; }
+  .cine-word-frame { gap: 8px; padding: 16px 18px; }
+  .cine-word-frame::before { inset: -6% -10%; }
+  .cine-word-caption { font-size: 1rem; max-width: 28ch; }
   .hud-corner { width: 18px; height: 18px; }
   /* Mobile nav is shorter (~74px) than desktop but still fixed/opaque —
      same clearance fix as the desktop rules above, just a smaller offset. */

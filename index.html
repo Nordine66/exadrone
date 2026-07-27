@@ -153,14 +153,18 @@
              into a soft mist (blur+opacity+scale+drift — see
              updateSideWords in script.js, which drives the outer
              .cine-word — the animated element) as the scrub crosses its
-             own window, then the next takes its place. Each is wrapped in
-             .cine-word-frame: the icon pill plus a one-line caption
-             explaining that service, grouped by a soft vignette glow
-             behind them (.cine-word-frame::before in styles.css) instead
-             of a literal bordered card or corner brackets — the hero's
-             own .hud-corner brackets already frame the whole section, so
-             a second set around this panel just read as redundant/busy.
-             Captions/frame/pill all live inside the same .cine-word that
+             own window, then the next takes its place. .cine-word-frame
+             groups the icon+word heading and its one-line caption into
+             one unified block sitting on a shared soft vignette
+             (.cine-word-frame::before in styles.css) — no bordered pill
+             around the heading any more (it read as a separate chip
+             stacked awkwardly on top of the plain caption text instead
+             of one cohesive panel) and no corner brackets either (the
+             hero's own .hud-corner brackets already frame the whole
+             section). .cine-word-rule is the small accent line between
+             heading and caption — the one deliberate "premium" touch
+             standing in for the pill, instead of a heavy shape. Heading/
+             rule/caption/frame all live inside the same .cine-word that
              already gets faded/blurred/drifted as one unit by
              updateSideWords, so nothing extra was needed to keep them
              moving together. .cine-word-flash is the brief white pulse
@@ -172,40 +176,44 @@
           <span class="cine-word" id="wordFacade">
             <span class="cine-word-frame">
               <span class="cine-word-flash" aria-hidden="true"></span>
-              <span class="cine-word-pill">
+              <span class="cine-word-heading">
                 <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="13" rx="1"/><path d="M4 8 12 3l8 5"/><rect x="10" y="14" width="4" height="7"/><rect x="6.5" y="11" width="3" height="3"/><rect x="14.5" y="11" width="3" height="3"/></svg>
                 <span class="cine-word-text">Façade</span>
               </span>
+              <span class="cine-word-rule" aria-hidden="true"></span>
               <span class="cine-word-caption">Traitement complet des façades — pierre, enduit, composite — sans échafaudage ni nacelle.</span>
             </span>
           </span>
           <span class="cine-word" id="wordToiture">
             <span class="cine-word-frame">
               <span class="cine-word-flash" aria-hidden="true"></span>
-              <span class="cine-word-pill">
+              <span class="cine-word-heading">
                 <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12 12 4l9 8"/><path d="M6 11v6M18 11v6"/><path d="M6 17h12"/></svg>
                 <span class="cine-word-text">Toiture</span>
               </span>
+              <span class="cine-word-rule" aria-hidden="true"></span>
               <span class="cine-word-caption">Démoussage et nettoyage de toiture par pulvérisation ciblée, sans passage sur la couverture.</span>
             </span>
           </span>
           <span class="cine-word" id="wordPhotovoltaique">
             <span class="cine-word-frame">
               <span class="cine-word-flash" aria-hidden="true"></span>
-              <span class="cine-word-pill">
+              <span class="cine-word-heading">
                 <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M9 6v12M15 6v12M3 12h18"/></svg>
                 <span class="cine-word-text">Photovoltaïque</span>
               </span>
+              <span class="cine-word-rule" aria-hidden="true"></span>
               <span class="cine-word-caption">Restauration du rendement des centrales photovoltaïques, sans arrêt prolongé de production.</span>
             </span>
           </span>
           <span class="cine-word" id="wordBardage">
             <span class="cine-word-frame">
               <span class="cine-word-flash" aria-hidden="true"></span>
-              <span class="cine-word-pill">
+              <span class="cine-word-heading">
                 <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 9h16M4 14h16"/></svg>
                 <span class="cine-word-text">Bardage</span>
               </span>
+              <span class="cine-word-rule" aria-hidden="true"></span>
               <span class="cine-word-caption">Entretien de bardages métalliques, bois ou composite sur les façades de grande hauteur.</span>
             </span>
           </span>
