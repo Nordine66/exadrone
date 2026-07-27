@@ -770,7 +770,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const estimateOutput = document.getElementById('estimateOutput');
   const estimateHT = document.getElementById('estimateHT');
   const estimateVAT = document.getElementById('estimateVAT');
-  const estimateCta = document.getElementById('estimateCta');
   const estimatePdfBtn = document.getElementById('estimatePdfBtn');
   const estimateClientName = document.getElementById('estimateClientName');
   const RATE_PER_SQM_HT = 6;
@@ -838,20 +837,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // re-fit (never re-animate) so a phone rotated mid-session doesn't get
     // stuck with a stale font size sized for the old width.
     window.addEventListener('resize', fitEstimateOutput, { passive: true });
-
-    if (estimateCta) {
-      estimateCta.addEventListener('click', (e) => {
-        e.preventDefault();
-        const area = Math.max(0, parseFloat(estimateArea.value) || 0);
-        const service = estimateService ? estimateService.value : '';
-        const ht = area * RATE_PER_SQM_HT;
-        const ttc = ht * (1 + VAT_RATE);
-        const params = area > 0
-          ? `?area=${Math.round(area)}&ttc=${Math.round(ttc)}&service=${encodeURIComponent(service)}`
-          : '';
-        window.location.href = `/contact${params}`;
-      });
-    }
 
     /* ---------- PDF quote (jsPDF, loaded lazily) ----------
        The library is only fetched on the visitor's first click of

@@ -319,14 +319,12 @@
         </div>
         <input type="text" id="estimateClientName" class="estimate-name-input" placeholder="Nom / société — pour personnaliser le PDF (optionnel)" aria-label="Nom ou société, pour personnaliser le PDF">
         <div class="estimate-actions">
-          <a href="contact.html" class="btn btn-primary" id="estimateCta" data-cursor="link">Demander un devis détaillé</a>
-          <button type="button" class="btn btn-ghost" id="estimatePdfBtn" data-cursor="link">Télécharger le PDF</button>
+          <button type="button" class="btn btn-primary" id="estimatePdfBtn" data-cursor="link">Télécharger le PDF</button>
         </div>
       </div>
     </div>
 
     <ul class="estimate-reassurance">
-      <li>Réponse sous 48h</li>
       <li>Sans engagement</li>
       <li>Estimation transparente</li>
     </ul>
@@ -433,7 +431,13 @@
         </a>
       </div>
       </div>
-      <span class="action-scroll-hint">Faites défiler pour découvrir →</span>
+      <span class="action-scroll-hint">
+        <span class="sr-only">Faites défiler pour découvrir</span>
+        <span class="action-scroll-arrow" aria-hidden="true">
+          <svg class="action-scroll-chevron" viewBox="0 0 24 14" width="20" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l10 10 10-10"/></svg>
+          <svg class="action-scroll-chevron action-scroll-chevron-2" viewBox="0 0 24 14" width="20" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l10 10 10-10"/></svg>
+        </span>
+      </span>
     </div>
   </section>
 

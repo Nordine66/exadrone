@@ -732,7 +732,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
    ============================================================ */
 .cine-word-row {
   position: relative;
-  margin: 18px auto 0;
+  margin: 40px auto 0;
   width: 100%;
   max-width: 680px;
   /* Tall enough for the pill (text line-height plus its own padding/
@@ -754,23 +754,46 @@ a, button, input, select, textarea { touch-action: manipulation; }
   pointer-events: none;
 }
 .cine-word-pill {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   gap: clamp(8px, 1.4vw, 14px);
   padding: clamp(10px, 1.6vw, 15px) clamp(20px, 3.2vw, 32px);
   border-radius: 999px;
   white-space: nowrap;
-  /* Frosted glass card, not bare text sitting on the photo — the
-     previous plain-text-plus-glow treatment wasn't visible enough
-     against a busy, fairly light background (see .cine-vignette: this
-     row sits in the least-vignetted, still-fairly-light center band).
-     A real card creates its own controlled backdrop instead of
-     depending on whatever happens to be behind it. */
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow: 0 14px 32px -10px rgba(15, 23, 42, 0.32), 0 2px 10px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  /* Dark-tinted frosted glass, not bare text sitting on the photo — a
+     fully transparent pill would lose contrast depending on what's
+     behind it (see .cine-vignette: this row sits in the least-
+     vignetted, still-fairly-light center band), so the tint stays dark
+     enough to keep the white label legible over any frame while
+     reading as genuinely see-through. The signature rotating blue-beam
+     ring below (::after, same technique as .glass/.action-card/.stat
+     elsewhere on the site) replaces the previous plain white edge for
+     the "premium" definition instead of an opaque fill. */
+  background: rgba(8, 13, 22, 0.34);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgba(73, 198, 255, 0.4);
+  box-shadow: 0 0 26px rgba(31, 111, 235, 0.32), 0 14px 32px -10px rgba(5, 8, 14, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.cine-word-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(from var(--beam-angle), transparent 0% 76%, var(--beam-color) 87%, var(--beam-color-2) 93%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.85;
+  animation: beam-spin 7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cine-word-pill::after { animation: none; }
 }
 .cine-word-icon {
   flex: 0 0 auto;
@@ -977,7 +1000,7 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   .cine-word-row {
     font-size: clamp(1.05rem, 5vw, 1.5rem);
     height: calc(clamp(1.05rem, 5vw, 1.5rem) * 1.3 + 26px);
-    margin-top: 10px;
+    margin-top: 22px;
     max-width: 92vw;
   }
   .cine-word-pill { gap: 8px; padding: 9px 18px; }
@@ -1359,17 +1382,54 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   bottom: clamp(4px, 1vw, 14px);
   z-index: 2;
   transform: translateX(-50%);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
-  color: var(--steel-dark);
-  white-space: nowrap;
   pointer-events: none;
-  animation: action-hint-nudge 2.6s var(--ease) infinite;
 }
-@keyframes action-hint-nudge {
-  0%, 100% { transform: translateX(-50%); }
-  50% { transform: translateX(calc(-50% + 6px)); }
+/* Visually hidden but still announced — the hint used to be a text
+   label read by everyone; swapping it for an icon keeps that same
+   instruction available to screen readers instead of dropping it. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+/* Downward chevron pair instead of the old side-to-side text nudge —
+   this section's motion is horizontal (cards glide left-to-right) but
+   the input that drives it is a plain vertical scroll/swipe, which the
+   old sideways hint read as "swipe sideways here". A downward arrow
+   matches the gesture visitors actually need to make. Same
+   --steel-dark tone as the text it replaces. */
+.action-scroll-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  color: var(--steel-dark);
+}
+.action-scroll-chevron {
+  display: block;
+  opacity: 0;
+  animation: action-hint-flow 1.7s var(--ease) infinite;
+  will-change: transform, opacity;
+}
+.action-scroll-chevron-2 { animation-delay: 0.22s; }
+@keyframes action-hint-flow {
+  0% { opacity: 0; transform: translateY(-5px); }
+  35% { opacity: 1; transform: translateY(0); }
+  75% { opacity: 0; transform: translateY(7px); }
+  100% { opacity: 0; transform: translateY(7px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-scroll-chevron {
+    animation: none;
+    opacity: 0.8;
+    transform: none;
+  }
 }
 .action-track {
   display: flex;
