@@ -153,35 +153,75 @@
              into a soft mist (blur+opacity+scale+drift — see
              updateSideWords in script.js, which drives the outer
              .cine-word — the animated element) as the scrub crosses its
-             own window, then the next takes its place. Each is a glass
-             pill (frosted card, not just bare text — the previous plain-
-             text treatment wasn't visible enough against a busy photo
-             background) with a small pictogram so the keyword reads
-             instantly without waiting to parse the word. Same pill size
-             for all four, set on .cine-word-row so every pill matches. -->
+             own window, then the next takes its place. Each is wrapped in
+             .cine-word-frame: a photography-viewfinder frame (four
+             corner brackets, same visual language as the HUD's own
+             .hud-corner elsewhere in this section, just sized down for
+             this smaller panel) around the icon pill AND a one-line
+             caption explaining that service — captions/frame/pill all
+             live inside the same .cine-word that already gets faded/
+             blurred/drifted as one unit by updateSideWords, so nothing
+             extra was needed to keep them moving together. .cine-word-
+             flash is the brief white pulse (plus a synthesized camera-
+             shutter click, see script.js "Camera shutter + flash") that
+             fires once per word as it crosses into view — reads as a
+             shutter firing on the new "shot", reinforcing the camera/HUD
+             framing instead of just being a generic fade transition. -->
         <div class="cine-word-row">
           <span class="cine-word" id="wordFacade">
-            <span class="cine-word-pill">
-              <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="13" rx="1"/><path d="M4 8 12 3l8 5"/><rect x="10" y="14" width="4" height="7"/><rect x="6.5" y="11" width="3" height="3"/><rect x="14.5" y="11" width="3" height="3"/></svg>
-              <span class="cine-word-text">Façade</span>
+            <span class="cine-word-frame">
+              <span class="cine-word-corner cine-word-corner-tl" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-tr" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-bl" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-br" aria-hidden="true"></span>
+              <span class="cine-word-flash" aria-hidden="true"></span>
+              <span class="cine-word-pill">
+                <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="13" rx="1"/><path d="M4 8 12 3l8 5"/><rect x="10" y="14" width="4" height="7"/><rect x="6.5" y="11" width="3" height="3"/><rect x="14.5" y="11" width="3" height="3"/></svg>
+                <span class="cine-word-text">Façade</span>
+              </span>
+              <span class="cine-word-caption">Traitement complet des façades — pierre, enduit, composite — sans échafaudage ni nacelle.</span>
             </span>
           </span>
           <span class="cine-word" id="wordToiture">
-            <span class="cine-word-pill">
-              <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12 12 4l9 8"/><path d="M6 11v6M18 11v6"/><path d="M6 17h12"/></svg>
-              <span class="cine-word-text">Toiture</span>
+            <span class="cine-word-frame">
+              <span class="cine-word-corner cine-word-corner-tl" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-tr" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-bl" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-br" aria-hidden="true"></span>
+              <span class="cine-word-flash" aria-hidden="true"></span>
+              <span class="cine-word-pill">
+                <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12 12 4l9 8"/><path d="M6 11v6M18 11v6"/><path d="M6 17h12"/></svg>
+                <span class="cine-word-text">Toiture</span>
+              </span>
+              <span class="cine-word-caption">Démoussage et nettoyage de toiture par pulvérisation ciblée, sans passage sur la couverture.</span>
             </span>
           </span>
           <span class="cine-word" id="wordPhotovoltaique">
-            <span class="cine-word-pill">
-              <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M9 6v12M15 6v12M3 12h18"/></svg>
-              <span class="cine-word-text">Photovoltaïque</span>
+            <span class="cine-word-frame">
+              <span class="cine-word-corner cine-word-corner-tl" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-tr" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-bl" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-br" aria-hidden="true"></span>
+              <span class="cine-word-flash" aria-hidden="true"></span>
+              <span class="cine-word-pill">
+                <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M9 6v12M15 6v12M3 12h18"/></svg>
+                <span class="cine-word-text">Photovoltaïque</span>
+              </span>
+              <span class="cine-word-caption">Restauration du rendement des centrales photovoltaïques, sans arrêt prolongé de production.</span>
             </span>
           </span>
           <span class="cine-word" id="wordBardage">
-            <span class="cine-word-pill">
-              <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 9h16M4 14h16"/></svg>
-              <span class="cine-word-text">Bardage</span>
+            <span class="cine-word-frame">
+              <span class="cine-word-corner cine-word-corner-tl" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-tr" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-bl" aria-hidden="true"></span>
+              <span class="cine-word-corner cine-word-corner-br" aria-hidden="true"></span>
+              <span class="cine-word-flash" aria-hidden="true"></span>
+              <span class="cine-word-pill">
+                <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 9h16M4 14h16"/></svg>
+                <span class="cine-word-text">Bardage</span>
+              </span>
+              <span class="cine-word-caption">Entretien de bardages métalliques, bois ou composite sur les façades de grande hauteur.</span>
             </span>
           </span>
         </div>
@@ -374,7 +414,7 @@
            reveals them. -->
       <div class="action-track-viewport">
       <div class="action-track" id="actionTrack">
-        <a href="/blog/nettoyage-facade-par-drone-avantages-cout.html" class="action-card" data-cursor="link">
+        <a href="/blog/nettoyage-facade-par-drone-avantages-cout.html" class="action-card glow-surface" data-cursor="link">
           <picture>
             <source type="image/webp" srcset="images/action/action-facade.webp">
             <img src="images/action/action-facade.jpg" alt="Drone Exadrone en train de nettoyer la façade en pierre d'une maison" loading="lazy" decoding="async">
@@ -385,7 +425,7 @@
             <span class="action-card-link">Lire l'article →</span>
           </div>
         </a>
-        <a href="/blog/nettoyage-toiture-par-drone-avantages.html" class="action-card" data-cursor="link">
+        <a href="/blog/nettoyage-toiture-par-drone-avantages.html" class="action-card glow-surface" data-cursor="link">
           <picture>
             <source type="image/webp" srcset="images/action/action-toiture.webp">
             <img src="images/action/action-toiture.jpg" alt="Drone Exadrone nettoyant une toiture en ardoise couverte de mousse" loading="lazy" decoding="async">
@@ -396,7 +436,7 @@
             <span class="action-card-link">Lire l'article →</span>
           </div>
         </a>
-        <a href="/blog/nettoyage-panneaux-solaires-par-drone.html" class="action-card" data-cursor="link">
+        <a href="/blog/nettoyage-panneaux-solaires-par-drone.html" class="action-card glow-surface" data-cursor="link">
           <picture>
             <source type="image/webp" srcset="images/action/action-photovoltaique.webp">
             <img src="images/action/action-photovoltaique.jpg" alt="Drone Exadrone nettoyant une centrale de panneaux photovoltaïques" loading="lazy" decoding="async">
@@ -407,7 +447,7 @@
             <span class="action-card-link">Lire l'article →</span>
           </div>
         </a>
-        <a href="/blog/bardage-par-drone.html" class="action-card" data-cursor="link">
+        <a href="/blog/bardage-par-drone.html" class="action-card glow-surface" data-cursor="link">
           <picture>
             <source type="image/webp" srcset="images/action/action-bardage.webp">
             <img src="images/action/action-bardage.jpg" alt="Drone Exadrone nettoyant un bardage métallique sombre" loading="lazy" decoding="async">
@@ -418,7 +458,7 @@
             <span class="action-card-link">Lire l'article →</span>
           </div>
         </a>
-        <a href="/blog/drone-vs-nacelle-echafaudage-comparatif-couts-securite.html" class="action-card" data-cursor="link">
+        <a href="/blog/drone-vs-nacelle-echafaudage-comparatif-couts-securite.html" class="action-card glow-surface" data-cursor="link">
           <picture>
             <source type="image/webp" srcset="images/action/action-vitre.webp">
             <img src="images/action/action-vitre.jpg" alt="Drone Exadrone nettoyant la façade vitrée d'une tour de bureaux" loading="lazy" decoding="async">
@@ -455,25 +495,25 @@
     </div>
 
     <div class="sector-grid">
-      <a href="/collectivites-territoriales.html" class="sector-card reveal" data-reveal data-cursor="link">
+      <a href="/collectivites-territoriales.html" class="sector-card glow-surface reveal" data-reveal data-cursor="link">
         <span class="sector-index">01</span>
         <h3>Collectivités &amp; Mairies</h3>
         <p>Entretien des bâtiments publics, écoles et monuments — compatible marchés publics.</p>
         <span class="sector-card-link">Découvrir →</span>
       </a>
-      <a href="/entreprises-btp.html" class="sector-card reveal" data-reveal data-delay="1" data-cursor="link">
+      <a href="/entreprises-btp.html" class="sector-card glow-surface reveal" data-reveal data-delay="1" data-cursor="link">
         <span class="sector-index">02</span>
         <h3>Entreprises du BTP</h3>
         <p>Cartographie de chantier, photogrammétrie de suivi et inspection de bardage à grande échelle.</p>
         <span class="sector-card-link">Découvrir →</span>
       </a>
-      <a href="/renovation-facade.html" class="sector-card reveal" data-reveal data-delay="2" data-cursor="link">
+      <a href="/renovation-facade.html" class="sector-card glow-surface reveal" data-reveal data-delay="2" data-cursor="link">
         <span class="sector-index">03</span>
         <h3>Rénovation de Façade</h3>
         <p>Sous-traitance drone pour vos chantiers de ravalement — partenariat technique, pas de concurrence commerciale.</p>
         <span class="sector-card-link">Découvrir →</span>
       </a>
-      <a href="/marches-publics.html" class="sector-card reveal" data-reveal data-delay="3" data-cursor="link">
+      <a href="/marches-publics.html" class="sector-card glow-surface reveal" data-reveal data-delay="3" data-cursor="link">
         <span class="sector-index">04</span>
         <h3>Marchés Publics</h3>
         <p>Ce qu'il faut prévoir pour intégrer Exadrone Enterprise à votre appel d'offres : pièces, garanties, références.</p>
@@ -506,6 +546,12 @@
           <span class="ba-handle-grip" id="baGrip" tabindex="0" role="slider" aria-label="Faites glisser pour comparer avant et après nettoyage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 1L1 7l4 6M9 1l4 6-4 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
+        </div>
+        <div class="corner-frame" aria-hidden="true">
+          <span class="corner-frame-mark corner-frame-tl"></span>
+          <span class="corner-frame-mark corner-frame-tr"></span>
+          <span class="corner-frame-mark corner-frame-bl"></span>
+          <span class="corner-frame-mark corner-frame-br"></span>
         </div>
       </div>
       <p class="ba-hint">Faites glisser le curseur — ou cliquez n'importe où dans le cadre</p>
@@ -547,6 +593,12 @@
           télémétrie en temps réel, correction de trajectoire anti-collision et redondance de
           sécurité à chaque niveau. Rien n'est laissé au vent.
         </p>
+      </div>
+      <div class="corner-frame" aria-hidden="true">
+        <span class="corner-frame-mark corner-frame-tl"></span>
+        <span class="corner-frame-mark corner-frame-tr"></span>
+        <span class="corner-frame-mark corner-frame-bl"></span>
+        <span class="corner-frame-mark corner-frame-br"></span>
       </div>
     </div>
   </section>

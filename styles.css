@@ -734,12 +734,13 @@ a, button, input, select, textarea { touch-action: manipulation; }
   position: relative;
   margin: 40px auto 0;
   width: 100%;
-  max-width: 680px;
-  /* Tall enough for the pill (text line-height plus its own padding/
-     border) at the current font-size, at any breakpoint — calc() can
-     mix a clamp() with a flat px add, so this tracks the font-size
-     clamp below instead of needing its own separately-tuned one. */
-  height: calc(clamp(1.3rem, 2.6vw, 2.15rem) * 1.3 + 34px);
+  max-width: 480px;
+  /* Empirically tuned for frame-padding + pill + caption together at
+     each breakpoint (see .cine-word-frame/.cine-word-caption below) —
+     not load-bearing for clipping since nothing here uses overflow:
+     hidden, just keeps the stacked .cine-word children's shared box
+     close to their real content height. */
+  height: clamp(168px, 26vw, 218px);
   font-size: clamp(1.3rem, 2.6vw, 2.15rem);
 }
 .cine-word {
@@ -752,6 +753,64 @@ a, button, input, select, textarea { touch-action: manipulation; }
   opacity: 0;
   filter: blur(16px);
   pointer-events: none;
+}
+/* ---------- Viewfinder frame — corner brackets + one-shot flash ----------
+   Wraps the pill + caption in the same "camera viewfinder" language as
+   the HUD's own .hud-corner brackets elsewhere in this section, just
+   sized for this smaller panel, with a soft blue-tinted glow instead of
+   the HUD's plain drop-shadow so it reads as a deliberate callback
+   rather than a duplicate. .cine-word-flash is the brief shutter-flash
+   pulse (script.js toggles .is-flashing on it, in lockstep with the
+   synthesized shutter click, once per word as it crosses into view). */
+.cine-word-frame {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 1.8vw, 16px);
+  padding: clamp(16px, 2.6vw, 24px) clamp(18px, 4vw, 38px);
+}
+.cine-word-corner {
+  position: absolute;
+  width: clamp(13px, 1.8vw, 18px);
+  height: clamp(13px, 1.8vw, 18px);
+  border: 1.5px solid rgba(217, 222, 229, 0.9);
+  filter: drop-shadow(0 0 5px rgba(31, 111, 235, 0.55)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+.cine-word-corner-tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+.cine-word-corner-tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+.cine-word-corner-bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+.cine-word-corner-br { bottom: 0; right: 0; border-left: none; border-top: none; }
+.cine-word-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: 6px;
+  background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.95), rgba(140, 190, 255, 0.32) 55%, transparent 78%);
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.cine-word-flash.is-flashing { animation: cine-flash-pulse 0.4s ease-out; }
+@keyframes cine-flash-pulse {
+  0% { opacity: 0; }
+  12% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cine-word-flash.is-flashing { animation: none; }
+}
+.cine-word-caption {
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: clamp(0.72rem, 1.05vw, 0.86rem);
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: center;
+  max-width: 32ch;
+  color: rgba(217, 222, 229, 0.92);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65), 0 1px 3px rgba(0, 0, 0, 0.55);
 }
 .cine-word-pill {
   position: relative;
@@ -1001,11 +1060,14 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   .cine-title { font-size: clamp(1.5rem, 7.4vw, 2.3rem); }
   .cine-word-row {
     font-size: clamp(1.05rem, 5vw, 1.5rem);
-    height: calc(clamp(1.05rem, 5vw, 1.5rem) * 1.3 + 26px);
+    height: clamp(148px, 40vw, 188px);
     margin-top: 22px;
     max-width: 92vw;
   }
   .cine-word-pill { gap: 8px; padding: 9px 18px; }
+  .cine-word-frame { gap: 8px; padding: 12px 16px; }
+  .cine-word-corner { width: 12px; height: 12px; }
+  .cine-word-caption { font-size: 0.74rem; max-width: 30ch; }
   .hud-corner { width: 18px; height: 18px; }
   /* Mobile nav is shorter (~74px) than desktop but still fixed/opaque —
      same clearance fix as the desktop rules above, just a smaller offset. */
@@ -1227,6 +1289,37 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 }
 
 /* ============================================================
+   CORNER FRAME — reusable "viewfinder" callback
+   ============================================================
+   A recurring nod to the hero's own camera-HUD corner brackets
+   (.hud-corner / .cine-word-corner): four L-shaped marks plus a soft
+   blue glow, dropped into any position:relative photo container via
+   .corner-frame. Purely decorative — aria-hidden in markup, pointer-
+   events:none here — so it never competes with real controls layered
+   over the same photo (e.g. the before/after drag handle). z-index is
+   deliberately low (1): above the bare photo, below any tags/badges/
+   controls a given host already layers on top (those keep their own
+   explicit z-index). Color/size/inset are custom properties so each
+   host can retune them for its own photo instead of overriding rules. */
+.corner-frame {
+  position: absolute;
+  inset: var(--corner-inset, 10px);
+  z-index: 1;
+  pointer-events: none;
+}
+.corner-frame-mark {
+  position: absolute;
+  width: var(--corner-size, 20px);
+  height: var(--corner-size, 20px);
+  border: 1.5px solid var(--corner-color, rgba(255, 255, 255, 0.85));
+  filter: drop-shadow(0 0 6px var(--corner-glow, rgba(31, 111, 235, 0.4))) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+}
+.corner-frame-tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+.corner-frame-tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+.corner-frame-bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+.corner-frame-br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+/* ============================================================
    BEFORE / AFTER SLIDER
    ============================================================ */
 .ba-slider { display: flex; flex-direction: column; align-items: center; }
@@ -1241,6 +1334,10 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   touch-action: none;
   cursor: ew-resize;
   box-shadow: inset 0 0 0 1px var(--line-dark);
+  /* Tighter than the corner-frame default (10px) and hugging closer to
+     the very edge than the "Avant"/"Après" tags (18px inset, z-index:2 —
+     see .ba-tag) so the two never overlap. */
+  --corner-inset: 8px;
 }
 .ba-img {
   position: absolute;
@@ -1808,6 +1905,10 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   display: flex;
   align-items: center;
   background: var(--panel-dark);
+  /* Wider than the corner-frame default (10px) — matches the hero's own
+     .hud-corner clearance so the two read as the same recurring mark
+     rather than two different sizes of the same idea. */
+  --corner-inset: 24px;
 }
 .drone-showcase-canvas {
   position: absolute;

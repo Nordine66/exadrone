@@ -224,6 +224,61 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   requestAnimationFrame(scrollTick);
 
+  /* ---------- Camera shutter click (synthesized, no audio file) ----------
+     A previous version of the hero had a continuous drone-engine hum and
+     it was cut for good after it wouldn't loop cleanly (see git history)
+     — this is a deliberately different kind of sound: a single ~70ms
+     two-click shutter fired at most 4 times total (once per hero
+     keyword), synthesized from noise bursts rather than shipping an
+     audio file, so there's nothing to download and nothing to loop.
+     Browsers block audio before any user gesture, so playback is a
+     no-op until the visitor's first click/tap/keypress unlocks the
+     AudioContext — after that it plays; before that it silently does
+     nothing (the flash/frame still fire regardless, so the transition
+     always reads even when the click can't play yet). */
+  let shutterAudioCtx = null;
+  const unlockShutterAudio = () => {
+    if (shutterAudioCtx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try { shutterAudioCtx = new Ctx(); } catch { /* unsupported — stays silent */ }
+  };
+  ['pointerdown', 'keydown', 'touchstart'].forEach((evt) => {
+    window.addEventListener(evt, unlockShutterAudio, { once: true, passive: true });
+  });
+
+  const playCameraShutter = () => {
+    const ctx = shutterAudioCtx;
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const t0 = ctx.currentTime;
+    // Two short filtered-noise bursts (first + second curtain) rather
+    // than a tone — a real shutter is a broadband click, not a pitch.
+    const click = (time, duration, freq, peakGain) => {
+      const frames = Math.max(1, Math.round(ctx.sampleRate * duration));
+      const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const bandpass = ctx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.frequency.value = freq;
+      bandpass.Q.value = 1.1;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.exponentialRampToValueAtTime(peakGain, time + 0.002);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+      noise.connect(bandpass);
+      bandpass.connect(gain);
+      gain.connect(ctx.destination);
+      noise.start(time);
+      noise.stop(time + duration + 0.01);
+    };
+    click(t0, 0.018, 2600, 0.22);
+    click(t0 + 0.05, 0.014, 1800, 0.15);
+  };
+
   /* ---------- Cinematic hero scrub (drone3D flip-book + camera HUD) ----------
      49 pre-rendered frames stand in for a real <video> because scroll-
      scrubbing needs frame-accurate random access a <video> element can't
@@ -474,12 +529,29 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
 
+    // Fires the shutter flash + click once per keyword, reusing this same
+    // section-change edge the HUD label already detects rather than
+    // tracking a second, parallel "did the word change" state.
+    const triggerWordShutter = (idx) => {
+      const word = cineSideWords[idx];
+      const flash = word?.el?.querySelector('.cine-word-flash');
+      if (flash) {
+        flash.classList.remove('is-flashing');
+        void flash.offsetWidth; // restart the animation even if still mid-flash
+        flash.classList.add('is-flashing');
+      }
+      playCameraShutter();
+    };
+
     const updateHud = (progress, frameIndex) => {
       const sectionIdx = getPhaseIndex(progress);
       if (sectionIdx !== cineLastSectionIdx) {
         cineLastSectionIdx = sectionIdx;
         if (hudSectionLabel) hudSectionLabel.textContent = `${String(sectionIdx + 1).padStart(2, '0')} · ${CINE_PHASES[sectionIdx].label.toUpperCase()}`;
         if (hudSectionCount) hudSectionCount.textContent = `SECTION ${String(sectionIdx + 1).padStart(2, '0')} / ${String(CINE_PHASES.length).padStart(2, '0')}`;
+        // Only the first 4 phases have a matching keyword card — the 5th
+        // ("Atterrissage") is HUD-only, nothing to flash.
+        if (sectionIdx < cineSideWords.length) triggerWordShutter(sectionIdx);
       }
       if (hudTimecode) hudTimecode.textContent = formatTimecode(progress * CINE_VIRTUAL_DURATION_S);
       if (hudFrameCounter) hudFrameCounter.textContent = `CADRE ${String(frameIndex + 1).padStart(3, '0')} / ${String(CINE_TOTAL_FRAMES).padStart(3, '0')}`;
@@ -518,8 +590,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /* ---------- Pointer-tracked spotlight on bento/glass surfaces ---------- */
-  const spotlightEls = document.querySelectorAll('.stat, .cap-card, .timeline-item, .estimate-card, .reliability-list li, .glow-surface');
+  /* ---------- Pointer-tracked spotlight on bento/glass surfaces ----------
+     .glow-surface is applied directly in the markup to any card that
+     should join this effect (action-card, sector-card, plus whatever
+     already had it) rather than listing every host class here — one
+     shared switch instead of two places to keep in sync. */
+  const spotlightEls = document.querySelectorAll('.stat, .timeline-item, .estimate-card, .reliability-list li, .glow-surface');
   if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
     spotlightEls.forEach(el => {
       // getBoundingClientRect() is a layout read; doing it on every
