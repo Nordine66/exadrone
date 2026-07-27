@@ -734,14 +734,14 @@ a, button, input, select, textarea { touch-action: manipulation; }
   position: relative;
   margin: 40px auto 0;
   width: 100%;
-  max-width: 480px;
+  max-width: 560px;
   /* Empirically tuned for frame-padding + pill + caption together at
      each breakpoint (see .cine-word-frame/.cine-word-caption below) —
      not load-bearing for clipping since nothing here uses overflow:
      hidden, just keeps the stacked .cine-word children's shared box
      close to their real content height. */
-  height: clamp(168px, 26vw, 218px);
-  font-size: clamp(1.3rem, 2.6vw, 2.15rem);
+  height: clamp(190px, 30vw, 250px);
+  font-size: clamp(1.6rem, 3.3vw, 2.6rem);
 }
 .cine-word {
   position: absolute;
@@ -754,12 +754,18 @@ a, button, input, select, textarea { touch-action: manipulation; }
   filter: blur(16px);
   pointer-events: none;
 }
-/* ---------- Viewfinder frame — corner brackets + one-shot flash ----------
-   Wraps the pill + caption in the same "camera viewfinder" language as
-   the HUD's own .hud-corner brackets elsewhere in this section, just
-   sized for this smaller panel, with a soft blue-tinted glow instead of
-   the HUD's plain drop-shadow so it reads as a deliberate callback
-   rather than a duplicate. .cine-word-flash is the brief shutter-flash
+/* ---------- Word group — soft vignette + one-shot flash ----------
+   Wraps the pill + caption and groups them with a soft, edgeless
+   vignette glow (::before) instead of a bordered card or corner
+   brackets — the hero already has its own corner brackets framing the
+   whole section (.hud-corner), so a second set around this smaller
+   panel just read as redundant "framed inside a frame" clutter. The
+   vignette still visually separates the group from the drone photo
+   behind it (which is the actual legibility problem it solves — a
+   photo can be light or dark from one scrubbed frame to the next, so
+   contrast can't depend on the frame content, only on this glow +
+   the text's own color/shadow below), it just fades out instead of
+   stopping at a hard edge. .cine-word-flash is the brief shutter-flash
    pulse (script.js toggles .is-flashing on it, in lockstep with the
    synthesized shutter click, once per word as it crosses into view). */
 .cine-word-frame {
@@ -768,21 +774,18 @@ a, button, input, select, textarea { touch-action: manipulation; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(10px, 1.8vw, 16px);
-  padding: clamp(16px, 2.6vw, 24px) clamp(18px, 4vw, 38px);
+  gap: clamp(12px, 2vw, 18px);
+  padding: clamp(18px, 3vw, 28px) clamp(20px, 4.4vw, 42px);
 }
-.cine-word-corner {
+.cine-word-frame::before {
+  content: "";
   position: absolute;
-  width: clamp(13px, 1.8vw, 18px);
-  height: clamp(13px, 1.8vw, 18px);
-  border: 1.5px solid rgba(217, 222, 229, 0.9);
-  filter: drop-shadow(0 0 5px rgba(31, 111, 235, 0.55)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+  inset: -10% -18%;
+  z-index: -1;
+  border-radius: 999px;
+  background: radial-gradient(ellipse 62% 68% at 50% 44%, rgba(6, 10, 18, 0.7) 0%, rgba(6, 10, 18, 0.46) 42%, rgba(6, 10, 18, 0.16) 70%, transparent 100%);
   pointer-events: none;
 }
-.cine-word-corner-tl { top: 0; left: 0; border-right: none; border-bottom: none; }
-.cine-word-corner-tr { top: 0; right: 0; border-left: none; border-bottom: none; }
-.cine-word-corner-bl { bottom: 0; left: 0; border-right: none; border-top: none; }
-.cine-word-corner-br { bottom: 0; right: 0; border-left: none; border-top: none; }
 .cine-word-flash {
   position: absolute;
   inset: 0;
@@ -804,13 +807,18 @@ a, button, input, select, textarea { touch-action: manipulation; }
 }
 .cine-word-caption {
   font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: clamp(0.72rem, 1.05vw, 0.86rem);
+  font-size: clamp(0.95rem, 1.7vw, 1.15rem);
   font-weight: 400;
   line-height: 1.5;
   text-align: center;
-  max-width: 32ch;
-  color: rgba(217, 222, 229, 0.92);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65), 0 1px 3px rgba(0, 0, 0, 0.55);
+  max-width: 34ch;
+  /* Same color as .cine-word-text below — a mismatched dark word over a
+     light caption (or vice versa) was exactly why the panel read as
+     "can't see anything" on some scrubbed frames: one of the two always
+     lost contrast depending on what was behind it. One shared light
+     tone, backed by the vignette above, stays legible regardless. */
+  color: #D9DEE5;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7), 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 .cine-word-pill {
   position: relative;
@@ -821,18 +829,15 @@ a, button, input, select, textarea { touch-action: manipulation; }
   padding: clamp(10px, 1.6vw, 15px) clamp(20px, 3.2vw, 32px);
   border-radius: 999px;
   white-space: nowrap;
-  /* Genuinely see-through glass — the drone photo behind has to stay
-     legible through the pill, not get smothered by it. A heavy blur +
-     dark fill (the previous version) reads as an opaque grey blob
-     instead of glass, so the fill here is barely-there and the blur is
-     just enough to soften hard edges of whatever's behind, not erase
-     them. Legibility of the white label no longer depends on the fill
-     being dark/opaque — it comes from the text's own shadow below plus
-     the blue-beam ring (::after, same technique as .glass/.action-card/
-     .stat elsewhere on the site) that defines the edge instead. */
-  background: rgba(10, 16, 26, 0.1);
-  backdrop-filter: blur(6px) saturate(140%);
-  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  /* Still glass (not an opaque card), but a real overlay this time —
+     the previous barely-there fill (0.1 alpha) let too much of the
+     photo through and the word's legibility ended up depending on
+     what was behind it frame to frame. This is darker/more opaque so
+     the label is reliably readable on its own, backed further by the
+     .cine-word-frame::before vignette around the whole group. */
+  background: rgba(8, 13, 22, 0.55);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
   border: 1px solid rgba(73, 198, 255, 0.45);
   box-shadow: 0 0 24px rgba(31, 111, 235, 0.35), 0 8px 20px -12px rgba(5, 8, 14, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
@@ -868,8 +873,12 @@ a, button, input, select, textarea { touch-action: manipulation; }
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--paper);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65), 0 1px 3px rgba(0, 0, 0, 0.55);
+  /* Same tone as .cine-word-caption — see the note there. This used to
+     be var(--paper), the site's dark ink color for its normal light
+     background, which is exactly backwards for a word sitting on a
+     photo: legible on light frames, invisible on dark ones. */
+  color: #D9DEE5;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7), 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1059,15 +1068,15 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   .cine-title-block { top: 116px; padding: 0 16px; }
   .cine-title { font-size: clamp(1.5rem, 7.4vw, 2.3rem); }
   .cine-word-row {
-    font-size: clamp(1.05rem, 5vw, 1.5rem);
-    height: clamp(148px, 40vw, 188px);
+    font-size: clamp(1.3rem, 7vw, 1.9rem);
+    height: clamp(170px, 52vw, 220px);
     margin-top: 22px;
     max-width: 92vw;
   }
-  .cine-word-pill { gap: 8px; padding: 9px 18px; }
-  .cine-word-frame { gap: 8px; padding: 12px 16px; }
-  .cine-word-corner { width: 12px; height: 12px; }
-  .cine-word-caption { font-size: 0.74rem; max-width: 30ch; }
+  .cine-word-pill { gap: 8px; padding: 10px 20px; }
+  .cine-word-frame { gap: 10px; padding: 14px 18px; }
+  .cine-word-frame::before { inset: -8% -12%; }
+  .cine-word-caption { font-size: 0.92rem; max-width: 28ch; }
   .hud-corner { width: 18px; height: 18px; }
   /* Mobile nav is shorter (~74px) than desktop but still fixed/opaque —
      same clearance fix as the desktop rules above, just a smaller offset. */
@@ -1292,8 +1301,8 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
    CORNER FRAME — reusable "viewfinder" callback
    ============================================================
    A recurring nod to the hero's own camera-HUD corner brackets
-   (.hud-corner / .cine-word-corner): four L-shaped marks plus a soft
-   blue glow, dropped into any position:relative photo container via
+   (.hud-corner): four L-shaped marks plus a soft blue glow, dropped
+   into any position:relative photo container via
    .corner-frame. Purely decorative — aria-hidden in markup, pointer-
    events:none here — so it never competes with real controls layered
    over the same photo (e.g. the before/after drag handle). z-index is

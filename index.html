@@ -154,26 +154,23 @@
              updateSideWords in script.js, which drives the outer
              .cine-word — the animated element) as the scrub crosses its
              own window, then the next takes its place. Each is wrapped in
-             .cine-word-frame: a photography-viewfinder frame (four
-             corner brackets, same visual language as the HUD's own
-             .hud-corner elsewhere in this section, just sized down for
-             this smaller panel) around the icon pill AND a one-line
-             caption explaining that service — captions/frame/pill all
-             live inside the same .cine-word that already gets faded/
-             blurred/drifted as one unit by updateSideWords, so nothing
-             extra was needed to keep them moving together. .cine-word-
-             flash is the brief white pulse (plus a synthesized camera-
-             shutter click, see script.js "Camera shutter + flash") that
-             fires once per word as it crosses into view — reads as a
-             shutter firing on the new "shot", reinforcing the camera/HUD
-             framing instead of just being a generic fade transition. -->
+             .cine-word-frame: the icon pill plus a one-line caption
+             explaining that service, grouped by a soft vignette glow
+             behind them (.cine-word-frame::before in styles.css) instead
+             of a literal bordered card or corner brackets — the hero's
+             own .hud-corner brackets already frame the whole section, so
+             a second set around this panel just read as redundant/busy.
+             Captions/frame/pill all live inside the same .cine-word that
+             already gets faded/blurred/drifted as one unit by
+             updateSideWords, so nothing extra was needed to keep them
+             moving together. .cine-word-flash is the brief white pulse
+             (plus a synthesized camera-shutter click, see script.js
+             "Camera shutter + flash") that fires once per word as it
+             crosses into view. -->
+
         <div class="cine-word-row">
           <span class="cine-word" id="wordFacade">
             <span class="cine-word-frame">
-              <span class="cine-word-corner cine-word-corner-tl" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-tr" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-bl" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-br" aria-hidden="true"></span>
               <span class="cine-word-flash" aria-hidden="true"></span>
               <span class="cine-word-pill">
                 <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="13" rx="1"/><path d="M4 8 12 3l8 5"/><rect x="10" y="14" width="4" height="7"/><rect x="6.5" y="11" width="3" height="3"/><rect x="14.5" y="11" width="3" height="3"/></svg>
@@ -184,10 +181,6 @@
           </span>
           <span class="cine-word" id="wordToiture">
             <span class="cine-word-frame">
-              <span class="cine-word-corner cine-word-corner-tl" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-tr" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-bl" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-br" aria-hidden="true"></span>
               <span class="cine-word-flash" aria-hidden="true"></span>
               <span class="cine-word-pill">
                 <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12 12 4l9 8"/><path d="M6 11v6M18 11v6"/><path d="M6 17h12"/></svg>
@@ -198,10 +191,6 @@
           </span>
           <span class="cine-word" id="wordPhotovoltaique">
             <span class="cine-word-frame">
-              <span class="cine-word-corner cine-word-corner-tl" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-tr" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-bl" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-br" aria-hidden="true"></span>
               <span class="cine-word-flash" aria-hidden="true"></span>
               <span class="cine-word-pill">
                 <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M9 6v12M15 6v12M3 12h18"/></svg>
@@ -212,10 +201,6 @@
           </span>
           <span class="cine-word" id="wordBardage">
             <span class="cine-word-frame">
-              <span class="cine-word-corner cine-word-corner-tl" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-tr" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-bl" aria-hidden="true"></span>
-              <span class="cine-word-corner cine-word-corner-br" aria-hidden="true"></span>
               <span class="cine-word-flash" aria-hidden="true"></span>
               <span class="cine-word-pill">
                 <svg class="cine-word-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 9h16M4 14h16"/></svg>
