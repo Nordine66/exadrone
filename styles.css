@@ -762,20 +762,20 @@ a, button, input, select, textarea { touch-action: manipulation; }
   padding: clamp(10px, 1.6vw, 15px) clamp(20px, 3.2vw, 32px);
   border-radius: 999px;
   white-space: nowrap;
-  /* Dark-tinted frosted glass, not bare text sitting on the photo — a
-     fully transparent pill would lose contrast depending on what's
-     behind it (see .cine-vignette: this row sits in the least-
-     vignetted, still-fairly-light center band), so the tint stays dark
-     enough to keep the white label legible over any frame while
-     reading as genuinely see-through. The signature rotating blue-beam
-     ring below (::after, same technique as .glass/.action-card/.stat
-     elsewhere on the site) replaces the previous plain white edge for
-     the "premium" definition instead of an opaque fill. */
-  background: rgba(8, 13, 22, 0.34);
-  backdrop-filter: blur(22px) saturate(160%);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  border: 1px solid rgba(73, 198, 255, 0.4);
-  box-shadow: 0 0 26px rgba(31, 111, 235, 0.32), 0 14px 32px -10px rgba(5, 8, 14, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  /* Genuinely see-through glass — the drone photo behind has to stay
+     legible through the pill, not get smothered by it. A heavy blur +
+     dark fill (the previous version) reads as an opaque grey blob
+     instead of glass, so the fill here is barely-there and the blur is
+     just enough to soften hard edges of whatever's behind, not erase
+     them. Legibility of the white label no longer depends on the fill
+     being dark/opaque — it comes from the text's own shadow below plus
+     the blue-beam ring (::after, same technique as .glass/.action-card/
+     .stat elsewhere on the site) that defines the edge instead. */
+  background: rgba(10, 16, 26, 0.1);
+  backdrop-filter: blur(6px) saturate(140%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  border: 1px solid rgba(73, 198, 255, 0.45);
+  box-shadow: 0 0 24px rgba(31, 111, 235, 0.35), 0 8px 20px -12px rgba(5, 8, 14, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .cine-word-pill::after {
   content: "";
@@ -800,6 +800,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
   width: 1em;
   height: 1em;
   color: var(--cro-blue);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
 }
 .cine-word-text {
   font-family: var(--font-display);
@@ -809,6 +810,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--paper);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65), 0 1px 3px rgba(0, 0, 0, 0.55);
 }
 
 @media (prefers-reduced-motion: reduce) {
