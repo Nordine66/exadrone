@@ -186,12 +186,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // synchronous DOMContentLoaded callback (including the assignment below)
   // has run.
   let cineScrubTick = null;
+  // Same "read further down, called from this shared ticker" pattern as
+  // cineScrubTick above — see "Drone showcase scrub".
+  let droneScrubTick = null;
 
   const scrollTick = () => {
     currentScrollY += (targetScrollY - currentScrollY) * 0.25;
     if (Math.abs(targetScrollY - currentScrollY) < 0.05) currentScrollY = targetScrollY;
 
     if (cineScrubTick) cineScrubTick();
+    if (droneScrubTick) droneScrubTick();
 
     nav.classList.toggle('scrolled', currentScrollY > 40);
 
@@ -589,19 +593,156 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { threshold: 0.6 });
   counters.forEach(el => counterObserver.observe(el));
 
-  /* ---------- Showcase video plays only while in view ---------- */
-  const showcaseVideo = document.getElementById('showcaseVideo');
-  if (showcaseVideo) {
-    const videoObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
+  /* ---------- Drone showcase scrub (150-frame flip-book, "Le Drone") ----------
+     Same technique as the hero's cine scrub (see above) — a pinned stage
+     redrawn per scroll-frame from pre-sliced JPEGs, because scrubbing
+     needs frame-accurate random access a <video> element's async/
+     throttled seeking can't give — just section-scoped (its own 220vh
+     track, not the full page) and without the camera-HUD chrome, since
+     this is a supporting beat rather than the flagship one. Unlike the
+     hero, there's no full-preload gate blocking reveal: this section
+     sits well below the fold, so a visitor could in principle jump
+     straight to it via anchor link, and blocking scroll on 150 images
+     (3x the hero's count) would be a worse trade here than it is for
+     the very first thing every visitor sees. Preloading instead starts
+     as the section nears the viewport, drawing whatever frame is
+     nearest-loaded in the meantime (same fallback as the hero). */
+  const droneCanvas = document.getElementById('droneShowcaseCanvas');
+  const droneShowcase = document.querySelector('.drone-showcase');
+  if (droneCanvas && droneShowcase) {
+    const DRONE_TOTAL_FRAMES = 150;
+    const droneCtx = droneCanvas.getContext('2d');
+    const droneImages = [];
+    let droneLastDrawn = -1;
+    let droneStarted = false;
+
+    const isDroneReady = (img) => img && img.complete && img.naturalWidth;
+
+    // Same object-fit:cover emulation as the hero's drawCover — crops the
+    // (portrait) source frame to the stage's own aspect ratio rather than
+    // stretching it.
+    const drawDroneCover = (img) => {
+      const cw = droneCanvas.width, ch = droneCanvas.height;
+      const ir = img.naturalWidth / img.naturalHeight;
+      const cr = cw / ch;
+      let sx, sy, sw, sh;
+      if (ir > cr) {
+        sh = img.naturalHeight;
+        sw = sh * cr;
+        sy = 0;
+        sx = (img.naturalWidth - sw) / 2;
+      } else {
+        sw = img.naturalWidth;
+        sh = sw / cr;
+        sx = 0;
+        sy = (img.naturalHeight - sh) / 2;
+      }
+      droneCtx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+    };
+
+    const drawDroneFrame = (index, force) => {
+      let target = index;
+      if (!isDroneReady(droneImages[target])) {
+        let lo = target - 1, hi = target + 1;
+        while (lo >= 0 || hi < DRONE_TOTAL_FRAMES) {
+          if (lo >= 0 && isDroneReady(droneImages[lo])) { target = lo; break; }
+          if (hi < DRONE_TOTAL_FRAMES && isDroneReady(droneImages[hi])) { target = hi; break; }
+          lo--; hi++;
+        }
+      }
+      const img = droneImages[target];
+      if (!isDroneReady(img)) return;
+      if (!force && target === droneLastDrawn) return;
+      droneLastDrawn = target;
+      drawDroneCover(img);
+    };
+
+    const sizeDroneCanvas = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = droneCanvas.getBoundingClientRect();
+      droneCanvas.width = Math.round(rect.width * dpr);
+      droneCanvas.height = Math.round(rect.height * dpr);
+      drawDroneFrame(Math.max(droneLastDrawn, 0), true);
+    };
+    window.addEventListener('resize', sizeDroneCanvas);
+
+    for (let i = 0; i < DRONE_TOTAL_FRAMES; i++) {
+      const img = new Image();
+      img.decoding = 'async';
+      droneImages.push(img);
+    }
+
+    // Bisected load order, same rationale as the hero: some frame lands
+    // across the whole range within the first handful of requests, so the
+    // nearest-loaded fallback always has something close by.
+    const droneLoadOrder = [];
+    const droneQueued = new Set();
+    const droneEnqueue = (i) => { if (!droneQueued.has(i)) { droneQueued.add(i); droneLoadOrder.push(i); } };
+    droneEnqueue(0);
+    droneEnqueue(DRONE_TOTAL_FRAMES - 1);
+    let droneRanges = [[0, DRONE_TOTAL_FRAMES - 1]];
+    while (droneRanges.length) {
+      const next = [];
+      for (const [lo, hi] of droneRanges) {
+        if (hi - lo <= 1) continue;
+        const mid = Math.floor((lo + hi) / 2);
+        droneEnqueue(mid);
+        next.push([lo, mid], [mid, hi]);
+      }
+      droneRanges = next;
+    }
+    for (let i = 0; i < DRONE_TOTAL_FRAMES; i++) droneEnqueue(i);
+
+    const DRONE_LOAD_CONCURRENCY = 5;
+    let droneLoadCursor = 0;
+    const startNextDroneLoad = () => {
+      if (droneLoadCursor >= droneLoadOrder.length) return;
+      const i = droneLoadOrder[droneLoadCursor++];
+      const img = droneImages[i];
+      img.addEventListener('load', () => { drawDroneFrame(droneLastProgressFrame(), false); startNextDroneLoad(); }, { once: true });
+      img.addEventListener('error', () => startNextDroneLoad(), { once: true });
+      img.src = `/images/hero-frames/drone4k/drone4k_${String(i + 1).padStart(4, '0')}.jpg`;
+    };
+    // Resolves to whatever frame the current scroll progress points at, so
+    // a frame that finishes loading late still gets painted immediately if
+    // it's the one currently needed, instead of waiting for the next tick.
+    let droneLastProgress = 0;
+    const droneLastProgressFrame = () => Math.round(droneLastProgress * (DRONE_TOTAL_FRAMES - 1));
+
+    const startDroneLoad = () => {
+      if (droneStarted) return;
+      droneStarted = true;
+      sizeDroneCanvas();
+      for (let c = 0; c < DRONE_LOAD_CONCURRENCY; c++) startNextDroneLoad();
+    };
+    // Starts well before the section is actually on screen (600px
+    // margin) so the first frames are already in by the time scrubbing
+    // begins, without paying for it on initial page load.
+    const droneStartObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          showcaseVideo.play().catch(() => {});
-        } else {
-          showcaseVideo.pause();
+          startDroneLoad();
+          droneStartObserver.disconnect();
         }
       });
-    }, { threshold: 0.3 });
-    videoObserver.observe(showcaseVideo);
+    }, { rootMargin: '600px 0px 600px 0px' });
+    droneStartObserver.observe(droneShowcase);
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const stillIndex = Math.floor(DRONE_TOTAL_FRAMES * 0.3);
+      droneLastProgress = stillIndex / (DRONE_TOTAL_FRAMES - 1);
+      startDroneLoad();
+      droneImages[stillIndex].addEventListener('load', () => drawDroneFrame(stillIndex, true));
+    } else {
+      droneScrubTick = () => {
+        const rect = droneShowcase.getBoundingClientRect();
+        if (rect.bottom <= 0 || rect.top >= window.innerHeight) return;
+        const scrollable = rect.height - window.innerHeight;
+        const progress = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0;
+        droneLastProgress = progress;
+        drawDroneFrame(droneLastProgressFrame());
+      };
+    }
   }
 
   /* ---------- Custom cursor ---------- */

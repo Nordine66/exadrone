@@ -525,30 +525,29 @@
     </p>
   </section>
 
-  <!-- VITRINE / PANNEAU VIDÉO -->
-  <section class="showcase" id="fleet">
-    <div class="showcase-text">
-      <p class="eyebrow reveal" data-reveal>Le Drone</p>
-      <h2 class="section-title reveal" data-reveal data-delay="1">Conçu pour l'altitude.<br>Pensé pour le contrôle.</h2>
-      <p class="showcase-copy reveal" data-reveal data-delay="2">
-        Notre drone Exadrone Enterprise fonctionne sur un système de vol en boucle fermée —
-        télémétrie en temps réel, correction de trajectoire anti-collision et redondance de
-        sécurité à chaque niveau. Rien n'est laissé au vent.
-      </p>
-    </div>
-    <div class="showcase-media reveal" data-reveal data-delay="1">
-      <!-- preload=metadata, not auto: this video sits well below the fold
-           and is already gated by an IntersectionObserver in script.js
-           that calls play()/pause() on enter/exit, so there's no reason
-           to force the full file into memory before it's anywhere near
-           the viewport. -->
-      <video class="showcase-video" id="showcaseVideo" autoplay muted loop playsinline preload="metadata">
-        <source src="exadrone-hero-mobile.webm" type="video/webm" media="(max-width: 760px)">
-        <source src="exadrone-hero-mobile.mp4" type="video/mp4" media="(max-width: 760px)">
-        <source src="exadrone-hero.webm?v=3" type="video/webm">
-        <source src="exadrone-hero.mp4?v=3" type="video/mp4">
-      </video>
-      <div class="showcase-frame-glow"></div>
+  <!-- VITRINE / SCRUB CINÉMATIQUE — flip-book scroll-scrub (150 frames cut
+       from "drone 4k", see script.js "Drone showcase scrub") mirroring the
+       hero's .cine-hero technique: a pinned 100vh stage inside a taller
+       track, the frame shown tracking scroll progress through that track.
+       Section-scoped rather than full-viewport and without the camera-HUD
+       chrome — this is a supporting cinematic beat, not the flagship one.
+       The text used to sit in its own column next to a looping <video>;
+       now it's pinned directly over the canvas (readable for the whole
+       scrub, same as the hero title) because reading the frame sequence
+       *as* the backdrop for the copy is the point of this section. -->
+  <section class="drone-showcase" id="fleet">
+    <div class="drone-showcase-pin">
+      <canvas class="drone-showcase-canvas" id="droneShowcaseCanvas" role="img" aria-label="Drone Exadrone en vol stationnaire, pulvérisant une centrale de panneaux photovoltaïques"></canvas>
+      <div class="drone-showcase-scrim" aria-hidden="true"></div>
+      <div class="drone-showcase-text">
+        <p class="eyebrow reveal" data-reveal>Le Drone</p>
+        <h2 class="section-title reveal" data-reveal data-delay="1">Conçu pour l'altitude.<br>Pensé pour le contrôle.</h2>
+        <p class="showcase-copy reveal" data-reveal data-delay="2">
+          Notre drone Exadrone Enterprise fonctionne sur un système de vol en boucle fermée —
+          télémétrie en temps réel, correction de trajectoire anti-collision et redondance de
+          sécurité à chaque niveau. Rien n'est laissé au vent.
+        </p>
+      </div>
     </div>
   </section>
 

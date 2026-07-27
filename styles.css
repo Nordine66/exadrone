@@ -1783,72 +1783,86 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 }
 
 /* ============================================================
-   SHOWCASE
+   DRONE SHOWCASE — "Le Drone" flip-book scroll-scrub. Same pinned-
+   sticky-stage technique as the hero (.cine-hero, see script.js "Drone
+   showcase scrub"): .drone-showcase-pin is a 100vh sticky stage pinned
+   for the 220vh track below (.drone-showcase itself) — shorter than the
+   hero's 400vh since this is a supporting beat, not the flagship one.
+   The text used to sit in a column beside a looping <video>; now it's
+   pinned directly over the canvas for the whole scrub instead, since
+   reading the frame sequence as its own backdrop was the point of the
+   request — the scrim below exists purely so that stays true regardless
+   of which of the 150 frames happens to be showing at any moment.
    ============================================================ */
-.showcase {
-  display: grid;
-  grid-template-columns: 0.85fr 1.15fr;
-  align-items: center;
-  gap: clamp(32px, 6vw, 80px);
-  max-width: var(--container);
-  margin: 0 auto;
-  padding: clamp(60px, 10vw, 140px) clamp(24px, 6vw, 64px);
-  /* Contains the ::before halo's intentional bleed (inset:-18%, see below)
-     within this section instead of letting it become real page content
-     past the viewport edge — that bleed is exactly what was causing the
-     mobile horizontal-scroll/"brown sliver" bug. */
-  overflow: hidden;
-}
-.showcase-copy {
-  margin-top: 22px;
-  color: var(--steel);
-  max-width: 36ch;
-}
-.showcase-media {
+.drone-showcase {
   position: relative;
-  /* Matches the source footage's own ratio (1980×1044) — the frame fits the
-     video exactly, so there's no cropping and no letterboxing needed. */
-  aspect-ratio: 1980 / 1044;
+  height: 220vh;
   background: var(--panel-dark);
-  border-radius: 18px;
 }
-/* Halo bleeding outside the rounded frame, same spotlight language as the
-   hero — this is why .showcase-media no longer clips with overflow:hidden;
-   the video and frame-glow below clip themselves via their own radius */
-.showcase-media::before {
-  content: "";
-  position: absolute;
-  inset: -18%;
-  z-index: 0;
-  background:
-    radial-gradient(closest-side, rgba(31,111,235,0.16), transparent 70%) center / 80% 70% no-repeat,
-    radial-gradient(closest-side, rgba(154,160,168,0.14), transparent 75%) center / 100% 90% no-repeat;
-  filter: blur(18px);
-  pointer-events: none;
-}
-.showcase-video {
-  position: relative;
-  z-index: 1;
+.drone-showcase-pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
   width: 100%;
-  height: 100%;
-  /* contain, not cover — guarantees the full frame stays visible even if the
-     container's aspect ratio is ever overridden (e.g. the tablet breakpoint) */
-  object-fit: contain;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
   background: var(--panel-dark);
-  border-radius: 18px;
-  /* Same brightening treatment as the hero video — no blend-mode crushing,
-     so the drone's metallic detail stays visible instead of the solid
-     light studio backdrop showing through as a white box */
-  filter: brightness(1.2) contrast(1.1) saturate(1.05);
 }
-.showcase-frame-glow {
+.drone-showcase-canvas {
   position: absolute;
   inset: 0;
-  z-index: 2;
-  border-radius: 18px;
-  background: radial-gradient(ellipse 62% 58% at 50% 50%, transparent 38%, rgba(10,11,13,0.6) 75%, rgba(10,11,13,0.96) 100%);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* Own compositor layer, same rationale as .cine-canvas — this is what
+     actually gets redrawn every scroll frame. */
+  transform: translateZ(0);
+  will-change: transform;
+}
+/* Darkens the band the copy sits in regardless of which frame happens to
+   be showing, fading out toward the right so the drone itself stays
+   fully visible there — plus a light bottom grade so the stage doesn't
+   end on a hard seam against whatever section follows. */
+.drone-showcase-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   pointer-events: none;
+  background:
+    linear-gradient(100deg, rgba(6, 9, 14, 0.86) 0%, rgba(6, 9, 14, 0.6) 30%, rgba(6, 9, 14, 0.18) 54%, transparent 70%),
+    linear-gradient(0deg, rgba(6, 9, 14, 0.5) 0%, transparent 26%);
+}
+.drone-showcase-text {
+  position: relative;
+  z-index: 2;
+  max-width: 30rem;
+  padding: 0 clamp(24px, 6vw, 64px);
+}
+/* .eyebrow/.section-title/.showcase-copy default to dark ink for the
+   page's normal light background — this is the one spot they sit over a
+   dark cinematic frame instead, so they need their own light-on-dark
+   pass, same as the hero's .cine-title does for its own title. */
+.drone-showcase-text .eyebrow {
+  color: #F2F3F5;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+}
+.drone-showcase-text .section-title {
+  color: #F2F3F5;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+.drone-showcase-text .showcase-copy {
+  color: #C7CBD1;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+@media (max-width: 760px) {
+  .drone-showcase { height: 180vh; }
+  .drone-showcase-text { max-width: 26rem; }
+  .drone-showcase-scrim {
+    background:
+      linear-gradient(180deg, rgba(6, 9, 14, 0.35) 0%, rgba(6, 9, 14, 0.55) 38%, rgba(6, 9, 14, 0.9) 68%, rgba(6, 9, 14, 0.96) 100%);
+  }
+  .drone-showcase-pin { align-items: flex-end; padding-bottom: clamp(40px, 10vh, 72px); }
 }
 
 /* ============================================================
@@ -2359,11 +2373,6 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
    ============================================================ */
 @media (max-width: 980px) {
   .stat-strip-inner { grid-template-columns: repeat(2, 1fr); gap: 14px; }
-  .showcase { grid-template-columns: 1fr; }
-  .showcase-media { aspect-ratio: 16/10; order: -1; }
-  /* Smaller bleed at narrower widths — there's much less side margin to
-     absorb the halo here than on desktop. */
-  .showcase-media::before { inset: -8%; }
   .reliability-grid { grid-template-columns: 1fr; }
   .reliability-list { align-self: start; }
 }
@@ -2706,8 +2715,13 @@ body:has(#cookieBanner.is-visible) .whatsapp-fab { bottom: 104px; }
    #capabilities is deliberately NOT in this list any more — it's now the
    GSAP ScrollTrigger horizontal-pin section (see .action-section), and
    content-visibility:auto skipping its descendants' layout while
-   off-screen would fight with ScrollTrigger's own measurements of it. */
-#fleet,
+   off-screen would fight with ScrollTrigger's own measurements of it.
+   #fleet was removed from this list for the exact same reason once it
+   became the drone-showcase flip-book scrub (see script.js "Drone
+   showcase scrub"): its canvas needs continuous getBoundingClientRect
+   reads + per-scroll-frame repaints exactly like the hero, which
+   content-visibility:auto skipping its descendants' layout/paint while
+   "not yet relevant" would fight with. */
 #process,
 #reliability,
 .eco-section,
@@ -2717,7 +2731,6 @@ body:has(#cookieBanner.is-visible) .whatsapp-fab { bottom: 104px; }
 .site-footer {
   content-visibility: auto;
 }
-#fleet { contain-intrinsic-size: auto 720px; }
 #process { contain-intrinsic-size: auto 1150px; }
 #reliability { contain-intrinsic-size: auto 800px; }
 .eco-section { contain-intrinsic-size: auto 800px; }
