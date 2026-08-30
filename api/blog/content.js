@@ -135,9 +135,9 @@ async function handleArticle(req, res) {
       <a href="/contact.html" data-cursor="link">Contact</a>
       <a href="/contact.html" class="nav-cta" data-cursor="link">Demander un devis</a>
     </nav>
-    <a href="tel:+33770022172" class="nav-phone" aria-label="Appeler Exadrone Enterprise au 07 70 02 21 72">
+    <a href="tel:+33671312706" class="nav-phone" aria-label="Appeler Exadrone Enterprise au 06 71 31 27 06">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
-      <span class="nav-phone-number">07 70 02 21 72</span>
+      <span class="nav-phone-number">06 71 31 27 06</span>
     </a>
     <button class="nav-toggle" id="navToggle" aria-label="Afficher le menu" aria-expanded="false">
       <span></span><span></span>

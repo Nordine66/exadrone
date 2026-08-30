@@ -233,7 +233,7 @@ async function sendHotLeadAlert(leadData, messages, score) {
   </div>
   <div style="padding:16px 32px;background:#161b22;border-top:1px solid #30363d;font-size:12px;color:#8b949e">
     <strong style="color:#e2e8f0">Exadrone Enterprise</strong><br>
-    📞 07 70 02 21 72 &nbsp;·&nbsp; 🌐 exadrone-enterprise.com
+    📞 06 71 31 27 06 &nbsp;·&nbsp; 🌐 exadrone-enterprise.com
   </div>
 </div>`
       })
