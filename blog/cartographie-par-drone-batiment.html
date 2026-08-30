@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cartographie par drone : comment ça fonctionne et pour quels usages ? | Exadrone Enterprise</title>
+<meta name="description" content="La cartographie par drone produit un relevé 2D/3D précis d'un bâtiment ou d'un site. Découvrez le fonctionnement, les technologies utilisées et les applications concrètes.">
+<link rel="canonical" href="https://exadrone-enterprise.com/blog/cartographie-par-drone-batiment.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Exadrone Enterprise">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Cartographie par drone : comment ça fonctionne et pour quels usages ?">
+<meta property="og:description" content="La cartographie par drone produit un relevé 2D/3D précis d'un bâtiment ou d'un site. Découvrez le fonctionnement, les technologies utilisées et les applications concrètes.">
+<meta property="og:url" content="https://exadrone-enterprise.com/blog/cartographie-par-drone-batiment.html">
+<meta property="og:image" content="https://exadrone-enterprise.com/images/blog/cover-cartographie-batiment.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="675">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cartographie par drone : comment ça fonctionne et pour quels usages ?">
+<meta name="twitter:description" content="La cartographie par drone produit un relevé 2D/3D précis d'un bâtiment ou d'un site. Découvrez le fonctionnement, les technologies utilisées et les applications concrètes.">
+<meta name="twitter:image" content="https://exadrone-enterprise.com/images/blog/cover-cartographie-batiment.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="/styles.css?v=20260727">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Cartographie par drone : comment ça fonctionne et pour quels usages ?",
+  "description": "La cartographie par drone produit un relevé 2D/3D précis d'un bâtiment ou d'un site. Découvrez le fonctionnement, les technologies utilisées et les applications concrètes.",
+  "image": "https://exadrone-enterprise.com/images/blog/cover-cartographie-batiment.jpg",
+  "datePublished": "2026-07-10",
+  "dateModified": "2026-07-10",
+  "author": { "@type": "Organization", "name": "Exadrone Enterprise", "url": "https://exadrone-enterprise.com/" },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Exadrone Enterprise",
+    "logo": { "@type": "ImageObject", "url": "https://exadrone-enterprise.com/images/og-cover.jpg" }
+  },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://exadrone-enterprise.com/blog/cartographie-par-drone-batiment.html" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://exadrone-enterprise.com/" },
+    { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://exadrone-enterprise.com/blog/" },
+    { "@type": "ListItem", "position": 3, "name": "Cartographie par drone : comment ça fonctionne et pour quels usages ?", "item": "https://exadrone-enterprise.com/blog/cartographie-par-drone-batiment.html" }
+  ]
+}
+</script>
+</head>
+<body>
+
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="grain"></div>
+<canvas class="ambient-canvas" id="ambientCanvas" aria-hidden="true"></canvas>
+<div class="ambient-hotspots" aria-hidden="true"></div>
+
+<header class="site-nav" id="siteNav">
+  <div class="nav-inner">
+    <a href="/index.html#top" class="nav-mark" aria-label="Accueil Exadrone Enterprise">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+        <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+        <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+      </svg>
+      <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+    </a>
+
+    <nav class="nav-links" id="navLinks">
+      <a href="/index.html#capabilities" data-cursor="link">Capacités</a>
+      <a href="/index.html#process" data-cursor="link">Processus</a>
+      <a href="/index.html#fleet" data-cursor="link">Drone</a>
+      <a href="/index.html#reliability" data-cursor="link">Fiabilité</a>
+      <a href="/index.html#secteurs" data-cursor="link">Secteurs</a>
+      <a href="/blog/" data-cursor="link">Blog</a>
+      <a href="/contact.html" class="nav-cta" data-cursor="link">Demander un devis</a>
+    </nav>
+
+    <button class="nav-toggle" id="navToggle" aria-label="Afficher le menu" aria-expanded="false">
+      <span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="article-main">
+    <div class="article-inner">
+      <p class="article-breadcrumb"><a href="/">Accueil</a> / <a href="/blog/">Blog</a> / Cartographie par drone</p>
+      <p class="eyebrow reveal" data-reveal>Cartographie par drone</p>
+      <h1 class="article-title reveal" data-reveal data-delay="1">Cartographie par drone : comment ça fonctionne et pour quels usages ?</h1>
+      <p class="article-meta">Publié le 2026-07-10 · Exadrone Enterprise</p>
+
+      <figure class="article-cover reveal" data-reveal data-delay="2">
+        <picture>
+          <source srcset="/images/blog/cover-cartographie-batiment.webp" type="image/webp">
+          <img src="/images/blog/cover-cartographie-batiment.jpg" alt="Vue aérienne d'un bâtiment capturée par drone pour une cartographie de précision" width="1200" height="675" loading="eager" fetchpriority="high">
+        </picture>
+      </figure>
+
+      <div class="article-body">
+<p>La cartographie par drone consiste à capturer, depuis les airs, un relevé précis et géoréférencé d'un bâtiment ou d'un site, restitué sous forme de plan 2D, d'orthophoto ou de modèle 3D exploitable. Elle s'appuie sur une combinaison de capteurs (caméra haute résolution, LiDAR, parfois thermique) et sert aussi bien à la maintenance de bâtiment qu'à la planification de travaux.</p>
+
+<p>Sur le terrain, un relevé cartographique bien préparé permet aussi d'anticiper les contraintes d'un futur chantier : zones difficiles d'accès, obstacles aériens, configuration exacte des toitures avant l'arrivée d'une équipe de travaux, ce qui réduit les imprévus et les ajustements de dernière minute.</p>
+
+<h2>Comment fonctionne une cartographie par drone</h2>
+<p>Le drone suit un plan de vol automatisé, défini à l'avance selon la zone à couvrir, et capture des centaines de prises de vue se chevauchant légèrement. Ces images sont ensuite assemblées par un logiciel de traitement pour reconstituer une représentation fidèle du site, à l'échelle réelle. Trois grandes étapes structurent le processus :</p>
+<ul>
+  <li><strong>Planification du vol</strong> : définition de la zone, de l'altitude de vol et du taux de recouvrement entre les prises de vue.</li>
+  <li><strong>Capture des données</strong> : vol automatisé avec capteurs optiques, LiDAR et, si nécessaire, thermiques.</li>
+  <li><strong>Traitement et restitution</strong> : assemblage des données en plan 2D, orthophoto géoréférencée ou modèle 3D, selon le besoin du client.</li>
+</ul>
+
+<h2>Cartographie 2D, orthophoto ou modèle 3D : quelle différence ?</h2>
+<p>Un relevé 2D (plan ou orthophoto) suffit pour une vision d'ensemble d'un site ou pour documenter l'état d'une toiture. Un modèle 3D, lui, permet de mesurer des volumes, des distances et des surfaces avec précision, et constitue la base de tout projet de photogrammétrie poussée — un sujet que nous développons dans notre article <a href="/blog/photogrammetrie-par-drone.html">« Photogrammétrie par drone expliquée : de la prise de vue au modèle 3D »</a>.</p>
+
+<h2>Pour quels usages la cartographie par drone est-elle utilisée ?</h2>
+<ul>
+  <li><strong>État des lieux avant travaux</strong> : disposer d'un relevé précis avant une rénovation de toiture, de façade ou de bardage.</li>
+  <li><strong>Suivi de chantier</strong> : comparer l'avancement réel d'un projet à son planning, vue par vue.</li>
+  <li><strong>Maintenance préventive</strong> : repérer en amont les zones à surveiller (toiture, gouttières, panneaux solaires).</li>
+  <li><strong>Gestion patrimoniale</strong> : constituer une base de données visuelle d'un parc immobilier ou industriel.</li>
+  <li><strong>Sécurité et assurance</strong> : produire une preuve documentée de l'état d'un bâtiment à un instant donné.</li>
+</ul>
+
+<h2>Cartographie et inspection : une synergie naturelle</h2>
+<p>Un relevé cartographique précis constitue souvent la première étape d'une inspection de toiture par drone : il permet de localiser exactement les zones à risque avant d'y consacrer une analyse plus fine. Notre article <a href="/blog/inspection-toiture-par-drone.html">« Inspection de toiture par drone : détecter les problèmes avant qu'ils s'aggravent »</a> détaille cette démarche complémentaire.</p>
+
+<h2>Quels bâtiments et sites peuvent en bénéficier ?</h2>
+<p>La cartographie par drone s'adresse aux gestionnaires de patrimoine immobilier, aux promoteurs et maîtres d'ouvrage en phase de conception ou de suivi de chantier, aux exploitants de sites industriels ou logistiques, ainsi qu'aux collectivités souhaitant disposer d'un relevé fiable de leurs infrastructures.</p>
+
+<h2>Une donnée réutilisable dans le temps</h2>
+<p>Au-delà de l'intervention ponctuelle, les données capturées lors d'une cartographie par drone constituent une base de référence réutilisable : comparaison d'un même site à plusieurs mois ou années d'intervalle, suivi de dégradation, ou simple archivage de l'état du bâtiment pour faciliter sa gestion future.</p>
+<h2>Ce qu'il faut retenir</h2>
+<p>Qu'il s'agisse d'un simple plan 2D ou d'un modèle 3D détaillé, la cartographie par drone offre une base de données fiable pour la gestion, la maintenance ou la planification de travaux sur un bâtiment. Sa valeur dépasse souvent l'usage immédiat pour lequel elle est commandée : conservée dans le temps, elle devient une référence utile pour suivre l'évolution du bâtiment ou du site sur plusieurs années.</p>
+<h2>Questions fréquentes</h2>
+<h3>Une cartographie par drone est-elle utile pour un petit bâtiment ?</h3>
+<p>Oui, même sur un bâtiment de taille modeste, disposer d'un relevé précis facilite la planification de travaux ou le diagnostic d'un défaut localisé, avec un temps d'intervention proportionnellement réduit par rapport à un grand site.</p>
+<h3>Combien de temps faut-il pour cartographier un bâtiment ?</h3>
+<p>Pour un bâtiment de taille standard, la capture des données prend généralement quelques heures, le traitement et la restitution du modèle intervenant ensuite en différé selon le niveau de détail demandé (plan simple ou modèle 3D complet).</p>
+<h3>La cartographie par drone remplace-t-elle un relevé topographique classique ?</h3>
+<p>Dans de nombreux cas, oui, notamment pour les relevés de toiture ou de façade. Pour des mesures réglementaires très spécifiques, elle peut aussi venir en complément d'un relevé classique, en apportant une couverture visuelle exhaustive du site.</p>
+<h3>Sous quel format les données sont-elles livrées ?</h3>
+<p>Selon le besoin : plan 2D, orthophoto géoréférencée ou modèle 3D exploitable dans les principaux logiciels de conception et de gestion de patrimoine bâti.</p>
+<p>Enfin, les données capturées restent votre propriété et peuvent être réutilisées librement pour vos propres besoins de gestion, de communication ou de transmission à un bureau d'études partenaire.</p>
+      </div>
+
+      <div class="article-cta reveal" data-reveal>
+        <h3>Besoin d'un relevé aérien de votre bâtiment ?</h3>
+        <p>Décrivez-nous votre site pour recevoir une proposition de cartographie par drone adaptée à votre projet.</p>
+        <a href="/contact.html" class="btn btn-primary" data-cursor="link">Demander un devis</a>
+      </div>
+
+<div class="article-related">
+  <h3>À lire aussi</h3>
+  <ul>
+      <li><a href="/blog/photogrammetrie-par-drone.html">Photogrammétrie par drone expliquée : de la prise de vue au modèle 3D</a></li>
+      <li><a href="/blog/inspection-toiture-par-drone.html">Inspection de toiture par drone : détecter les problèmes avant qu'ils s'aggravent</a></li>
+  </ul>
+</div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="nav-mark static">
+        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+          <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+          <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        </svg>
+        <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+      </span>
+      <p>Systèmes de Nettoyage Aérien de Précision</p>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Explorer</span>
+      <div class="footer-links">
+        <a href="/index.html#capabilities">Capacités</a>
+        <a href="/index.html#process">Processus</a>
+        <a href="/index.html#fleet">Drone</a>
+        <a href="/index.html#reliability">Fiabilité</a>
+        <a href="/blog/">Blog</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Secteurs B2B</span>
+      <div class="footer-links">
+        <a href="/collectivites-territoriales.html">Collectivités &amp; mairies</a>
+        <a href="/entreprises-btp.html">Entreprises du BTP</a>
+        <a href="/renovation-facade.html">Rénovation de façade</a>
+        <a href="/marches-publics.html">Marchés publics</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Légal</span>
+      <div class="footer-links">
+        <a href="/mentions-legales.html">Mentions légales</a>
+        <a href="/cgv.html">CGV</a>
+        <a href="/politique-de-confidentialite.html">Confidentialité</a>
+        <a href="/politique-de-cookies.html">Cookies</a>
+        <button type="button" class="footer-link-btn" id="cookiePrefsBtn">Préférences cookies</button>
+      </div>
+    </div>
+
+    <div class="footer-meta">
+      <span>contact@exadrone-enterprise.com</span>
+      <span>© 2026 Exadrone Enterprise. Tous droits réservés.</span>
+    </div>
+  </div>
+</footer>
+
+<div class="cookie-banner" id="cookieBanner" role="dialog" aria-live="polite" aria-label="Gestion des cookies">
+  <div class="cookie-banner-inner">
+    <p>
+      Nous utilisons des cookies strictement nécessaires au fonctionnement du site et, si vous l'acceptez,
+      des cookies de mesure d'audience pour améliorer votre expérience.
+      <a href="/politique-de-cookies.html">En savoir plus</a>.
+    </p>
+    <div class="cookie-banner-actions">
+      <button type="button" class="btn btn-ghost btn-small" id="cookieReject">Refuser</button>
+      <button type="button" class="btn btn-ghost btn-small" id="cookieCustomize">Personnaliser</button>
+      <button type="button" class="btn btn-primary btn-small" id="cookieAccept">Accepter tout</button>
+    </div>
+  </div>
+</div>
+
+<a class="whatsapp-fab" href="https://wa.me/33770022172" target="_blank" rel="noopener" aria-label="Discuter avec Exadrone Enterprise sur WhatsApp">
+  <span class="whatsapp-fab-tooltip">WhatsApp</span>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.6 6.32A7.85 7.85 0 0 0 12.05 4C7.7 4 4.15 7.53 4.15 11.87c0 1.4.37 2.74 1.07 3.92L4 20l4.32-1.13a7.9 7.9 0 0 0 3.73.94h.01c4.34 0 7.88-3.53 7.88-7.87a7.8 7.8 0 0 0-2.34-5.62Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9.2 9.04c.1-.23.27-.23.43-.23h.37c.12 0 .27 0 .39.3.14.34.47 1.18.51 1.27.04.09.07.2 0 .31-.31.6-.66.86-.66.86s-.13.15-.02.36c.42.78 1.55 2 2.93 2.43.22.07.34.05.46-.08.13-.13.5-.59.64-.79.13-.2.27-.17.45-.1.18.07 1.15.55 1.35.65.2.1.33.15.38.23.05.09.05.5-.13.99-.18.49-1.04.96-1.45 1.02-.37.06-.83.08-1.34-.08a8.4 8.4 0 0 1-3.71-2.57c-1.4-1.5-1.95-2.85-2-3.07-.04-.21-.18-.7.13-1.3.2-.39.4-.55.55-.7Z" fill="currentColor"/>
+  </svg>
+</a>
+
+<script src="/script.js?v=20260727" defer></script>
+</body>
+</html>

@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Exadrone Enterprise</title>
+  <!--
+    TODO (PRODUCTION): Add proper authentication before making this page accessible.
+    Recommended: Supabase Auth (supabase.com/docs/guides/auth) with email/password
+    or GitHub OAuth. Currently protected only by ADMIN_SECRET token stored in
+    sessionStorage — sufficient for private staging, NOT for production.
+  -->
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;
+      --border:rgba(255,255,255,.08);--text:#e2e8f0;--muted:#8b949e;
+      --blue:#1f6feb;--green:#34d399;--orange:#fb923c;--red:#f87171;--slate:#94a3b8;
+      --font:'Plus Jakarta Sans',-apple-system,sans-serif;
+      --font-body:'DM Sans',-apple-system,sans-serif;
+    }
+    body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh}
+    a{color:var(--blue);text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    /* Auth gate */
+    #auth-gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100}
+    .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:360px;text-align:center}
+    .auth-card h1{font-family:var(--font);font-size:1.4rem;margin-bottom:8px}
+    .auth-card p{color:var(--muted);font-size:.875rem;margin-bottom:24px}
+    .auth-input{width:100%;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.9rem;outline:none;transition:border-color .2s;margin-bottom:12px}
+    .auth-input:focus{border-color:rgba(31,111,235,.5)}
+    .btn-primary{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-family:var(--font);font-weight:600;font-size:.875rem;cursor:pointer;transition:opacity .2s}
+    .btn-primary:hover{opacity:.85}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed}
+    .btn-sm{padding:7px 14px;font-size:.78rem;border-radius:8px}
+    .auth-error{color:var(--red);font-size:.82rem;margin-top:8px}
+
+    /* Layout */
+    #app{display:none}
+    .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+    .topbar-brand{font-family:var(--font);font-weight:700;font-size:1rem;display:flex;align-items:center;gap:10px}
+    .topbar-brand span{color:var(--muted);font-weight:400}
+    .topbar-actions{display:flex;align-items:center;gap:12px}
+    .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:.72rem;font-weight:600;letter-spacing:.04em}
+    .badge-hot{background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.25)}
+    .badge-warm{background:rgba(251,146,60,.12);color:var(--orange);border:1px solid rgba(251,146,60,.25)}
+    .badge-cold{background:rgba(148,163,184,.08);color:var(--slate);border:1px solid rgba(148,163,184,.18)}
+    .badge-new{background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2)}
+    .main{padding:32px;max-width:1400px;margin:0 auto}
+    .page-title{font-family:var(--font);font-size:1.5rem;font-weight:700;margin-bottom:24px}
+
+    /* Tabs */
+    .tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:28px;width:fit-content;flex-wrap:wrap}
+    .tab{padding:8px 18px;border-radius:8px;border:none;background:none;color:var(--muted);font-family:var(--font-body);font-size:.875rem;cursor:pointer;transition:all .2s}
+    .tab.active{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+
+    /* Stat cards */
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px}
+    .stat-card-label{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+    .stat-card-value{font-family:var(--font);font-size:2rem;font-weight:700;line-height:1}
+    .stat-card-sub{font-size:.78rem;color:var(--muted);margin-top:6px}
+
+    /* Table */
+    .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .table-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+    .table-filters{display:flex;gap:8px;flex-wrap:wrap}
+    .filter-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted);font-size:.78rem;cursor:pointer;transition:all .2s}
+    .filter-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+    table{width:100%;border-collapse:collapse}
+    th{padding:12px 16px;text-align:left;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);background:var(--surface2)}
+    td{padding:14px 16px;font-size:.85rem;border-bottom:1px solid var(--border);vertical-align:top}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(255,255,255,.02)}
+    .td-company{font-weight:600;color:var(--text)}
+    .td-muted{color:var(--muted);font-size:.8rem}
+    .td-date{color:var(--muted);font-size:.78rem;white-space:nowrap}
+    .row-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--muted);font-size:.75rem;cursor:pointer;transition:all .2s}
+    .row-btn:hover{border-color:var(--blue);color:var(--blue)}
+
+    /* Modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+    .modal-overlay.open{opacity:1;pointer-events:auto}
+    .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:min(640px,calc(100vw - 32px));max-height:80vh;overflow-y:auto;transform:scale(.95) translateY(12px);transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+    .modal-overlay.open .modal{transform:scale(1) translateY(0)}
+    .modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1}
+    .modal-title{font-family:var(--font);font-weight:700;font-size:1.05rem}
+    .modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;line-height:1;padding:2px 6px;border-radius:6px;transition:color .2s}
+    .modal-close:hover{color:var(--text)}
+    .modal-body{padding:24px}
+    .lead-field{margin-bottom:14px}
+    .lead-field-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+    .lead-field-value{font-size:.9rem}
+    .conv-msg{margin-bottom:12px;padding:12px 14px;border-radius:10px;font-size:.85rem;line-height:1.55}
+    .conv-msg.user{background:rgba(31,111,235,.12);border:1px solid rgba(31,111,235,.2)}
+    .conv-msg.assistant{background:var(--surface2);border:1px solid var(--border)}
+    .conv-role{font-size:.72rem;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;opacity:.6}
+
+    /* Blog sections */
+    .article-list{display:grid;gap:12px}
+    .article-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .article-card-info{flex:1}
+    .article-title{font-weight:600;font-size:.9rem;margin-bottom:4px}
+    .article-meta{font-size:.75rem;color:var(--muted)}
+    .topic-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px}
+    .topic-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0}
+    .topic-text{font-size:.875rem;flex:1}
+    .topic-kw{font-size:.75rem;color:var(--muted)}
+    .empty-state{text-align:center;padding:48px;color:var(--muted);font-size:.875rem}
+
+    /* Loading */
+    .spinner{display:inline-block;width:20px;height:20px;border:2px solid rgba(255,255,255,.15);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-row td{text-align:center;padding:40px;color:var(--muted)}
+
+    /* Generate article card */
+    .generate-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:28px}
+    .generate-bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    .topics-remaining{font-size:.82rem;color:var(--muted)}
+    .topics-remaining strong{color:var(--text)}
+    .generate-status{margin-top:14px;padding:14px 16px;border-radius:10px;font-size:.875rem;line-height:1.55;display:none}
+    .generate-status.loading{background:rgba(31,111,235,.08);border:1px solid rgba(31,111,235,.2);color:var(--blue);display:flex;align-items:center;gap:10px}
+    .generate-status.success{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);color:var(--green);display:block}
+    .generate-status.error{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:var(--red);display:block}
+
+    /* Global controls + banners */
+    .global-controls{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+    .toggle-btn{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:var(--font-body)}
+    .toggle-btn:hover{border-color:rgba(255,255,255,.2)}
+    .toggle-btn.pause-all[data-on="true"]{border-color:rgba(248,113,113,.4);color:var(--red);background:rgba(248,113,113,.08)}
+    .toggle-btn.test-mode[data-on="true"]{border-color:rgba(251,146,60,.4);color:var(--orange);background:rgba(251,146,60,.08)}
+    .banner{padding:11px 16px;border-radius:10px;font-size:.82rem;margin-bottom:16px;display:none;font-weight:500}
+    .banner.show{display:block}
+    .banner-paused{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.25)}
+    .banner-test{background:rgba(251,146,60,.1);color:var(--orange);border:1px solid rgba(251,146,60,.25)}
+
+    /* Agent cards */
+    .agents-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin-bottom:28px}
+    .agent-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px}
+    .agent-card-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+    .agent-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font);font-weight:700;font-size:1.05rem;color:#fff;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+    .agent-info{flex:1;min-width:0}
+    .agent-name{font-family:var(--font);font-weight:700;font-size:1rem}
+    .agent-role{font-size:.74rem;color:var(--muted);margin-top:1px}
+    .status-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:.68rem;font-weight:600;cursor:pointer;border:1px solid transparent;flex-shrink:0;white-space:nowrap;font-family:var(--font-body)}
+    .status-pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+    .status-pill.active{background:rgba(52,211,153,.1);color:var(--green);border-color:rgba(52,211,153,.2)}
+    .status-pill.paused{background:rgba(248,113,113,.1);color:var(--red);border-color:rgba(248,113,113,.25)}
+    .agent-stats{display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:16px;font-size:.76rem;color:var(--muted);min-height:20px}
+    .agent-stats strong{color:var(--text);font-family:var(--font)}
+    .agent-chat-btn{width:100%;padding:9px;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:var(--font-body)}
+    .agent-chat-btn:hover{border-color:var(--blue);color:var(--blue)}
+
+    /* Chat panel */
+    .chat-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:290;opacity:0;pointer-events:none;transition:opacity .3s}
+    .chat-overlay.open{opacity:1;pointer-events:auto}
+    #chat-panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);background:var(--surface);border-left:1px solid var(--border);z-index:300;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:-16px 0 48px rgba(0,0,0,.4)}
+    #chat-panel.open{transform:translateX(0)}
+    .chat-agent-tabs{display:flex;gap:4px;padding:12px;border-bottom:1px solid var(--border);flex-shrink:0}
+    .chat-agent-tab{flex:1;padding:8px 4px;border-radius:8px;border:1px solid transparent;background:none;color:var(--muted);font-size:.68rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all .2s;font-family:var(--font-body)}
+    .chat-agent-tab.active{background:var(--surface2);border-color:var(--border);color:var(--text)}
+    .chat-agent-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font);font-weight:700;font-size:.76rem;color:#fff}
+    .chat-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .chat-header-name{font-family:var(--font);font-weight:700;font-size:.95rem}
+    .chat-header-role{font-size:.74rem;color:var(--muted)}
+    .chat-close-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:4px 8px;border-radius:6px;transition:color .2s}
+    .chat-close-btn:hover{color:var(--text)}
+    .chat-messages{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+    .chat-msg{max-width:88%;padding:10px 14px;border-radius:12px;font-size:.85rem;line-height:1.55;white-space:pre-wrap}
+    .chat-msg.user{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+    .chat-msg.assistant{align-self:flex-start;background:var(--surface2);border:1px solid var(--border);border-bottom-left-radius:4px}
+    .chat-input-row{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;align-items:flex-end}
+    .chat-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:.85rem;resize:none;outline:none;max-height:100px;min-height:40px;font-family:var(--font-body);line-height:1.5}
+    .chat-send-btn{background:var(--blue);border:none;color:#fff;border-radius:10px;width:40px;height:40px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .2s}
+    .chat-send-btn:disabled{opacity:.5;cursor:not-allowed}
+
+    /* Prospects / CSV */
+    .csv-upload-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:24px}
+    .csv-textarea{width:100%;min-height:110px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-size:.78rem;font-family:'SF Mono',Menlo,monospace;resize:vertical;margin-bottom:12px}
+    .csv-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .csv-import-status{margin-top:12px;font-size:.82rem;color:var(--muted)}
+    .csv-hint{font-size:.75rem;color:var(--muted);margin-bottom:12px}
+    input[type="file"].file-input{font-size:.78rem;color:var(--muted)}
+  </style>
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div id="auth-gate">
+  <div class="auth-card">
+    <div style="font-size:2rem;margin-bottom:12px">🛡️</div>
+    <h1>Accès Admin</h1>
+    <p>Exadrone Enterprise — tableau de bord privé</p>
+    <input type="password" id="auth-input" class="auth-input" placeholder="Clé d'administration" autocomplete="current-password">
+    <br>
+    <button class="btn-primary" id="auth-submit" style="width:100%;justify-content:center">Se connecter</button>
+    <div class="auth-error" id="auth-error" style="display:none">Clé incorrecte.</div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="2.2" fill="currentColor"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/><circle cx="21" cy="7" r="1.5" fill="currentColor"/><circle cx="7" cy="21" r="1.5" fill="currentColor"/><circle cx="21" cy="21" r="1.5" fill="currentColor"/><line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/><line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/><line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/><line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/></svg>
+      EXADRONE <span>/ Admin</span>
+    </div>
+    <div class="topbar-actions">
+      <a href="/" style="font-size:.82rem;color:var(--muted)">← Site</a>
+      <button class="btn-primary btn-sm" id="refresh-btn">Actualiser</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="tabs">
+      <button class="tab active" data-tab="agents">Agents</button>
+      <button class="tab" data-tab="overview">Vue d'ensemble</button>
+      <button class="tab" data-tab="leads">Leads</button>
+      <button class="tab" data-tab="prospects">Prospects</button>
+      <button class="tab" data-tab="blog">Blog</button>
+    </div>
+
+    <!-- AGENTS TAB -->
+    <div class="tab-content active" id="tab-agents">
+      <div class="banner banner-paused" id="paused-banner">⏸ Tous les agents sont en pause — aucun envoi, aucune génération automatique n'aura lieu.</div>
+      <div class="banner banner-test" id="test-banner">🧪 Mode test actif — tous les emails sortants (Chloé, Hugo, contact) sont redirigés vers votre boîte de réception.</div>
+
+      <div class="global-controls">
+        <button class="toggle-btn pause-all" id="pause-all-btn" data-on="false">⏸ Pause tous les agents</button>
+        <button class="toggle-btn test-mode" id="test-mode-btn" data-on="true">🧪 Mode test : ON</button>
+      </div>
+
+      <div class="agents-grid" id="agents-grid"><div class="empty-state"><span class="spinner"></span></div></div>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <div class="tab-content" id="tab-overview">
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="stat-card-label">Leads cette semaine</div><div class="stat-card-value" id="s-week">—</div></div>
+        <div class="stat-card"><div class="stat-card-label">Leads chauds 🔥</div><div class="stat-card-value" style="color:var(--red)" id="s-hot">—</div></div>
+        <div class="stat-card"><div class="stat-card-label">Leads tièdes 🌡️</div><div class="stat-card-value" style="color:var(--orange)" id="s-warm">—</div></div>
+        <div class="stat-card"><div class="stat-card-label">Articles publiés</div><div class="stat-card-value" style="color:var(--green)" id="s-articles">—</div></div>
+        <div class="stat-card"><div class="stat-card-label">Sujets en attente</div><div class="stat-card-value" id="s-topics">—</div></div>
+        <div class="stat-card"><div class="stat-card-label">Total leads</div><div class="stat-card-value" id="s-total">—</div></div>
+      </div>
+
+      <div style="margin-bottom:24px">
+        <h2 style="font-family:var(--font);font-size:1.1rem;margin-bottom:14px">🔥 Derniers leads chauds</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Entreprise</th><th>Projet</th><th>Surface</th><th>Contact</th><th>Date</th><th></th></tr></thead>
+            <tbody id="hot-leads-body"><tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEADS TAB -->
+    <div class="tab-content" id="tab-leads">
+      <div class="table-wrap">
+        <div class="table-head">
+          <span style="font-family:var(--font);font-weight:600">Tous les leads</span>
+          <div class="table-filters">
+            <button class="filter-btn active" data-score="">Tous</button>
+            <button class="filter-btn" data-score="hot">🔥 Chauds</button>
+            <button class="filter-btn" data-score="warm">🌡️ Tièdes</button>
+            <button class="filter-btn" data-score="cold">❄️ Froids</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Score</th><th>Entreprise / Nom</th><th>Projet</th><th>Surface</th><th>Email</th><th>Statut</th><th>Date</th><th></th></tr></thead>
+          <tbody id="leads-body"><tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PROSPECTS TAB (Chloé) -->
+    <div class="tab-content" id="tab-prospects">
+      <div class="csv-upload-card">
+        <h2 style="font-family:var(--font);font-size:1rem;margin-bottom:10px">📤 Importer des prospects (Chloé)</h2>
+        <p class="csv-hint">Colonnes CSV attendues : <code>company_name, contact_name, email</code> (obligatoires), <code>industry, website</code> (facultatifs). Les emails déjà présents ou désinscrits sont ignorés automatiquement.</p>
+        <input type="file" id="csv-file-input" class="file-input" accept=".csv,text/csv">
+        <textarea class="csv-textarea" id="csv-textarea" placeholder="company_name,contact_name,email,industry,website
+Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" style="margin-top:12px"></textarea>
+        <div class="csv-actions">
+          <button class="btn-primary btn-sm" id="csv-import-btn">Importer</button>
+          <button class="btn-primary btn-sm" id="send-batch-btn" style="background:var(--green)">Envoyer le prochain lot</button>
+        </div>
+        <div class="csv-import-status" id="csv-import-status"></div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-head">
+          <span style="font-family:var(--font);font-weight:600">Tous les prospects</span>
+          <div class="table-filters">
+            <button class="filter-btn prospect-filter-btn active" data-status="">Tous</button>
+            <button class="filter-btn prospect-filter-btn" data-status="pending">En attente</button>
+            <button class="filter-btn prospect-filter-btn" data-status="contacted">Contacté</button>
+            <button class="filter-btn prospect-filter-btn" data-status="followup1_sent">Relance 1</button>
+            <button class="filter-btn prospect-filter-btn" data-status="followup2_sent">Relance 2</button>
+            <button class="filter-btn prospect-filter-btn" data-status="replied">Répondu</button>
+            <button class="filter-btn prospect-filter-btn" data-status="unsubscribed">Désinscrit</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Entreprise / Contact</th><th>Email</th><th>Secteur</th><th>Statut</th><th>Importé le</th></tr></thead>
+          <tbody id="prospects-body"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BLOG TAB -->
+    <div class="tab-content" id="tab-blog">
+
+      <!-- Generate article -->
+      <div class="generate-card">
+        <div class="generate-bar">
+          <button class="btn-primary" id="generate-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            Générer un nouvel article
+          </button>
+          <span class="topics-remaining" id="topics-remaining-label">
+            <span class="spinner" style="width:13px;height:13px;border-width:1.5px"></span>
+          </span>
+        </div>
+        <div class="generate-status" id="generate-status"></div>
+      </div>
+
+      <div style="margin-bottom:28px">
+        <h2 style="font-family:var(--font);font-size:1.1rem;margin-bottom:14px">📝 Articles publiés</h2>
+        <div class="article-list" id="articles-list"><div class="empty-state"><span class="spinner"></span></div></div>
+      </div>
+      <div>
+        <h2 style="font-family:var(--font);font-size:1.1rem;margin-bottom:14px">📋 Sujets en attente</h2>
+        <div class="article-list" id="topics-list"><div class="empty-state"><span class="spinner"></span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lead Detail Modal -->
+<div class="modal-overlay" id="lead-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Détail du lead</span>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Agent Chat Panel -->
+<div class="chat-overlay" id="chat-overlay"></div>
+<div id="chat-panel">
+  <div class="chat-agent-tabs">
+    <button class="chat-agent-tab" data-slug="victoria"><span class="chat-agent-avatar" style="background:#1f6feb">🔍</span>Victoria</button>
+    <button class="chat-agent-tab" data-slug="marco"><span class="chat-agent-avatar" style="background:#a855f7">✍️</span>Marco</button>
+    <button class="chat-agent-tab" data-slug="chloe"><span class="chat-agent-avatar" style="background:#ec4899">✉️</span>Chloé</button>
+    <button class="chat-agent-tab" data-slug="hugo"><span class="chat-agent-avatar" style="background:#34d399">🔄</span>Hugo</button>
+  </div>
+  <div class="chat-header">
+    <div>
+      <div class="chat-header-name" id="chat-header-name">—</div>
+      <div class="chat-header-role" id="chat-header-role">—</div>
+    </div>
+    <button class="chat-close-btn" id="chat-close">✕</button>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="chat-input-row">
+    <textarea class="chat-input" id="chat-input" placeholder="Écrivez à cet agent…" rows="1"></textarea>
+    <button class="chat-send-btn" id="chat-send-btn">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+const API = (path, opts = {}) => {
+  const token = sessionStorage.getItem('exa_admin_token')
+  return fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', 'x-admin-token': token, ...(opts.headers || {}) } }).then(r => r.json())
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+const gate = document.getElementById('auth-gate')
+const app = document.getElementById('app')
+const authInput = document.getElementById('auth-input')
+const authBtn = document.getElementById('auth-submit')
+const authErr = document.getElementById('auth-error')
+
+function tryAuth(token) {
+  sessionStorage.setItem('exa_admin_token', token)
+  API('/api/admin/stats').then(data => {
+    if (data.error) {
+      sessionStorage.removeItem('exa_admin_token')
+      authErr.style.display = 'block'
+    } else {
+      gate.style.display = 'none'
+      app.style.display = 'block'
+      populateStats(data)
+      loadAgents()
+    }
+  }).catch(() => { authErr.style.display = 'block' })
+}
+
+// Auto-login if token cached
+const cachedToken = sessionStorage.getItem('exa_admin_token')
+if (cachedToken) tryAuth(cachedToken)
+
+authBtn.addEventListener('click', () => { authErr.style.display = 'none'; tryAuth(authInput.value.trim()) })
+authInput.addEventListener('keydown', e => { if (e.key === 'Enter') authBtn.click() })
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab,.tab-content').forEach(el => el.classList.remove('active'))
+    tab.classList.add('active')
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active')
+    if (tab.dataset.tab === 'agents') loadAgents()
+    if (tab.dataset.tab === 'leads') loadLeads()
+    if (tab.dataset.tab === 'prospects') loadProspects()
+    if (tab.dataset.tab === 'blog') loadBlog()
+  })
+})
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function populateStats(data) {
+  document.getElementById('s-week').textContent = data.leadsThisWeek ?? '—'
+  document.getElementById('s-hot').textContent = data.leadsByScore?.hot ?? '—'
+  document.getElementById('s-warm').textContent = data.leadsByScore?.warm ?? '—'
+  document.getElementById('s-articles').textContent = data.articles?.length ?? '—'
+  document.getElementById('s-topics').textContent = data.pendingTopics?.length ?? '—'
+  updateTopicsRemainingLabel(data.pendingTopics?.length ?? null)
+  document.getElementById('s-total').textContent = data.totalLeadsAllTime ?? '—'
+  renderHotLeads(data.hotLeads || [])
+  window.__statsData = data
+}
+
+function renderHotLeads(leads) {
+  const tbody = document.getElementById('hot-leads-body')
+  if (!leads.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun lead chaud pour le moment.</td></tr>'; return }
+  tbody.innerHTML = leads.map(l => `
+    <tr>
+      <td><div class="td-company">${esc(l.company || '—')}</div><div class="td-muted">${esc(l.name || '')}</div></td>
+      <td>${esc(l.project_type || '—')}</td>
+      <td>${l.surface_m2 ? l.surface_m2 + ' m²' : '—'}</td>
+      <td><div>${esc(l.email || '—')}</div><div class="td-muted">${esc(l.phone || '')}</div></td>
+      <td class="td-date">${fmtDate(l.created_at)}</td>
+      <td><button class="row-btn" onclick="openLead('${l.id}')">Voir</button></td>
+    </tr>`).join('')
+}
+
+// ── Leads table ───────────────────────────────────────────────────────────────
+let currentScoreFilter = ''
+document.querySelectorAll('.filter-btn[data-score]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn[data-score]').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    currentScoreFilter = btn.dataset.score
+    loadLeads()
+  })
+})
+
+function loadLeads() {
+  const url = '/api/admin/leads?limit=100&offset=0' + (currentScoreFilter ? '&score=' + currentScoreFilter : '')
+  document.getElementById('leads-body').innerHTML = '<tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr>'
+  API(url).then(data => {
+    const leads = data.leads || []
+    if (!leads.length) { document.getElementById('leads-body').innerHTML = '<tr><td colspan="8" class="empty-state">Aucun lead trouvé.</td></tr>'; return }
+    document.getElementById('leads-body').innerHTML = leads.map(l => `
+      <tr>
+        <td><span class="badge badge-${l.score}">${scoreLabel(l.score)}</span></td>
+        <td><div class="td-company">${esc(l.company || '—')}</div><div class="td-muted">${esc(l.name || '')}</div></td>
+        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.project_type || '—')}</td>
+        <td>${l.surface_m2 ? l.surface_m2 + ' m²' : '—'}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.email || '—')}</td>
+        <td><span class="badge badge-new">${esc(l.status || 'new')}</span></td>
+        <td class="td-date">${fmtDate(l.created_at)}</td>
+        <td><button class="row-btn" onclick="openLead('${l.id}')">Voir</button></td>
+      </tr>`).join('')
+  })
+}
+
+// ── Agents ────────────────────────────────────────────────────────────────────
+const AGENT_COLORS = { victoria: '#1f6feb', marco: '#a855f7', chloe: '#ec4899', hugo: '#34d399' }
+const AGENT_EMOJIS = { victoria: '🔍', marco: '✍️', chloe: '✉️', hugo: '🔄' }
+let agentsData = []
+let globalSettings = { paused_all: false, test_mode: true }
+
+function loadAgents() {
+  API('/api/admin/agents').then(data => {
+    if (data.error) return
+    agentsData = data.agents || []
+    globalSettings = data.settings || globalSettings
+    renderGlobalControls()
+    renderAgentCards()
+  })
+}
+
+function renderGlobalControls() {
+  const pauseBtn = document.getElementById('pause-all-btn')
+  pauseBtn.dataset.on = String(globalSettings.paused_all)
+  pauseBtn.textContent = globalSettings.paused_all ? '▶️ Reprendre tous les agents' : '⏸ Pause tous les agents'
+  const testBtn = document.getElementById('test-mode-btn')
+  testBtn.dataset.on = String(globalSettings.test_mode)
+  testBtn.textContent = globalSettings.test_mode ? '🧪 Mode test : ON' : '🧪 Mode test : OFF'
+  document.getElementById('paused-banner').classList.toggle('show', !!globalSettings.paused_all)
+  document.getElementById('test-banner').classList.toggle('show', !!globalSettings.test_mode)
+}
+
+function renderAgentCards() {
+  const el = document.getElementById('agents-grid')
+  if (!agentsData.length) { el.innerHTML = '<div class="empty-state">Aucun agent trouvé — vérifiez que la migration Supabase a été exécutée.</div>'; return }
+  el.innerHTML = agentsData.map(a => `
+    <div class="agent-card">
+      <div class="agent-card-top">
+        <div class="agent-avatar" style="background:${AGENT_COLORS[a.slug] || '#64748b'}">${AGENT_EMOJIS[a.slug] || esc(a.name[0])}</div>
+        <div class="agent-info">
+          <div class="agent-name">${esc(a.name)}</div>
+          <div class="agent-role">${esc(a.role)}</div>
+        </div>
+        <span class="status-pill ${a.status}" onclick="toggleAgentStatus('${a.slug}','${a.status}')" title="Cliquer pour ${a.status === 'active' ? 'mettre en pause' : 'réactiver'}">${a.status === 'active' ? 'Actif' : 'En pause'}</span>
+      </div>
+      <div class="agent-stats">${renderAgentStats(a)}</div>
+      <button class="agent-chat-btn" onclick="openChat('${a.slug}')">💬 Discuter avec ${esc(a.name)}</button>
+    </div>`).join('')
+}
+
+function renderAgentStats(a) {
+  const s = a.stats || {}
+  if (a.slug === 'victoria') return `<span><strong>${s.leadsToday ?? 0}</strong> leads aujourd'hui</span><span><strong>${s.hotToday ?? 0}</strong> 🔥 chauds</span><span><strong>${s.chatsTotal ?? 0}</strong> conversations</span>`
+  if (a.slug === 'marco') return `<span><strong>${s.articlesTotal ?? 0}</strong> articles</span><span><strong>${s.topicsPending ?? 0}</strong> sujets en attente</span>`
+  if (a.slug === 'chloe') return `<span><strong>${s.sentToday ?? 0}</strong>/${a.config?.daily_limit ?? '—'} envoyés aujourd'hui</span><span><strong>${s.prospectsPending ?? 0}</strong> en attente</span><span><strong>${s.repliesTotal ?? 0}</strong> réponses</span><span><strong>${s.unsubscribesTotal ?? 0}</strong> désinscrits</span>`
+  if (a.slug === 'hugo') return `<span><strong>${s.sentToday ?? 0}</strong> relances aujourd'hui</span><span><strong>${s.awaitingFollowup1 ?? 0}</strong> attente relance 1</span><span><strong>${s.awaitingFollowup2 ?? 0}</strong> attente relance 2</span>`
+  return ''
+}
+
+function toggleAgentStatus(slug, currentStatus) {
+  const next = currentStatus === 'active' ? 'paused' : 'active'
+  API('/api/admin/agents', { method: 'PATCH', body: JSON.stringify({ target: 'agent', slug, status: next }) }).then(() => loadAgents())
+}
+
+document.getElementById('pause-all-btn').addEventListener('click', () => {
+  API('/api/admin/agents', { method: 'PATCH', body: JSON.stringify({ target: 'settings', paused_all: !globalSettings.paused_all }) }).then(() => loadAgents())
+})
+document.getElementById('test-mode-btn').addEventListener('click', () => {
+  const turningOff = globalSettings.test_mode
+  if (turningOff && !confirm('Désactiver le mode test enverra de vrais emails aux prospects et visiteurs. Continuer ?')) return
+  API('/api/admin/agents', { method: 'PATCH', body: JSON.stringify({ target: 'settings', test_mode: !globalSettings.test_mode }) }).then(() => loadAgents())
+})
+
+// ── Agent chat panel ──────────────────────────────────────────────────────────
+const AGENT_META = {
+  victoria: { name: 'Victoria', role: 'Chat commercial — visiteurs du site' },
+  marco: { name: 'Marco', role: 'Rédaction blog SEO' },
+  chloe: { name: 'Chloé', role: 'Prospection B2B à froid' },
+  hugo: { name: 'Hugo', role: 'Relances automatiques' }
+}
+let currentChatAgent = null
+let chatStreaming = false
+
+function openChat(slug) {
+  currentChatAgent = slug
+  document.getElementById('chat-overlay').classList.add('open')
+  document.getElementById('chat-panel').classList.add('open')
+  document.querySelectorAll('.chat-agent-tab').forEach(t => t.classList.toggle('active', t.dataset.slug === slug))
+  const meta = AGENT_META[slug]
+  document.getElementById('chat-header-name').textContent = meta.name
+  document.getElementById('chat-header-role').textContent = meta.role
+  loadChatHistory(slug)
+}
+
+function closeChat() {
+  document.getElementById('chat-overlay').classList.remove('open')
+  document.getElementById('chat-panel').classList.remove('open')
+}
+
+function loadChatHistory(slug) {
+  const el = document.getElementById('chat-messages')
+  el.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>'
+  API('/api/agents/console-chat?agent_slug=' + slug).then(data => {
+    const msgs = data.messages || []
+    if (!msgs.length) {
+      el.innerHTML = `<div class="chat-msg assistant">Bonjour, je suis ${esc(AGENT_META[slug].name)}. Posez-moi une question sur mon activité ou donnez-moi une instruction.</div>`
+      return
+    }
+    el.innerHTML = msgs.map(m => `<div class="chat-msg ${m.role}">${esc(m.content)}</div>`).join('')
+    el.scrollTop = el.scrollHeight
+  })
+}
+
+document.querySelectorAll('.chat-agent-tab').forEach(tab => {
+  tab.addEventListener('click', () => openChat(tab.dataset.slug))
+})
+document.getElementById('chat-close').addEventListener('click', closeChat)
+document.getElementById('chat-overlay').addEventListener('click', closeChat)
+
+const chatInput = document.getElementById('chat-input')
+const chatSendBtn = document.getElementById('chat-send-btn')
+
+async function sendChatMessage() {
+  const text = chatInput.value.trim()
+  if (!text || chatStreaming || !currentChatAgent) return
+  chatInput.value = ''
+  chatInput.style.height = 'auto'
+  const el = document.getElementById('chat-messages')
+  el.insertAdjacentHTML('beforeend', `<div class="chat-msg user">${esc(text)}</div>`)
+  const bubble = document.createElement('div')
+  bubble.className = 'chat-msg assistant'
+  el.appendChild(bubble)
+  el.scrollTop = el.scrollHeight
+
+  chatStreaming = true
+  chatSendBtn.disabled = true
+  const token = sessionStorage.getItem('exa_admin_token')
+
+  try {
+    const res = await fetch('/api/agents/console-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+      body: JSON.stringify({ agent_slug: currentChatAgent, message: text })
+    })
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = '', assistantText = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop()
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const payload = line.slice(6)
+        if (payload === '[DONE]') continue
+        try {
+          const data = JSON.parse(payload)
+          if (data.text) { assistantText += data.text; bubble.textContent = assistantText; el.scrollTop = el.scrollHeight }
+          if (data.error) bubble.textContent = data.error
+        } catch (_) {}
+      }
+    }
+  } catch (e) {
+    bubble.textContent = 'Erreur réseau — réessayez.'
+    console.error('Console chat error:', e)
+  } finally {
+    chatStreaming = false
+    chatSendBtn.disabled = false
+  }
+}
+
+chatSendBtn.addEventListener('click', sendChatMessage)
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage() } })
+chatInput.addEventListener('input', () => { chatInput.style.height = 'auto'; chatInput.style.height = Math.min(chatInput.scrollHeight, 100) + 'px' })
+
+// ── Prospects (Chloé) ─────────────────────────────────────────────────────────
+let currentProspectFilter = ''
+
+function loadProspects() {
+  const url = '/api/admin/prospects?limit=100' + (currentProspectFilter ? '&status=' + currentProspectFilter : '')
+  document.getElementById('prospects-body').innerHTML = '<tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr>'
+  API(url).then(data => {
+    const list = data.prospects || []
+    if (!list.length) { document.getElementById('prospects-body').innerHTML = '<tr><td colspan="5" class="empty-state">Aucun prospect trouvé.</td></tr>'; return }
+    document.getElementById('prospects-body').innerHTML = list.map(p => `
+      <tr>
+        <td><div class="td-company">${esc(p.company_name)}</div><div class="td-muted">${esc(p.contact_name || '')}</div></td>
+        <td>${esc(p.email)}</td>
+        <td>${esc(p.industry || '—')}</td>
+        <td><span class="badge badge-new">${esc(prospectStatusLabel(p.status))}</span></td>
+        <td class="td-date">${fmtDate(p.created_at)}</td>
+      </tr>`).join('')
+  })
+}
+
+function prospectStatusLabel(s) {
+  const labels = { pending: 'En attente', contacted: 'Contacté', followup1_sent: 'Relance 1', followup2_sent: 'Relance 2', replied: 'Répondu', unsubscribed: 'Désinscrit', bounced: 'Erreur envoi' }
+  return labels[s] || s
+}
+
+document.querySelectorAll('.prospect-filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.prospect-filter-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    currentProspectFilter = btn.dataset.status
+    loadProspects()
+  })
+})
+
+document.getElementById('csv-file-input').addEventListener('change', e => {
+  const file = e.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => { document.getElementById('csv-textarea').value = reader.result }
+  reader.readAsText(file)
+})
+
+document.getElementById('csv-import-btn').addEventListener('click', () => {
+  const csv = document.getElementById('csv-textarea').value.trim()
+  const statusEl = document.getElementById('csv-import-status')
+  if (!csv) { statusEl.textContent = "Collez ou importez un CSV avant d'importer."; return }
+  statusEl.textContent = 'Import en cours…'
+  API('/api/agents/outreach?action=import', { method: 'POST', body: JSON.stringify({ csv, batchName: 'manual-' + Date.now() }) }).then(data => {
+    if (data.error) { statusEl.textContent = 'Erreur : ' + data.error; return }
+    statusEl.textContent = `✓ ${data.imported} importés, ${data.duplicates} doublons ignorés, ${data.rejected} rejetés.`
+    document.getElementById('csv-textarea').value = ''
+    document.getElementById('csv-file-input').value = ''
+    loadProspects()
+    loadAgents()
+  }).catch(() => { statusEl.textContent = 'Erreur réseau.' })
+})
+
+document.getElementById('send-batch-btn').addEventListener('click', () => {
+  const statusEl = document.getElementById('csv-import-status')
+  statusEl.textContent = 'Envoi du prochain lot…'
+  API('/api/agents/outreach?action=send-batch', { method: 'POST' }).then(data => {
+    if (data.error) { statusEl.textContent = 'Erreur : ' + data.error; return }
+    statusEl.textContent = data.reason ? data.reason : `✓ ${data.sent} emails envoyés (${data.failed || 0} échecs, ${data.skippedUnsubscribed || 0} désinscrits ignorés).`
+    loadProspects()
+    loadAgents()
+  }).catch(() => { statusEl.textContent = 'Erreur réseau.' })
+})
+
+// ── Blog ──────────────────────────────────────────────────────────────────────
+function loadBlog() {
+  const fetchStats = window.__statsData
+    ? Promise.resolve(window.__statsData)
+    : API('/api/admin/stats').then(data => { window.__statsData = data; return data })
+
+  fetchStats.then(data => {
+    renderArticles(data.articles || [])
+    renderTopics(data.pendingTopics || [])
+    updateTopicsRemainingLabel(data.pendingTopics?.length ?? null)
+  })
+}
+
+function updateTopicsRemainingLabel(count) {
+  const el = document.getElementById('topics-remaining-label')
+  if (count === null) { el.innerHTML = ''; return }
+  el.innerHTML = count === 0
+    ? '<span style="color:var(--red)">Aucun sujet restant</span>'
+    : `<strong>${count}</strong> sujet${count > 1 ? 's' : ''} restant${count > 1 ? 's' : ''}`
+}
+
+// ── Generate article ──────────────────────────────────────────────────────────
+const generateBtn = document.getElementById('generate-btn')
+const generateStatus = document.getElementById('generate-status')
+
+function setGenerateStatus(type, html) {
+  generateStatus.className = 'generate-status ' + type
+  generateStatus.innerHTML = html
+}
+
+generateBtn.addEventListener('click', async () => {
+  generateBtn.disabled = true
+  setGenerateStatus('loading', `<span class="spinner"></span> Génération en cours… (20–40 secondes)`)
+
+  try {
+    const data = await API('/api/agents/blog-writer', { method: 'POST' })
+
+    if (data.error) {
+      setGenerateStatus('error', `<strong>Erreur :</strong> ${esc(data.error)}`)
+    } else if (data.message === 'Aucun sujet en attente' || data.message === 'Marco est en pause — aucun article généré.') {
+      setGenerateStatus('error', esc(data.message))
+    } else {
+      setGenerateStatus('success',
+        `<strong>✓ Article généré avec succès</strong><br>` +
+        `<span style="color:var(--muted);font-size:.82rem">${esc(data.title)}</span><br>` +
+        `<a href="/blog/${esc(data.slug)}" target="_blank" style="font-size:.82rem;margin-top:4px;display:inline-block">` +
+        `Lire l'article → /blog/${esc(data.slug)}</a>`
+      )
+      // Refresh blog lists + topics count
+      window.__statsData = null
+      loadBlog()
+    }
+  } catch (e) {
+    setGenerateStatus('error', 'Erreur réseau — vérifiez votre connexion et réessayez.')
+  } finally {
+    generateBtn.disabled = false
+  }
+})
+
+function renderArticles(articles) {
+  const el = document.getElementById('articles-list')
+  if (!articles.length) { el.innerHTML = '<div class="empty-state">Aucun article publié.</div>'; return }
+  el.innerHTML = articles.map(a => `
+    <div class="article-card">
+      <div class="article-card-info">
+        <div class="article-title">${esc(a.title)}</div>
+        <div class="article-meta">${fmtDate(a.published_at)} · ${esc(a.target_keyword || '')}</div>
+      </div>
+      <a href="/blog/${a.slug}" target="_blank" class="row-btn" style="text-decoration:none;padding:6px 12px">Lire →</a>
+    </div>`).join('')
+}
+
+function renderTopics(topics) {
+  const el = document.getElementById('topics-list')
+  if (!topics.length) { el.innerHTML = '<div class="empty-state">Tous les sujets ont été traités 🎉</div>'; return }
+  el.innerHTML = topics.map(t => `
+    <div class="topic-card">
+      <div class="topic-dot"></div>
+      <div><div class="topic-text">${esc(t.topic)}</div><div class="topic-kw">🏷️ ${esc(t.target_keyword)}</div></div>
+    </div>`).join('')
+}
+
+// ── Lead modal ────────────────────────────────────────────────────────────────
+const modal = document.getElementById('lead-modal')
+const modalClose = document.getElementById('modal-close')
+modalClose.addEventListener('click', () => modal.classList.remove('open'))
+modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open') })
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { modal.classList.remove('open'); closeChat() } })
+
+function openLead(id) {
+  document.getElementById('modal-title').textContent = 'Chargement…'
+  document.getElementById('modal-body').innerHTML = '<div style="text-align:center;padding:32px"><span class="spinner"></span></div>'
+  modal.classList.add('open')
+  API('/api/admin/leads?id=' + id + '&withConversation=true').then(data => {
+    const l = data.lead
+    if (!l) { document.getElementById('modal-body').innerHTML = '<p style="color:var(--red)">Erreur lors du chargement.</p>'; return }
+    document.getElementById('modal-title').textContent = (l.company || l.name || 'Lead') + ' · ' + scoreLabel(l.score)
+
+    const fields = [
+      ['Nom', l.name], ['Entreprise', l.company], ['Email', l.email ? `<a href="mailto:${esc(l.email)}">${esc(l.email)}</a>` : '—'],
+      ['Téléphone', l.phone ? `<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>` : '—'],
+      ['Projet', l.project_type], ['Surface', l.surface_m2 ? l.surface_m2 + ' m²' : null],
+      ['Score', `<span class="badge badge-${l.score}">${scoreLabel(l.score)}</span>`],
+      ['Statut', `<span class="badge badge-new">${esc(l.status)}</span>`],
+      ['Source', l.source], ['Date', fmtDate(l.created_at)]
+    ]
+
+    let conv = ''
+    if (data.conversation?.messages?.length) {
+      const msgs = data.conversation.messages.filter(m => m.role !== 'system')
+      conv = `<div style="margin-top:24px"><div style="font-family:var(--font);font-weight:600;margin-bottom:12px">💬 Conversation</div>` +
+        msgs.map(m => `<div class="conv-msg ${m.role}"><div class="conv-role">${m.role === 'user' ? '👤 Prospect' : '🤖 Assistant'}</div>${esc(m.content)}</div>`).join('') + '</div>'
+    }
+
+    document.getElementById('modal-body').innerHTML =
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 20px">` +
+      fields.map(([k, v]) => v ? `<div class="lead-field"><div class="lead-field-label">${k}</div><div class="lead-field-value">${v}</div></div>` : '').join('') +
+      `</div>${conv}`
+  })
+}
+
+// ── Refresh ───────────────────────────────────────────────────────────────────
+document.getElementById('refresh-btn').addEventListener('click', () => {
+  API('/api/admin/stats').then(data => { populateStats(data); if (document.getElementById('tab-leads').classList.contains('active')) loadLeads() })
+  loadAgents()
+  if (document.getElementById('tab-prospects').classList.contains('active')) loadProspects()
+})
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+function fmtDate(iso) { if (!iso) return '—'; return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
+function scoreLabel(s) { return s === 'hot' ? '🔥 Chaud' : s === 'warm' ? '🌡️ Tiède' : '❄️ Froid' }
+</script>
+</body>
+</html>

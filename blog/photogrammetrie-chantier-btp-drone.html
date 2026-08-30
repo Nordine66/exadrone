@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photogrammétrie de chantier : suivre l'avancement des travaux BTP par drone | Exadrone Enterprise</title>
+<meta name="description" content="La photogrammétrie par drone permet de produire des modèles 3D comparables dans le temps pour suivre l'avancement réel d'un chantier BTP. Méthode, fréquence de vol et usages pour les conducteurs de travaux.">
+<link rel="canonical" href="https://exadrone-enterprise.com/blog/photogrammetrie-chantier-btp-drone.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Exadrone Enterprise">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Photogrammétrie de chantier : suivre l'avancement des travaux BTP par drone">
+<meta property="og:description" content="La photogrammétrie par drone permet de produire des modèles 3D comparables dans le temps pour suivre l'avancement réel d'un chantier BTP. Méthode, fréquence de vol et usages pour les conducteurs de travaux.">
+<meta property="og:url" content="https://exadrone-enterprise.com/blog/photogrammetrie-chantier-btp-drone.html">
+<meta property="og:image" content="https://exadrone-enterprise.com/images/blog/cover-photogrammetrie-chantier.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="675">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Photogrammétrie de chantier : suivre l'avancement des travaux BTP par drone">
+<meta name="twitter:description" content="La photogrammétrie par drone permet de produire des modèles 3D comparables dans le temps pour suivre l'avancement réel d'un chantier BTP. Méthode, fréquence de vol et usages pour les conducteurs de travaux.">
+<meta name="twitter:image" content="https://exadrone-enterprise.com/images/blog/cover-photogrammetrie-chantier.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="/styles.css?v=20260727">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Photogrammétrie de chantier : suivre l'avancement des travaux BTP par drone",
+  "description": "La photogrammétrie par drone permet de produire des modèles 3D comparables dans le temps pour suivre l'avancement réel d'un chantier BTP. Méthode, fréquence de vol et usages pour les conducteurs de travaux.",
+  "image": "https://exadrone-enterprise.com/images/blog/cover-photogrammetrie-chantier.jpg",
+  "datePublished": "2026-08-12",
+  "dateModified": "2026-08-12",
+  "author": { "@type": "Organization", "name": "Exadrone Enterprise", "url": "https://exadrone-enterprise.com/" },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Exadrone Enterprise",
+    "logo": { "@type": "ImageObject", "url": "https://exadrone-enterprise.com/images/og-cover.jpg" }
+  },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://exadrone-enterprise.com/blog/photogrammetrie-chantier-btp-drone.html" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://exadrone-enterprise.com/" },
+    { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://exadrone-enterprise.com/blog/" },
+    { "@type": "ListItem", "position": 3, "name": "Photogrammétrie de chantier : suivre l'avancement des travaux BTP par drone", "item": "https://exadrone-enterprise.com/blog/photogrammetrie-chantier-btp-drone.html" }
+  ]
+}
+</script>
+</head>
+<body>
+
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="grain"></div>
+<canvas class="ambient-canvas" id="ambientCanvas" aria-hidden="true"></canvas>
+<div class="ambient-hotspots" aria-hidden="true"></div>
+
+<header class="site-nav" id="siteNav">
+  <div class="nav-inner">
+    <a href="/index.html#top" class="nav-mark" aria-label="Accueil Exadrone Enterprise">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+        <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+        <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+      </svg>
+      <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+    </a>
+
+    <nav class="nav-links" id="navLinks">
+      <a href="/index.html#capabilities" data-cursor="link">Capacités</a>
+      <a href="/index.html#process" data-cursor="link">Processus</a>
+      <a href="/index.html#fleet" data-cursor="link">Drone</a>
+      <a href="/index.html#reliability" data-cursor="link">Fiabilité</a>
+      <a href="/index.html#secteurs" data-cursor="link">Secteurs</a>
+      <a href="/blog/" data-cursor="link">Blog</a>
+      <a href="/contact.html" class="nav-cta" data-cursor="link">Demander un devis</a>
+    </nav>
+
+    <button class="nav-toggle" id="navToggle" aria-label="Afficher le menu" aria-expanded="false">
+      <span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="article-main">
+    <div class="article-inner">
+      <p class="article-breadcrumb"><a href="/">Accueil</a> / <a href="/blog/">Blog</a> / Suivi de Chantier</p>
+      <p class="eyebrow reveal" data-reveal>Suivi de Chantier</p>
+      <h1 class="article-title reveal" data-reveal data-delay="1">Photogrammétrie de chantier : suivre l'avancement des travaux BTP par drone</h1>
+      <p class="article-meta">Publié le 2026-08-12 · Exadrone Enterprise</p>
+
+      <figure class="article-cover reveal" data-reveal data-delay="2">
+        <picture>
+          <source srcset="/images/blog/cover-photogrammetrie-chantier.webp" type="image/webp">
+          <img src="/images/blog/cover-photogrammetrie-chantier.jpg" alt="Vue aérienne d'un site industriel et logistique, utilisé pour le suivi photogrammétrique de chantier par drone" width="1200" height="675" loading="eager" fetchpriority="high">
+        </picture>
+      </figure>
+
+      <div class="article-body">
+<p>La photogrammétrie de chantier consiste à produire, à intervalle régulier, un modèle 3D du site en construction à partir de prises de vue aériennes par drone — permettant de comparer objectivement l'avancement réel des travaux d'une visite à l'autre, sans dépendre uniquement des comptes-rendus terrain.</p>
+
+<h2>Pourquoi suivre un chantier par photogrammétrie</h2>
+<p>Un conducteur de travaux gère généralement plusieurs chantiers en parallèle et ne peut pas être présent en permanence sur chacun d'eux. Un relevé photogrammétrique régulier comble cet écart : il restitue une vue exhaustive et mesurable du site, exploitable à distance pour vérifier l'avancement, anticiper un retard ou documenter une étape clé du chantier.</p>
+
+<h2>Comment fonctionne le suivi photogrammétrique</h2>
+<ul>
+  <li><strong>Définition d'une fréquence de vol</strong> : hebdomadaire, bimensuelle ou mensuelle selon la phase et la vitesse d'évolution du chantier.</li>
+  <li><strong>Vol automatisé répété</strong> : le drone suit le même plan de vol à chaque passage, pour produire des relevés strictement comparables.</li>
+  <li><strong>Traitement photogrammétrique</strong> : assemblage des prises de vue en modèle 3D ou orthophoto géoréférencée.</li>
+  <li><strong>Comparaison entre relevés</strong> : superposition des modèles successifs pour visualiser précisément ce qui a changé entre deux passages.</li>
+</ul>
+
+<h2>Ce qu'un modèle 3D de suivi permet de mesurer</h2>
+<p>Au-delà de la simple observation visuelle, un modèle photogrammétrique permet de mesurer des volumes de terrassement, de vérifier des hauteurs de structure en cours d'élévation, ou de contrôler la conformité d'une implantation par rapport aux plans. Notre article <a href="/blog/cartographie-par-drone-batiment.html">« Cartographie par drone : comment ça fonctionne et pour quels usages »</a> détaille les fondamentaux de la méthode.</p>
+
+<h2>Un support de communication pour la maîtrise d'ouvrage</h2>
+<p>Les relevés successifs constituent un support visuel objectif pour les réunions de chantier ou les points d'avancement avec la maîtrise d'ouvrage — particulièrement utile lorsque celle-ci n'est pas présente quotidiennement sur site. Cette traçabilité peut aussi servir de référence en cas de désaccord sur l'état d'avancement à une date donnée.</p>
+
+<h2>Quelle fréquence de vol choisir</h2>
+<p>En phase de terrassement ou de gros œuvre, où le chantier évolue rapidement, un passage hebdomadaire à bimensuel est généralement pertinent. En phase de second œuvre, où les changements sont moins visibles depuis les airs, un passage mensuel peut suffire. La fréquence peut être ajustée en cours de chantier selon les besoins de suivi.</p>
+
+<h2>Intégrer le suivi photogrammétrique dans votre organisation de chantier</h2>
+<p>La mise en place d'un suivi régulier suppose de désigner un point de contact côté maîtrise d'œuvre, chargé de valider la fréquence des vols et de réceptionner les relevés. Cette personne devient l'interlocuteur du prestataire drone et s'assure que les données produites correspondent réellement aux besoins de pilotage du chantier, plutôt qu'à une simple collecte automatique sans usage défini.</p>
+<p>Il est également utile de prévoir, dès le démarrage, un format de restitution standardisé (rapport synthétique, accès à une plateforme de consultation) pour que les relevés successifs soient exploités de façon homogène par l'ensemble des parties prenantes du projet.</p>
+
+<h2>Questions fréquentes</h2>
+<h3>Qui doit valider la fréquence de vol la plus adaptée ?</h3>
+<p>Le conducteur de travaux ou le responsable de suivi de chantier, en lien avec le prestataire, selon le rythme d'évolution réel du site.</p>
+<h3>Le suivi photogrammétrique remplace-t-il un relevé topographique réglementaire ?</h3>
+<p>Non, il vient en complément pour le suivi visuel et volumétrique courant ; les relevés réglementaires spécifiques restent à la charge des professionnels habilités correspondants.</p>
+<h3>Peut-on suivre plusieurs chantiers en parallèle avec le même prestataire ?</h3>
+<p>Oui, un prestataire drone peut planifier des passages sur plusieurs sites selon un calendrier mutualisé, ce qui est souvent plus économique qu'un suivi dédié par chantier.</p>
+<h3>Les données sont-elles exploitables dans nos propres outils de gestion de projet ?</h3>
+<p>Oui, les modèles et orthophotos sont livrés dans des formats standards, exploitables dans la plupart des logiciels de suivi de chantier ou de conception.</p>
+
+<h2>Ce qu'il faut retenir</h2>
+<p>Le suivi photogrammétrique par drone transforme l'avancement d'un chantier en donnée mesurable et comparable dans le temps, plutôt qu'en une succession d'observations ponctuelles — un changement de niveau particulièrement utile pour les conducteurs de travaux qui supervisent plusieurs opérations à la fois.</p>
+<p>Cette donnée devient également précieuse a posteriori, en cas de réclamation ou de litige sur l'état d'avancement du chantier à une date donnée, puisqu'elle constitue une preuve objective et horodatée.</p>
+<p>Pour les chantiers impliquant plusieurs corps de métier successifs, ce suivi partagé limite aussi les désaccords entre intervenants sur l'état du site au moment de la passation entre deux phases de travaux.</p>
+<p>C'est précisément cette dimension de preuve objective, horodatée et partagée par l'ensemble des intervenants, qui distingue le suivi photogrammétrique d'un simple album de photos de chantier.</p>
+<p>Les entreprises qui adoptent cette pratique de façon systématique, plutôt que ponctuelle, en tirent généralement le bénéfice le plus net, car la comparabilité des relevés s'améliore avec la régularité des passages.</p>
+      </div>
+
+      <div class="article-cta reveal" data-reveal>
+        <h3>Besoin d'un suivi photogrammétrique de chantier ?</h3>
+        <p>Décrivez-nous votre opération pour mettre en place un suivi aérien régulier, adapté à votre calendrier de travaux.</p>
+        <a href="/contact.html" class="btn btn-primary" data-cursor="link">Demander un devis</a>
+      </div>
+
+<div class="article-related">
+  <h3>À lire aussi</h3>
+  <ul>
+      <li><a href="/blog/drone-btp-cartographie-aerienne-majors-secteur.html">Drone et BTP : comment les grands groupes de construction utilisent la cartographie aérienne</a></li>
+      <li><a href="/blog/drone-vs-nacelle-echafaudage-comparatif-couts-securite.html">Drone vs nacelle/échafaudage : comparatif coûts et sécurité pour les grands chantiers</a></li>
+  </ul>
+</div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="nav-mark static">
+        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+          <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+          <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        </svg>
+        <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+      </span>
+      <p>Systèmes de Nettoyage Aérien de Précision</p>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Explorer</span>
+      <div class="footer-links">
+        <a href="/index.html#capabilities">Capacités</a>
+        <a href="/index.html#process">Processus</a>
+        <a href="/index.html#fleet">Drone</a>
+        <a href="/index.html#reliability">Fiabilité</a>
+        <a href="/blog/">Blog</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Secteurs B2B</span>
+      <div class="footer-links">
+        <a href="/collectivites-territoriales.html">Collectivités &amp; mairies</a>
+        <a href="/entreprises-btp.html">Entreprises du BTP</a>
+        <a href="/renovation-facade.html">Rénovation de façade</a>
+        <a href="/marches-publics.html">Marchés publics</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Légal</span>
+      <div class="footer-links">
+        <a href="/mentions-legales.html">Mentions légales</a>
+        <a href="/cgv.html">CGV</a>
+        <a href="/politique-de-confidentialite.html">Confidentialité</a>
+        <a href="/politique-de-cookies.html">Cookies</a>
+        <button type="button" class="footer-link-btn" id="cookiePrefsBtn">Préférences cookies</button>
+      </div>
+    </div>
+
+    <div class="footer-meta">
+      <span>contact@exadrone-enterprise.com</span>
+      <span>© 2026 Exadrone Enterprise. Tous droits réservés.</span>
+    </div>
+  </div>
+</footer>
+
+<div class="cookie-banner" id="cookieBanner" role="dialog" aria-live="polite" aria-label="Gestion des cookies">
+  <div class="cookie-banner-inner">
+    <p>
+      Nous utilisons des cookies strictement nécessaires au fonctionnement du site et, si vous l'acceptez,
+      des cookies de mesure d'audience pour améliorer votre expérience.
+      <a href="/politique-de-cookies.html">En savoir plus</a>.
+    </p>
+    <div class="cookie-banner-actions">
+      <button type="button" class="btn btn-ghost btn-small" id="cookieReject">Refuser</button>
+      <button type="button" class="btn btn-ghost btn-small" id="cookieCustomize">Personnaliser</button>
+      <button type="button" class="btn btn-primary btn-small" id="cookieAccept">Accepter tout</button>
+    </div>
+  </div>
+</div>
+
+<a class="whatsapp-fab" href="https://wa.me/33770022172" target="_blank" rel="noopener" aria-label="Discuter avec Exadrone Enterprise sur WhatsApp">
+  <span class="whatsapp-fab-tooltip">WhatsApp</span>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.6 6.32A7.85 7.85 0 0 0 12.05 4C7.7 4 4.15 7.53 4.15 11.87c0 1.4.37 2.74 1.07 3.92L4 20l4.32-1.13a7.9 7.9 0 0 0 3.73.94h.01c4.34 0 7.88-3.53 7.88-7.87a7.8 7.8 0 0 0-2.34-5.62Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9.2 9.04c.1-.23.27-.23.43-.23h.37c.12 0 .27 0 .39.3.14.34.47 1.18.51 1.27.04.09.07.2 0 .31-.31.6-.66.86-.66.86s-.13.15-.02.36c.42.78 1.55 2 2.93 2.43.22.07.34.05.46-.08.13-.13.5-.59.64-.79.13-.2.27-.17.45-.1.18.07 1.15.55 1.35.65.2.1.33.15.38.23.05.09.05.5-.13.99-.18.49-1.04.96-1.45 1.02-.37.06-.83.08-1.34-.08a8.4 8.4 0 0 1-3.71-2.57c-1.4-1.5-1.95-2.85-2-3.07-.04-.21-.18-.7.13-1.3.2-.39.4-.55.55-.7Z" fill="currentColor"/>
+  </svg>
+</a>
+
+<script src="/script.js?v=20260727" defer></script>
+</body>
+</html>
