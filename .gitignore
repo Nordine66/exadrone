@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Environment & secrets
+.env
+.env.local
+.env*.local
+.vercel
+
+# Claude Code local settings (machine-specific tool permissions, not project config)
+.claude/settings.local.json
+
+# OS
+.DS_Store
+
+# Logs
+npm-debug.log*
+*.log
+
+# Regenerable script output
+prospects_mairies_66.csv
+prospects_mairies_66_import.csv

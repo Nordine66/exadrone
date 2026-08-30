@@ -1,0 +1,81 @@
+{
+  "trailingSlash": false,
+  "crons": [
+    {
+      "path": "/api/agents/tasks?agent=blog-writer",
+      "schedule": "0 8 * * 1"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch",
+      "schedule": "15 8 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=followup",
+      "schedule": "0 9 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
+    {
+      "source": "/blog/:slug",
+      "destination": "/api/blog/content?resource=article&slug=:slug"
+    },
+    {
+      "source": "/api/blog/listing",
+      "destination": "/api/blog/content?resource=listing"
+    },
+    {
+      "source": "/api/admin/stats",
+      "destination": "/api/admin/dashboard?resource=stats"
+    },
+    {
+      "source": "/api/admin/leads",
+      "destination": "/api/admin/dashboard?resource=leads"
+    },
+    {
+      "source": "/api/admin/agents",
+      "destination": "/api/admin/dashboard?resource=agents"
+    },
+    {
+      "source": "/api/admin/prospects",
+      "destination": "/api/admin/dashboard?resource=prospects"
+    },
+    {
+      "source": "/api/agents/blog-writer",
+      "destination": "/api/agents/tasks?agent=blog-writer"
+    },
+    {
+      "source": "/api/agents/outreach",
+      "destination": "/api/agents/tasks?agent=outreach"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/robots.txt",
+      "headers": [{ "key": "Content-Type", "value": "text/plain" }]
+    },
+    {
+      "source": "/images/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/(.*\\.webm|.*\\.mp4)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/chat-widget.js",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
+    },
+    {
+      "source": "/styles.css",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
+    },
+    {
+      "source": "/script.js",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
+    }
+  ]
+}

@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prestataire Drone BTP &amp; Collectivités | Nettoyage Façade, Toiture, Cartographie — Exadrone Enterprise</title>
+<meta name="description" content="Exadrone Enterprise intervient partout en France pour les collectivités, entreprises du BTP et sociétés de rénovation de façade : nettoyage de toiture et façade par drone, bardage, cartographie et photogrammétrie de chantier. Compatible marchés publics.">
+<link rel="canonical" href="https://exadrone-enterprise.com/">
+<!-- Open Graph / Twitter Card — shared og-cover.jpg (1200x632) used as the
+     default share image across every page unless a page sets its own. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Exadrone Enterprise">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Prestataire Drone BTP &amp; Collectivités | Exadrone Enterprise">
+<meta property="og:description" content="Nettoyage de toiture et façade par drone, bardage, cartographie et photogrammétrie de chantier : Exadrone Enterprise intervient partout en France pour le BTP, les collectivités et les sociétés de rénovation.">
+<meta property="og:url" content="https://exadrone-enterprise.com/">
+<meta property="og:image" content="https://exadrone-enterprise.com/images/og-cover.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="632">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Prestataire Drone BTP &amp; Collectivités | Exadrone Enterprise">
+<meta name="twitter:description" content="Nettoyage de toiture et façade par drone, bardage, cartographie et photogrammétrie de chantier — intervention partout en France.">
+<meta name="twitter:image" content="https://exadrone-enterprise.com/images/og-cover.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap"></noscript>
+<link rel="stylesheet" href="styles.css?v=20260733">
+<!-- Hero video poster — the LCP element now that the hero is a looping
+     background video instead of a 49-frame canvas scrub (see
+     .exa-hero__video-wrap below and "Hero background video" in
+     script.js). -->
+<link rel="preload" as="image" href="/assets/video/matrice-4e-poster.jpg" fetchpriority="high">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "@id": "https://exadrone-enterprise.com/#business",
+  "name": "Exadrone Enterprise",
+  "description": "Exadrone Enterprise est un prestataire de nettoyage, cartographie et inspection par drone pour les collectivités territoriales, les entreprises du BTP et les sociétés de rénovation de façade, avec une intervention sur l'ensemble du territoire français.",
+  "url": "https://exadrone-enterprise.com/",
+  "email": "contact@exadrone-enterprise.com",
+  "telephone": "+33770022172",
+  "image": "https://exadrone-enterprise.com/images/og-cover.jpg",
+  "priceRange": "€€€",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "À compléter",
+    "addressLocality": "À compléter",
+    "postalCode": "À compléter",
+    "addressCountry": "FR"
+  },
+  "areaServed": { "@type": "Country", "name": "France" },
+  "audience": [
+    { "@type": "Audience", "audienceType": "Collectivités territoriales et mairies" },
+    { "@type": "Audience", "audienceType": "Entreprises du BTP" },
+    { "@type": "Audience", "audienceType": "Entreprises de rénovation de façade" },
+    { "@type": "Audience", "audienceType": "Bailleurs sociaux et gestionnaires de patrimoine" }
+  ],
+  "sameAs": [],
+  "makesOffer": [
+    { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Nettoyage de toiture par drone pour collectivités et entreprises", "areaServed": "FR" } },
+    { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Nettoyage de façade par drone pour entreprises du BTP", "areaServed": "FR" } },
+    { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Bardage par drone à l'échelle d'un chantier", "areaServed": "FR" } },
+    { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Cartographie et photogrammétrie de chantier BTP par drone", "areaServed": "FR" } },
+    { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Inspection de bâtiment et d'infrastructure par drone", "areaServed": "FR" } },
+    { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Sous-traitance drone pour entreprises de rénovation de façade", "areaServed": "FR" } }
+  ]
+}
+</script>
+</head>
+<body>
+
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="grain"></div>
+<canvas class="ambient-canvas" id="ambientCanvas" aria-hidden="true"></canvas>
+<div class="ambient-hotspots" aria-hidden="true"></div>
+
+<header class="site-nav" id="siteNav">
+  <div class="nav-inner">
+    <a href="#top" class="nav-mark" aria-label="Accueil Exadrone Enterprise">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+        <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+        <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+      </svg>
+      <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+    </a>
+
+    <nav class="nav-links" id="navLinks">
+      <a href="#capabilities" data-cursor="link">Capacités</a>
+      <a href="#process" data-cursor="link">Processus</a>
+      <a href="#fleet" data-cursor="link">Drone</a>
+      <a href="#reliability" data-cursor="link">Fiabilité</a>
+      <a href="#secteurs" data-cursor="link">Secteurs</a>
+      <a href="/blog/" data-cursor="link">Blog</a>
+      <a href="contact.html" data-cursor="link">Contact</a>
+      <a href="contact.html" class="nav-cta" data-cursor="link">Demander un devis</a>
+    </nav>
+
+    <a href="tel:+33770022172" class="nav-phone" aria-label="Appeler Exadrone Enterprise au 07 70 02 21 72">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+      <span class="nav-phone-number">07 70 02 21 72</span>
+    </a>
+
+    <button class="nav-toggle" id="navToggle" aria-label="Afficher le menu" aria-expanded="false">
+      <span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO — looping background video with a camera-HUD overlay and a 3D
+       liquid-glass keyword coverflow. Video playback is fully independent
+       of scroll: it autoplays and loops on its own (see "Hero background
+       video" in script.js), paused only via IntersectionObserver while
+       the hero is off-screen — nothing about it is scroll-scrubbed. The
+       title is plain static markup (always full opacity, no scroll-gated
+       reveal), sat just under the REC/specs line rather than centered so
+       it never covers the drone. Directly under it, .exa-cylinder-stage
+       turns through the five service keywords (Photovoltaïque → Bardage →
+       Toiture → Façade → Vitrage) as a row of tall glass panels: the
+       active card faces the viewer dead-on while its left/right neighbours
+       sit tilted in 3D on either side (a coverflow, not the old single-face
+       drum), driven by the same scroll-progress value the HUD already
+       computes each frame — see "Cylinder rotation" in script.js. The HUD
+       chrome (#cineHud) is entirely pointer-events:none decoration.
+       .cineScrollHint is a discreet "scroll to continue" nudge, hidden
+       until 5s of inactivity with no scroll input (see "Scroll-down hint"
+       in script.js) — dismissed for good the moment the visitor scrolls,
+       wheels, touches or presses a scroll key. .cineSoundToggle is the
+       one interactive, audible piece: off by default, it plays a very
+       faint synthesized drone-hover hum only while both (a) the button is
+       on and (b) the hero is still the active section — see "Hero hover
+       sound" in script.js, which also hard-stops it (not just fades) the
+       instant either condition goes false, on tab-hide, and on
+       navigating away. An earlier, unrelated attempt at hero sound (a
+       continuous Web Audio engine synth tied to scroll progress) was
+       ripped out entirely after its fade-out asymptotically approached
+       zero but never actually hit it, letting the hum bleed into the
+       sections after the hero — the design here is deliberately simpler
+       (no scroll-tied modulation, exact linear ramps that reach a true
+       zero, multiple independent hard-stop triggers) specifically to not
+       repeat that. -->
+
+  <section class="cine-hero" id="hook">
+    <div class="cine-stage">
+      <!-- Cropped 10% top/bottom by scaling the video to 125% height at
+           -12.5% offset inside an overflow:hidden wrapper (see
+           .exa-hero__video-wrap/.exa-hero__video in styles.css) rather
+           than clip-path (leaves gaps) or a mask (fades instead of
+           crops). Mobile drops this crop entirely (object-fit: contain,
+           no scale/offset) so the drone itself is never cut off — a
+           landscape shot covering a narrow portrait viewport would
+           otherwise need a much harsher vertical crop than 10%; the
+           letterboxed bars blend into the wrapper since both share the
+           same #0A0E14 hero background. -->
+      <div class="exa-hero__video-wrap">
+        <video class="exa-hero__video" id="exaHeroVideo" autoplay muted loop playsinline preload="metadata" poster="/assets/video/matrice-4e-poster.jpg" aria-hidden="true" tabindex="-1">
+          <source src="/assets/video/matrice-4e.webm" type="video/webm">
+          <source src="/assets/video/matrice-4e.mp4" type="video/mp4">
+        </video>
+      </div>
+      <!-- Darkening overlay — repurposes the existing .cine-vignette
+           element/class (same job, above the footage, below every other
+           layer) rather than adding a redundant second div, per "do NOT
+           rename existing classes". -->
+      <div class="cine-vignette" aria-hidden="true"></div>
+
+      <div class="cine-title-block">
+        <h1 class="cine-title">Nettoyage par <span class="accent">drone</span></h1>
+
+        <!-- 3D liquid-glass coverflow — replaces the old single-face drum.
+             Order left-to-right of scroll: Photovoltaïque → Bardage →
+             Toiture → Façade → Vitrage (see script.js "Cylinder rotation").
+             Every face is tall (portrait) and carries its own one-line
+             description under the keyword. Only the active face is ever
+             dead-centre/full-facing; its neighbours sit tilted ~45° to
+             either side, receding in depth — script.js writes each face's
+             transform every frame from the same scroll progress the HUD
+             already computes, so the row glides in lockstep with the
+             scrub in both directions. Faces stay in the accessibility
+             tree at all times (role="listitem", no aria-hidden) since the
+             keywords are real content, not decoration — only the video is
+             aria-hidden. -->
+        <div class="exa-cylinder-stage" id="exaCylinderStage" role="list" aria-label="Nos services">
+          <div class="exa-cylinder" id="exaCylinder">
+            <div class="exa-cylinder__face" id="exaFace0" data-index="0" role="listitem">
+              <span class="exa-cylinder__contrast-pad" aria-hidden="true"></span>
+              <span class="exa-cylinder__label">Photovoltaïque</span>
+              <span class="exa-cylinder__rule" aria-hidden="true"></span>
+              <span class="exa-cylinder__desc">Rendement préservé, sans risque de casse.</span>
+            </div>
+            <div class="exa-cylinder__face" id="exaFace1" data-index="1" role="listitem">
+              <span class="exa-cylinder__contrast-pad" aria-hidden="true"></span>
+              <span class="exa-cylinder__label">Bardage</span>
+              <span class="exa-cylinder__rule" aria-hidden="true"></span>
+              <span class="exa-cylinder__desc">Aspect neuf retrouvé, sans échafaudage.</span>
+            </div>
+            <div class="exa-cylinder__face" id="exaFace2" data-index="2" role="listitem">
+              <span class="exa-cylinder__contrast-pad" aria-hidden="true"></span>
+              <span class="exa-cylinder__label">Toiture</span>
+              <span class="exa-cylinder__rule" aria-hidden="true"></span>
+              <span class="exa-cylinder__desc">Mousses et lichens éliminés sans y monter.</span>
+            </div>
+            <div class="exa-cylinder__face" id="exaFace3" data-index="3" role="listitem">
+              <span class="exa-cylinder__contrast-pad" aria-hidden="true"></span>
+              <span class="exa-cylinder__label">Façade</span>
+              <span class="exa-cylinder__rule" aria-hidden="true"></span>
+              <span class="exa-cylinder__desc">Pierre, enduit ou verre, nettoyés en douceur.</span>
+            </div>
+            <div class="exa-cylinder__face" id="exaFace4" data-index="4" role="listitem">
+              <span class="exa-cylinder__contrast-pad" aria-hidden="true"></span>
+              <span class="exa-cylinder__label">Vitrage</span>
+              <span class="exa-cylinder__rule" aria-hidden="true"></span>
+              <span class="exa-cylinder__desc">Vitres et verrières en hauteur, sans risque.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Direct service navigation — an additional path to a service on
+             top of scroll, not a replacement for it. Never sets rotation
+             itself: a click just moves the scroll position to the point
+             that already maps to that service, and the cylinder turns as
+             a consequence through the exact same scroll-scrub path (see
+             script.js "Hero direct navigation"). Active state mirrors live
+             scroll progress at all times, including during manual
+             scrolling, never "the last thing clicked". -->
+        <nav class="exa-hero-nav" id="exaHeroNav" aria-label="Naviguer directement vers un service">
+          <button type="button" class="exa-hero-nav__chevron exa-hero-nav__chevron--prev" id="exaHeroNavPrev" aria-label="Service précédent" disabled aria-disabled="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+
+          <div class="exa-hero-nav__labels" id="exaHeroNavLabels">
+            <span class="exa-hero-nav__underline" id="exaHeroNavUnderline" aria-hidden="true"></span>
+            <button type="button" class="exa-hero-nav__label" data-index="0" aria-label="Voir le service Photovoltaïque" aria-current="true">Photovoltaïque</button>
+            <button type="button" class="exa-hero-nav__label" data-index="1" aria-label="Voir le service Bardage">Bardage</button>
+            <button type="button" class="exa-hero-nav__label" data-index="2" aria-label="Voir le service Toiture">Toiture</button>
+            <button type="button" class="exa-hero-nav__label" data-index="3" aria-label="Voir le service Façade">Façade</button>
+            <button type="button" class="exa-hero-nav__label" data-index="4" aria-label="Voir le service Vitrage">Vitrage</button>
+          </div>
+
+          <div class="exa-hero-nav__dots" id="exaHeroNavDots">
+            <button type="button" class="exa-hero-nav__dot" data-index="0" aria-label="Voir le service Photovoltaïque" aria-current="true"><span></span></button>
+            <button type="button" class="exa-hero-nav__dot" data-index="1" aria-label="Voir le service Bardage"><span></span></button>
+            <button type="button" class="exa-hero-nav__dot" data-index="2" aria-label="Voir le service Toiture"><span></span></button>
+            <button type="button" class="exa-hero-nav__dot" data-index="3" aria-label="Voir le service Façade"><span></span></button>
+            <button type="button" class="exa-hero-nav__dot" data-index="4" aria-label="Voir le service Vitrage"><span></span></button>
+          </div>
+
+          <button type="button" class="exa-hero-nav__chevron exa-hero-nav__chevron--next" id="exaHeroNavNext" aria-label="Service suivant">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+
+          <span class="sr-only" id="exaHeroNavAnnounce" aria-live="polite"></span>
+        </nav>
+
+        <!-- "Devis instantané" — links to the instant quote generator
+             (#estimate, see index.html "ESTIMATION INSTANTANÉE"). Handled
+             in JS with preventDefault + GSAP ScrollToPlugin (see script.js
+             "Hero direct navigation") since a bare href would fight the
+             hero's pinned scroll track and stall partway through it; the
+             href stays as a real, working no-JS fallback. -->
+        <a href="#estimate" class="exa-hero-cta" id="exaHeroCta">
+          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
+          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
+          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
+          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
+          <span class="exa-hero-cta__label">Devis instantané</span>
+        </a>
+
+        <!-- Skip-hero arrow — discreet, always visible. A real shortcut now
+             (see script.js "Skip hero"), not just a "keep scrolling" nudge:
+             it jumps straight past the whole pinned 400vh hero to the next
+             section, for a visitor who came for the rest of the site, not
+             the cinematic intro. Sits in normal flow right after the CTA
+             (not position:absolute) so it stacks under everything else in
+             .cine-title-block and never fights the HUD scrub bar for the
+             same fixed bottom offset. -->
+        <button type="button" class="cine-scroll-hint" id="cineScrollHint" aria-label="Passer l'introduction et aller directement au reste du site">
+          <span class="cine-scroll-hint-label">Passer l'introduction</span>
+          <span class="cine-scroll-hint-arrow" aria-hidden="true">
+            <svg class="cine-scroll-hint-chevron" viewBox="0 0 24 14" width="18" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l10 10 10-10"/></svg>
+            <svg class="cine-scroll-hint-chevron cine-scroll-hint-chevron-2" viewBox="0 0 24 14" width="18" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l10 10 10-10"/></svg>
+          </span>
+        </button>
+      </div>
+
+      <div class="cine-hud" id="cineHud" aria-hidden="true">
+        <div class="hud-grid"></div>
+
+        <span class="hud-corner hud-corner-tl"></span>
+        <span class="hud-corner hud-corner-tr"></span>
+        <span class="hud-corner hud-corner-bl"></span>
+        <span class="hud-corner hud-corner-br"></span>
+
+        <div class="hud-rec">
+          <span class="hud-rec-dot"></span>
+          <span class="hud-rec-label">REC</span>
+          <span class="hud-timecode" id="hudTimecode">00:00:00:00</span>
+        </div>
+
+        <div class="hud-specs">4K · 30 FPS · F2.8 · 1/50</div>
+
+        <div class="hud-vertical hud-vertical-left">Défilez pour explorer</div>
+        <div class="hud-vertical hud-vertical-right">Exadrone // Nettoyage</div>
+
+        <div class="hud-scrubbar">
+          <div class="hud-scrubbar-top">
+            <span class="hud-section-label" id="hudSectionLabel">01 · APERÇU</span>
+            <div class="hud-meta">
+              <span>ISO 800</span>
+              <span>WB 5600K</span>
+              <span id="hudSectionCount">SECTION 01 / 06</span>
+            </div>
+          </div>
+          <div class="hud-ticks-wrap">
+            <div class="hud-scrub-fill-bg" id="hudScrubFillBg"></div>
+            <div class="hud-ticks-base"></div>
+            <div class="hud-ticks-active" id="hudTicksActive"></div>
+          </div>
+          <div class="hud-bottom-meta">
+            <span id="hudFrameCounter">CADRE 001 / 049</span>
+            <span class="hud-scrub-active">SCRUB ACTIF</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <noscript>
+      <img src="/assets/video/matrice-4e-poster.jpg" alt="Drone Exadrone en vol stationnaire, vue du dessus" style="display:block;max-width:320px;margin:40px auto;">
+    </noscript>
+  </section>
+
+  <!-- HERO LEDE — pitch/CTA/phone, no longer squeezed inside the pinned
+       cinematic track (the HUD needed the full frame to itself). Plain
+       normal-flow section right after it, so video-overlap still fades
+       the tail of the scrub into solid ground exactly like before, just
+       one section earlier in the DOM. -->
+  <section class="hero-lede video-overlap">
+    <div class="hero-lede-inner">
+      <p class="eyebrow reveal" data-reveal>Prestataire Drone — BTP &amp; Collectivités</p>
+      <p class="hero-sub reveal" data-reveal data-delay="1">
+        Sans échafaudage. Sans interruption d'activité. Partout en France,
+        pour le BTP, les collectivités et la rénovation de façade.
+      </p>
+      <div class="hero-phone reveal" data-reveal data-delay="2">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+        <span>Appelez-nous&nbsp;:&nbsp;</span><a href="tel:+33770022172" aria-label="Appeler Exadrone Enterprise au 07 70 02 21 72" class="hero-phone-number">07&nbsp;70&nbsp;02&nbsp;21&nbsp;72</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- STAT STRIP — cartes de données bento. -->
+  <section class="stat-strip">
+    <div class="stat-strip-inner">
+      <div class="stat reveal" data-reveal>
+        <svg class="stat-icon" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 20h16M7 20V10l5-6 5 6v10" stroke="currentColor" stroke-width="1.4"/></svg>
+        <span class="stat-value" data-count="0" data-suffix="">0</span>
+        <span class="stat-label">Échafaudage&nbsp;au&nbsp;Sol<br>Requis</span>
+      </div>
+      <div class="stat reveal" data-reveal data-delay="1">
+        <svg class="stat-icon" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2v14M12 16l-4-4M12 16l4-4" stroke="currentColor" stroke-width="1.4"/><path d="M4 20h16" stroke="currentColor" stroke-width="1.4"/></svg>
+        <span class="stat-value" data-count="60" data-suffix="m">0m</span>
+        <span class="stat-label">Altitude&nbsp;Maximale<br>d'Opération</span>
+      </div>
+      <div class="stat stat-precision reveal" data-reveal data-delay="2">
+        <svg class="stat-icon" width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" stroke-width="1.4"/></svg>
+        <span class="stat-value" data-count="2" data-suffix="cm" data-prefix="±">±0cm</span>
+        <span class="stat-label">Précision&nbsp;de<br>Trajectoire</span>
+      </div>
+      <div class="stat reveal" data-reveal data-delay="3">
+        <svg class="stat-icon" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.4"/></svg>
+        <span class="stat-value">24/7</span>
+        <span class="stat-label">Disponibilité<br>Opérationnelle</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ESTIMATION INSTANTANÉE — repositionnée juste après les indicateurs clés -->
+  <section class="section estimate-section" id="estimate">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-reveal>Premier Chiffrage</p>
+      <h2 class="section-title reveal" data-reveal data-delay="1">Un ordre de grandeur avant même l'échange.</h2>
+    </div>
+    <p class="section-lead reveal" data-reveal data-delay="2">
+      Indiquez la surface à traiter pour obtenir un premier cadrage budgétaire indicatif — utile pour
+      préparer un dossier de cahier des charges ou comparer des scénarios. Le devis ferme est établi
+      après étude de votre site ou de votre marché.
+    </p>
+
+    <div class="estimate-card reveal" data-reveal data-delay="1">
+      <div class="estimate-input-group">
+        <label for="estimateService">Service</label>
+        <select id="estimateService" class="estimate-select">
+          <option value="Nettoyage de toiture">Nettoyage de toiture</option>
+          <option value="Nettoyage de bardage">Nettoyage de bardage</option>
+          <option value="Nettoyage de façade">Nettoyage de façade</option>
+          <option value="Nettoyage de panneaux solaires photovoltaïques">Nettoyage de panneaux solaires photovoltaïques</option>
+        </select>
+
+        <label for="estimateArea">Surface à traiter</label>
+        <div class="estimate-input-wrap">
+          <input type="number" id="estimateArea" min="0" step="50" placeholder="saisissez votre surface à nettoyer" inputmode="numeric" aria-describedby="estimateRate">
+          <span class="estimate-unit">m²</span>
+        </div>
+        <span class="estimate-rate" id="estimateRate">Base indicative — 6&nbsp;€&nbsp;HT&nbsp;/&nbsp;m²</span>
+      </div>
+
+      <div class="estimate-divider" aria-hidden="true"></div>
+
+      <div class="estimate-output-group">
+        <span class="estimate-output-label">Cadrage budgétaire estimé</span>
+        <div class="estimate-breakdown">
+          <div class="estimate-breakdown-row"><span>Prix HT</span><span id="estimateHT">0&nbsp;€</span></div>
+          <div class="estimate-breakdown-row"><span>TVA (20&nbsp;%)</span><span id="estimateVAT">0&nbsp;€</span></div>
+          <div class="estimate-breakdown-row estimate-breakdown-total"><span>Prix TTC</span><span class="estimate-output" id="estimateOutput">0&nbsp;€</span></div>
+        </div>
+        <input type="text" id="estimateClientName" class="estimate-name-input" placeholder="Nom / société — pour personnaliser le PDF (optionnel)" aria-label="Nom ou société, pour personnaliser le PDF">
+        <div class="estimate-actions">
+          <button type="button" class="btn btn-primary" id="estimatePdfBtn" data-cursor="link">Télécharger le PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <ul class="estimate-reassurance">
+      <li>Sans engagement</li>
+      <li>Estimation transparente</li>
+    </ul>
+  </section>
+
+  <!-- SECTEURS — audiences B2B nationales -->
+  <section class="section" id="secteurs">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-reveal>Solutions par secteur</p>
+      <h2 class="section-title reveal" data-reveal data-delay="1">
+        Une flotte de précision, déployée partout en France.
+      </h2>
+      <p class="section-sub reveal" data-reveal data-delay="2">
+        Que vous gériez un patrimoine public, un chantier BTP ou un portefeuille de façades à
+        rénover, Exadrone Enterprise s'intègre à votre processus — du cahier des charges à la livraison.
+      </p>
+    </div>
+
+    <div class="sector-grid">
+      <a href="/collectivites-territoriales.html" class="sector-card exa-glow reveal" data-reveal data-cursor="link">
+        <span class="sector-index">01</span>
+        <h3>Collectivités &amp; Mairies</h3>
+        <p>Entretien des bâtiments publics, écoles et monuments — compatible marchés publics.</p>
+        <span class="sector-card-link">Découvrir →</span>
+      </a>
+      <a href="/entreprises-btp.html" class="sector-card exa-glow reveal" data-reveal data-delay="1" data-cursor="link">
+        <span class="sector-index">02</span>
+        <h3>Entreprises du BTP</h3>
+        <p>Cartographie de chantier, photogrammétrie de suivi et inspection de bardage à grande échelle.</p>
+        <span class="sector-card-link">Découvrir →</span>
+      </a>
+      <a href="/renovation-facade.html" class="sector-card exa-glow reveal" data-reveal data-delay="2" data-cursor="link">
+        <span class="sector-index">03</span>
+        <h3>Rénovation de Façade</h3>
+        <p>Sous-traitance drone pour vos chantiers de ravalement — partenariat technique, pas de concurrence commerciale.</p>
+        <span class="sector-card-link">Découvrir →</span>
+      </a>
+      <a href="/marches-publics.html" class="sector-card exa-glow reveal" data-reveal data-delay="3" data-cursor="link">
+        <span class="sector-index">04</span>
+        <h3>Marchés Publics</h3>
+        <p>Ce qu'il faut prévoir pour intégrer Exadrone Enterprise à votre appel d'offres : pièces, garanties, références.</p>
+        <span class="sector-card-link">Découvrir →</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- AVANT / APRÈS — la preuve -->
+  <section class="section" id="results">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-reveal>Des Preuves, Pas des Promesses</p>
+      <h2 class="section-title reveal" data-reveal data-delay="1">Le même toit. Un seul passage autonome.</h2>
+    </div>
+
+    <div class="ba-slider reveal" data-reveal data-delay="1">
+      <div class="ba-frame" id="baFrame">
+        <picture>
+          <source type="image/webp" srcset="images/facade-after.webp 900w, images/facade-after-full.webp 1408w" sizes="(max-width: 760px) 100vw, 1200px">
+          <img class="ba-img ba-after" src="images/facade-after.jpg" alt="Toiture après nettoyage par drone Exadrone Enterprise — mousses et lichens entièrement éliminés" width="1408" height="768" draggable="false" loading="lazy" decoding="async">
+        </picture>
+        <picture>
+          <source type="image/webp" srcset="images/facade-before.webp 900w, images/facade-before-full.webp 1408w" sizes="(max-width: 760px) 100vw, 1200px">
+          <img class="ba-img ba-before" id="baBeforeImg" src="images/facade-before.jpg" alt="Toiture avant nettoyage — accumulation importante de mousses et lichens sur les tuiles" width="1408" height="768" draggable="false" loading="lazy" decoding="async">
+        </picture>
+        <div class="ba-tag ba-tag-before">Avant</div>
+        <div class="ba-tag ba-tag-after">Après</div>
+        <div class="ba-handle" id="baHandle" style="left:50%">
+          <span class="ba-handle-line"></span>
+          <span class="ba-handle-grip" id="baGrip" tabindex="0" role="slider" aria-label="Faites glisser pour comparer avant et après nettoyage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 1L1 7l4 6M9 1l4 6-4 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+        <div class="corner-frame" aria-hidden="true">
+          <span class="corner-frame-mark corner-frame-tl"></span>
+          <span class="corner-frame-mark corner-frame-tr"></span>
+          <span class="corner-frame-mark corner-frame-bl"></span>
+          <span class="corner-frame-mark corner-frame-br"></span>
+        </div>
+      </div>
+      <p class="ba-hint">Faites glisser le curseur — ou cliquez n'importe où dans le cadre</p>
+    </div>
+  </section>
+
+  <!-- SOLUTION — présentation du système aérien autonome -->
+  <section class="section" id="solution">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-reveal>Systèmes Aériens Autonomes</p>
+      <h2 class="section-title reveal" data-reveal data-delay="1">Précision en altitude.</h2>
+    </div>
+    <p class="section-lead reveal" data-reveal data-delay="2">
+      Notre système aérien autonome nettoie les façades et les toitures par drone, pour
+      les bâtiments inaccessibles à l'échafaudage et qui ne tolèrent aucune interruption
+      d'activité.
+    </p>
+  </section>
+
+  <!-- VITRINE / SCRUB CINÉMATIQUE — flip-book scroll-scrub (150 frames cut
+       from "drone 4k", see script.js "Drone showcase scrub") mirroring the
+       hero's .cine-hero technique: a pinned 100vh stage inside a taller
+       track, the frame shown tracking scroll progress through that track.
+       Section-scoped rather than full-viewport and without the camera-HUD
+       chrome — this is a supporting cinematic beat, not the flagship one.
+       The text used to sit in its own column next to a looping <video>;
+       now it's pinned directly over the canvas (readable for the whole
+       scrub, same as the hero title) because reading the frame sequence
+       *as* the backdrop for the copy is the point of this section. -->
+  <section class="drone-showcase" id="fleet">
+    <div class="drone-showcase-pin">
+      <canvas class="drone-showcase-canvas" id="droneShowcaseCanvas" role="img" aria-label="Drone Exadrone en vol stationnaire, pulvérisant une centrale de panneaux photovoltaïques"></canvas>
+      <div class="drone-showcase-scrim" aria-hidden="true"></div>
+      <div class="drone-showcase-text">
+        <p class="eyebrow reveal" data-reveal>Le Drone</p>
+        <h2 class="section-title reveal" data-reveal data-delay="1">Conçu pour l'altitude.<br>Pensé pour le contrôle.</h2>
+        <p class="showcase-copy reveal" data-reveal data-delay="2">
+          Notre drone Exadrone Enterprise fonctionne sur un système de vol en boucle fermée —
+          télémétrie en temps réel, correction de trajectoire anti-collision et redondance de
+          sécurité à chaque niveau. Rien n'est laissé au vent.
+        </p>
+      </div>
+      <div class="corner-frame" aria-hidden="true">
+        <span class="corner-frame-mark corner-frame-tl"></span>
+        <span class="corner-frame-mark corner-frame-tr"></span>
+        <span class="corner-frame-mark corner-frame-bl"></span>
+        <span class="corner-frame-mark corner-frame-br"></span>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- PROCESSUS -->
+  <section class="section section-dark" id="process">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-reveal>Processus</p>
+      <h2 class="section-title reveal" data-reveal data-delay="1">Du relevé à la validation finale.</h2>
+    </div>
+
+    <div class="timeline">
+      <div class="timeline-item reveal" data-reveal>
+        <span class="timeline-index">01</span>
+        <div>
+          <h3>Relevé de Site &amp; Cartographie</h3>
+          <p>Le scan LiDAR génère un modèle précis au millimètre de chaque surface, arête et obstacle.</p>
+        </div>
+      </div>
+      <div class="timeline-item reveal" data-reveal data-delay="1">
+        <span class="timeline-index">02</span>
+        <div>
+          <h3>Calibration de la Trajectoire de Vol</h3>
+          <p>Le tracé autonome est calculé puis vérifié selon le vent, l'espace aérien et les contraintes d'accès.</p>
+        </div>
+      </div>
+      <div class="timeline-item reveal" data-reveal data-delay="2">
+        <span class="timeline-index">03</span>
+        <div>
+          <h3>Nettoyage de Précision</h3>
+          <p>Le drone intervient — pression, fluide et distance ajustés en temps réel selon chaque surface.</p>
+        </div>
+      </div>
+      <div class="timeline-item reveal" data-reveal data-delay="3">
+        <span class="timeline-index">04</span>
+        <div>
+          <h3>Vérification Qualité</h3>
+          <p>L'imagerie post-nettoyage est compilée dans un rapport de vérification livré sous 24 heures.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FIABILITÉ -->
+  <section class="section" id="reliability">
+    <div class="reliability-grid">
+      <div class="reliability-text">
+        <p class="eyebrow reveal" data-reveal>Fiabilité</p>
+        <h2 class="section-title reveal" data-reveal data-delay="1">
+          La confiance des bâtiments<br>que vous ne pouvez pas risquer.
+        </h2>
+        <p class="showcase-copy reveal" data-reveal data-delay="2">
+          Conçu pour les équipes techniques qui mesurent leur réussite en zéro incident,
+          pas seulement en vitres propres.
+        </p>
+      </div>
+      <ul class="reliability-list">
+        <li class="reveal" data-reveal>
+          <button type="button" class="reliability-toggle" aria-expanded="false" aria-controls="reliability-panel-1" id="reliability-toggle-1">
+            <span class="reliability-index">01</span>
+            <span class="reliability-title">Opérations aériennes entièrement assurées</span>
+            <svg class="reliability-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="reliability-panel" id="reliability-panel-1" role="region" aria-labelledby="reliability-toggle-1">
+            <div class="reliability-panel-inner">
+              <p>Nous couvrons l'intégralité de nos interventions avec une assurance Responsabilité Civile Professionnelle spécifique à l'aéronautique. Vous êtes totalement protégé contre le moindre imprévu, garantissant une tranquillité d'esprit absolue.</p>
+            </div>
+          </div>
+        </li>
+        <li class="reveal" data-reveal data-delay="1">
+          <button type="button" class="reliability-toggle" aria-expanded="false" aria-controls="reliability-panel-2" id="reliability-toggle-2">
+            <span class="reliability-index">02</span>
+            <span class="reliability-title">Télépilotes certifiés BAPD &amp; CATS</span>
+            <svg class="reliability-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="reliability-panel" id="reliability-panel-2" role="region" aria-labelledby="reliability-toggle-2">
+            <div class="reliability-panel-inner">
+              <p>Nos équipes opèrent dans le plus strict respect de la réglementation européenne (EASA). Titulaires des habilitations avancées BAPD et CATS, nous sommes qualifiés et autorisés à intervenir dans les scénarios de vol les plus complexes.</p>
+            </div>
+          </div>
+        </li>
+        <li class="reveal" data-reveal data-delay="2">
+          <button type="button" class="reliability-toggle" aria-expanded="false" aria-controls="reliability-panel-3" id="reliability-toggle-3">
+            <span class="reliability-index">03</span>
+            <span class="reliability-title">Traitements professionnels agréés Certibiocide</span>
+            <svg class="reliability-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="reliability-panel" id="reliability-panel-3" role="region" aria-labelledby="reliability-toggle-3">
+            <div class="reliability-panel-inner">
+              <p>Nous utilisons des solutions de nettoyage haute performance, appliquées dans le respect des normes environnementales. Notre agrément Certibiocide garantit un dosage maîtrisé, inoffensif pour vos matériaux.</p>
+            </div>
+          </div>
+        </li>
+        <li class="reveal" data-reveal data-delay="3">
+          <button type="button" class="reliability-toggle" aria-expanded="false" aria-controls="reliability-panel-4" id="reliability-toggle-4">
+            <span class="reliability-index">04</span>
+            <span class="reliability-title">Sécurité maximale&nbsp;: zéro échafaudage</span>
+            <svg class="reliability-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="reliability-panel" id="reliability-panel-4" role="region" aria-labelledby="reliability-toggle-4">
+            <div class="reliability-panel-inner">
+              <p>Éliminez les risques de chute et les coûts de location de nacelles. Notre flotte d'hexacoptères intervient à distance et en toute sécurité, sans bloquer les accès ni gêner les occupants.</p>
+            </div>
+          </div>
+        </li>
+        <li class="reveal" data-reveal data-delay="4">
+          <button type="button" class="reliability-toggle" aria-expanded="false" aria-controls="reliability-panel-5" id="reliability-toggle-5">
+            <span class="reliability-index">05</span>
+            <span class="reliability-title">Précision millimétrique et rapidité d'exécution</span>
+            <svg class="reliability-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="reliability-panel" id="reliability-panel-5" role="region" aria-labelledby="reliability-toggle-5">
+            <div class="reliability-panel-inner">
+              <p>Grâce à nos systèmes assistés par GPS, le traitement est ciblé au centimètre près. Nos interventions sont jusqu'à cinq fois plus rapides qu'une méthode traditionnelle, pour une disponibilité immédiate.</p>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ÉQUIPEMENT & CERTIFICATIONS — infinite auto-scroll trust strip.
+       Embla (+ the auto-scroll plugin) drives the loop instead of the
+       sitewide CSS-keyframe marquee technique (.industries-row further
+       down) because dragFree + pointer-drag + a real pause-on-hover state
+       machine come for free from the plugin, and the spec calling this
+       out explicitly asked for it. See "Trust strip auto-scroll" in
+       script.js for the init + reduced-motion handling. Moved to sit
+       right above Éco-responsabilité (was right after the hero) — DOM
+       order only, Embla measures live layout at init time so no other
+       change was needed for it to keep working in its new position. -->
+  <section class="exa-trust">
+    <div class="exa-trust__inner">
+      <p class="exa-trust__label">Notre équipement</p>
+      <h2 class="exa-trust__heading">Matériel professionnel et certifications</h2>
+      <div class="exa-trust__viewport" id="exaTrustViewport" role="region" aria-label="Équipement et certifications">
+        <div class="exa-trust__container">
+          <div class="exa-trust__slide">
+            <span class="exa-trust__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 9 4 4M15 9l5-5M9 15l-5 5M15 15l5 5"/><circle cx="4" cy="4" r="2"/><circle cx="20" cy="4" r="2"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="20" r="2"/></svg></span>
+            <span class="exa-trust__name">DJI Matrice 4E</span>
+          </div>
+          <div class="exa-trust__slide">
+            <span class="exa-trust__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11Z"/></svg></span>
+            <span class="exa-trust__name">Aerotic Spray SR</span>
+          </div>
+          <div class="exa-trust__slide">
+            <span class="exa-trust__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2h6l2 2h3v11H4V8Z"/><circle cx="12" cy="13" r="3.2"/></svg></span>
+            <span class="exa-trust__name">Capteur 4K UHD</span>
+          </div>
+          <div class="exa-trust__slide">
+            <span class="exa-trust__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0Z"/></svg></span>
+            <span class="exa-trust__name">Caméra thermique</span>
+          </div>
+          <div class="exa-trust__slide">
+            <span class="exa-trust__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></span>
+            <span class="exa-trust__name">Zoom optique 56x</span>
+          </div>
+          <div class="exa-trust__slide">
+            <span class="exa-trust__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 10-4-2.5-7-5.5-7-10V6l7-3Z"/><path d="M9 12l2 2 4-4"/></svg></span>
+            <span class="exa-trust__name">Certifié DGAC</span>
+          </div>
+          <div class="exa-trust__slide">
+            <span class="exa-trust__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M9 12.5 7 21l5-3 5 3-2-8.5"/></svg></span>
+            <span class="exa-trust__name">Télépilote breveté</span>
+          </div>
+          <div class="exa-trust__slide">
+            <span class="exa-trust__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6V2Z"/><path d="M15 2v5h5"/><path d="M9 13l2 2 4-4"/></svg></span>
+            <span class="exa-trust__name">Assurance RC Pro</span>
+          </div>
+          <div class="exa-trust__slide">
+            <span class="exa-trust__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg></span>
+            <span class="exa-trust__name">Scénarios S1 / S2 / S3</span>
+          </div>
+          <div class="exa-trust__slide">
+            <span class="exa-trust__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5Z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg></span>
+            <span class="exa-trust__name">Photogrammétrie 3D</span>
+          </div>
+        </div>
+      </div>
+      <div class="exa-trust__fade--left" aria-hidden="true"></div>
+      <div class="exa-trust__fade--right" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- ECO — l'angle "green marketing" premium, sobre et chiffré -->
+  <section class="section eco-section">
+    <div class="eco-card glass reveal" data-reveal>
+      <div class="eco-badge" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <path d="M12 22c0 0-8-5-8-12a8 8 0 0 1 16 0c0 7-8 12-8 12Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M12 22V8" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M12 11c0-2 2-4 5-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M12 15c0-2-2-4-5-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="eco-content">
+        <p class="eyebrow reveal" data-reveal>Éco-responsabilité</p>
+        <h2 class="section-title reveal" data-reveal data-delay="1">Une technologie propre,<br>pour un avenir qui l'est aussi.</h2>
+        <p class="eco-intro reveal" data-reveal data-delay="2">
+          Chaque intervention par drone réduit mécaniquement l'empreinte sur le chantier : moins de matériel lourd, moins de produits chimiques, moins de risques pour les équipes. Face aux exigences croissantes en matière de RSE et de bilan carbone, Exadrone Enterprise propose une alternative concrète et mesurable.
+        </p>
+        <ul class="eco-list">
+          <li class="reveal" data-reveal data-delay="2">
+            <strong>Zéro échafaudage</strong>
+            <span>Aucune structure temporaire à monter et démonter. Moins de déchets de chantier, moins d'empreinte physique sur le site.</span>
+          </li>
+          <li class="reveal" data-reveal data-delay="3">
+            <strong>Produits réduits au strict nécessaire</strong>
+            <span>Application ciblée par drone, zone par zone. Sans sur-traitement chimique ni ruissellement dans les sols ou les eaux pluviales.</span>
+          </li>
+          <li class="reveal" data-reveal data-delay="4">
+            <strong>Empreinte carbone allégée</strong>
+            <span>Moins de camions, moins de matériel lourd, moins d'émissions. Une logistique réduite à l'essentiel.</span>
+          </li>
+          <li class="reveal" data-reveal data-delay="5">
+            <strong>Sécurité maximale pour les équipes</strong>
+            <span>Aucun opérateur en hauteur, zéro risque de chute. La protection des personnes est intégrée à la méthode, pas ajoutée en option.</span>
+          </li>
+        </ul>
+        <span class="eco-cta reveal" data-reveal data-delay="5">Choisissez une solution qui prend soin de vos bâtiments — et de la planète. <a href="contact.html" data-cursor="link">Nous contacter →</a></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- LE DRONE SUR LE TERRAIN — merges the old "En Intervention" gallery and
+       "Capacités" grid into one GSAP ScrollTrigger horizontal-scroll
+       section, styled after a pinned "flip through titled photos" scrub:
+       the section pins (on every device, not just desktop) and
+       .action-track translates right-to-left as the page scrolls
+       vertically (see script.js "Action cards horizontal scroll") — the
+       page itself holds still while the cards do the moving; once all
+       five have gone by, the pin releases and the scroll carries straight
+       on into "Trust" below. Only under prefers-reduced-motion
+       (or if GSAP fails to load) does it fall back to a plain native-swipe
+       horizontally scrollable row instead — no pin, no JS, just
+       overflow-x + scroll-snap.
+       The section-head lives INSIDE .action-pin (not above it) so the
+       title stays on screen together with the cards the whole time it's
+       pinned — it used to sit outside, scrolling away the moment the pin
+       engaged, which read as "the title disappears and only photos are
+       left". .action-pin is a permanently-sized flex column (title above
+       track, both centered as a group) rather than only being sized this
+       way while actively pinned — sizing it identically before/during/
+       after the pin is what fixes the "first card flickers on entry" bug:
+       that was the box's own height suddenly jumping the instant pinning
+       kicked in (once conditionally applied only while pinned), which is
+       a layout jump, not a scroll/pin timing bug.
+       id="capabilities" is kept (not "gallery") because every other page's
+       nav/footer link to index.html#capabilities — renaming it would
+       break every one of those links. Moved to sit right after
+       Éco-responsabilité (was right after the price estimator) — DOM order
+       only, GSAP's ScrollTrigger.create() measures live layout at init
+       time, so no explicit refresh was needed for the pin math to stay
+       correct in its new position. -->
+  <section class="section action-section" id="capabilities">
+    <div class="action-pin">
+      <div class="section-head action-section-head">
+        <p class="eyebrow reveal" data-reveal>En Intervention</p>
+        <h2 class="section-title reveal" data-reveal data-delay="1">Le drone, sur le terrain.</h2>
+      </div>
+
+      <!-- No .reveal/data-reveal on the track or cards on purpose — this
+           is (part of) the GSAP pin target (see script.js), and the
+           reveal IntersectionObserver would also fire on the individual
+           cards while they're still off to the side of the horizontal
+           track: overflow:hidden on an ancestor doesn't stop a clipped
+           descendant from geometrically intersecting the viewport, so
+           per-card reveals would all fire together the moment the
+           section scrolls into view, before the horizontal scroll ever
+           reveals them. -->
+      <div class="action-track-viewport">
+      <div class="action-track" id="actionTrack">
+        <a href="/blog/nettoyage-facade-par-drone-avantages-cout.html" class="action-card glow-surface" data-cursor="link">
+          <picture>
+            <source type="image/webp" srcset="images/action/action-facade.webp">
+            <img src="images/action/action-facade.jpg" alt="Drone Exadrone en train de nettoyer la façade en pierre d'une maison" loading="lazy" decoding="async">
+          </picture>
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Nettoyage de Façade</h3>
+            <span class="action-card-link">Lire l'article →</span>
+          </div>
+        </a>
+        <a href="/blog/nettoyage-toiture-par-drone-avantages.html" class="action-card glow-surface" data-cursor="link">
+          <picture>
+            <source type="image/webp" srcset="images/action/action-toiture.webp">
+            <img src="images/action/action-toiture.jpg" alt="Drone Exadrone nettoyant une toiture en ardoise couverte de mousse" loading="lazy" decoding="async">
+          </picture>
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Nettoyage de Toiture</h3>
+            <span class="action-card-link">Lire l'article →</span>
+          </div>
+        </a>
+        <a href="/blog/nettoyage-panneaux-solaires-par-drone.html" class="action-card glow-surface" data-cursor="link">
+          <picture>
+            <source type="image/webp" srcset="images/action/action-photovoltaique.webp">
+            <img src="images/action/action-photovoltaique.jpg" alt="Drone Exadrone nettoyant une centrale de panneaux photovoltaïques" loading="lazy" decoding="async">
+          </picture>
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Panneaux Photovoltaïques</h3>
+            <span class="action-card-link">Lire l'article →</span>
+          </div>
+        </a>
+        <a href="/blog/bardage-par-drone.html" class="action-card glow-surface" data-cursor="link">
+          <picture>
+            <source type="image/webp" srcset="images/action/action-bardage.webp">
+            <img src="images/action/action-bardage.jpg" alt="Drone Exadrone nettoyant un bardage métallique sombre" loading="lazy" decoding="async">
+          </picture>
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Bardage &amp; Revêtements</h3>
+            <span class="action-card-link">Lire l'article →</span>
+          </div>
+        </a>
+        <a href="/blog/drone-vs-nacelle-echafaudage-comparatif-couts-securite.html" class="action-card glow-surface" data-cursor="link">
+          <picture>
+            <source type="image/webp" srcset="images/action/action-vitre.webp">
+            <img src="images/action/action-vitre.jpg" alt="Drone Exadrone nettoyant la façade vitrée d'une tour de bureaux" loading="lazy" decoding="async">
+          </picture>
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Vitrages en Hauteur</h3>
+            <span class="action-card-link">Lire l'article →</span>
+          </div>
+        </a>
+      </div>
+      </div>
+      <span class="action-scroll-hint">
+        <span class="sr-only">Faites défiler pour découvrir</span>
+        <span class="action-scroll-arrow" aria-hidden="true">
+          <svg class="action-scroll-chevron" viewBox="0 0 24 14" width="20" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l10 10 10-10"/></svg>
+          <svg class="action-scroll-chevron action-scroll-chevron-2" viewBox="0 0 24 14" width="20" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l10 10 10-10"/></svg>
+        </span>
+      </span>
+    </div>
+  </section>
+
+  <!-- TRUST — label Dronedifice + certifications pilote, mise en avant minimaliste -->
+  <section class="trust-section">
+    <div class="trust-inner">
+      <div class="trust-badge-wrap trust-card">
+        <picture>
+          <source srcset="images/dronedifice-180.webp" type="image/webp">
+          <img src="images/dronedifice-180.png" alt="Label de qualité Dronedifice" class="trust-badge-img" loading="lazy" decoding="async" fetchpriority="low">
+        </picture>
+      </div>
+      <span class="trust-divider" aria-hidden="true"></span>
+      <div class="trust-cert trust-card">
+        <svg class="trust-cert-icon" width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 10-4-2.5-7-5.5-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.4"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div>
+          <span class="trust-cert-name">BAPD</span>
+          <span class="trust-cert-desc">Brevet d'Aptitude au Pilotage de Drone</span>
+        </div>
+      </div>
+      <div class="trust-cert trust-card">
+        <svg class="trust-cert-icon" width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.4"/><path d="M9 12.5l2 2 4-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div>
+          <span class="trust-cert-name">CATS</span>
+          <span class="trust-cert-desc">Certificat d'Aptitude Théorique Spécifique</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTEURS -->
+  <section class="industries">
+    <p class="eyebrow reveal" data-reveal style="text-align:center;">Déployé Dans</p>
+    <div class="industries-rail reveal" data-reveal data-delay="1">
+      <div class="industries-row" id="industriesTrack">
+        <span>Collectivités &amp; Mairies</span>
+        <span>Chantiers BTP</span>
+        <span>Tours Tertiaires</span>
+        <span>Bâtiments Patrimoniaux</span>
+        <span>Plateformes Logistiques</span>
+        <span>Fermes Solaires</span>
+        <!-- Duplicate set, hidden from assistive tech: makes the track exactly
+             2x one full set wide, so animating to translate3d(-50%) always
+             lands pixel-for-pixel back on the start — same seamless-loop
+             technique as #galleryTrack above. -->
+        <span aria-hidden="true">Collectivités &amp; Mairies</span>
+        <span aria-hidden="true">Chantiers BTP</span>
+        <span aria-hidden="true">Tours Tertiaires</span>
+        <span aria-hidden="true">Bâtiments Patrimoniaux</span>
+        <span aria-hidden="true">Plateformes Logistiques</span>
+        <span aria-hidden="true">Fermes Solaires</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA / TEASER CONTACT -->
+  <section class="cta-section" id="contact">
+    <div class="cta-inner">
+      <p class="eyebrow reveal" data-reveal>Contactez-nous</p>
+      <h2 class="cta-title">
+        <span class="reveal reveal-from-left" data-reveal>Prêt à intégrer le drone à vos chantiers.</span><br>
+        <span class="reveal reveal-from-right" data-reveal data-delay="1">Disponible partout en France.</span>
+      </h2>
+      <p class="cta-sub reveal" data-reveal data-delay="2">
+        Parlez-nous de votre site, de votre chantier ou de votre marché. Nous vous répondrons avec un plan de déploiement personnalisé sous deux jours ouvrés.
+      </p>
+      <div class="hero-actions reveal" data-reveal data-delay="3">
+        <a href="contact.html" class="btn btn-primary" data-cursor="link">Demander un devis</a>
+        <a href="mailto:contact@exadrone-enterprise.com" class="btn btn-ghost" data-cursor="link">contact@exadrone-enterprise.com</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="nav-mark static">
+        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+          <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+          <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        </svg>
+        <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+      </span>
+      <p>Systèmes de Nettoyage Aérien de Précision</p>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Explorer</span>
+      <div class="footer-links">
+        <a href="#capabilities">Capacités</a>
+        <a href="#process">Processus</a>
+        <a href="#fleet">Drone</a>
+        <a href="#reliability">Fiabilité</a>
+        <a href="/blog/">Blog</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Secteurs B2B</span>
+      <div class="footer-links">
+        <a href="/collectivites-territoriales.html">Collectivités &amp; mairies</a>
+        <a href="/entreprises-btp.html">Entreprises du BTP</a>
+        <a href="/renovation-facade.html">Rénovation de façade</a>
+        <a href="/marches-publics.html">Marchés publics</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Légal</span>
+      <div class="footer-links">
+        <a href="mentions-legales.html">Mentions légales</a>
+        <a href="cgv.html">CGV</a>
+        <a href="politique-de-confidentialite.html">Confidentialité</a>
+        <a href="politique-de-cookies.html">Cookies</a>
+        <button type="button" class="footer-link-btn" id="cookiePrefsBtn">Préférences cookies</button>
+      </div>
+    </div>
+
+    <div class="footer-meta">
+      <span>contact@exadrone-enterprise.com</span>
+      <span>© 2026 Exadrone Enterprise. Tous droits réservés.</span>
+    </div>
+  </div>
+</footer>
+
+<div class="cookie-banner" id="cookieBanner" role="dialog" aria-live="polite" aria-label="Gestion des cookies">
+  <div class="cookie-banner-inner">
+    <p>
+      Nous utilisons des cookies strictement nécessaires au fonctionnement du site et, si vous l'acceptez,
+      des cookies de mesure d'audience pour améliorer votre expérience.
+      <a href="politique-de-cookies.html">En savoir plus</a>.
+    </p>
+    <div class="cookie-banner-actions">
+      <button type="button" class="btn btn-ghost btn-small" id="cookieReject">Refuser</button>
+      <button type="button" class="btn btn-ghost btn-small" id="cookieCustomize">Personnaliser</button>
+      <button type="button" class="btn btn-primary btn-small" id="cookieAccept">Accepter tout</button>
+    </div>
+  </div>
+</div>
+
+<a class="whatsapp-fab" href="https://wa.me/33770022172" target="_blank" rel="noopener" aria-label="Discuter avec Exadrone Enterprise sur WhatsApp">
+  <span class="whatsapp-fab-tooltip">WhatsApp</span>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.6 6.32A7.85 7.85 0 0 0 12.05 4C7.7 4 4.15 7.53 4.15 11.87c0 1.4.37 2.74 1.07 3.92L4 20l4.32-1.13a7.9 7.9 0 0 0 3.73.94h.01c4.34 0 7.88-3.53 7.88-7.87a7.8 7.8 0 0 0-2.34-5.62Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9.2 9.04c.1-.23.27-.23.43-.23h.37c.12 0 .27 0 .39.3.14.34.47 1.18.51 1.27.04.09.07.2 0 .31-.31.6-.66.86-.66.86s-.13.15-.02.36c.42.78 1.55 2 2.93 2.43.22.07.34.05.46-.08.13-.13.5-.59.64-.79.13-.2.27-.17.45-.1.18.07 1.15.55 1.35.65.2.1.33.15.38.23.05.09.05.5-.13.99-.18.49-1.04.96-1.45 1.02-.37.06-.83.08-1.34-.08a8.4 8.4 0 0 1-3.71-2.57c-1.4-1.5-1.95-2.85-2-3.07-.04-.21-.18-.7.13-1.3.2-.39.4-.55.55-.7Z" fill="currentColor"/>
+  </svg>
+</a>
+
+<!-- GSAP + ScrollTrigger — used for the "Le drone, sur le terrain"
+     horizontal-pin section (see script.js "Action cards horizontal
+     scroll"). Loaded before script.js, still with defer, so
+     window.gsap/ScrollTrigger exist by the time script.js's
+     DOMContentLoaded handler runs (deferred scripts execute in document
+     order). -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+<!-- ScrollToPlugin — drives the hero's direct-service nav row + "Devis
+     instantané" CTA (see script.js "Hero direct navigation"). Same
+     load-order rationale as ScrollTrigger above. -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollToPlugin.min.js" defer></script>
+<!-- Embla + auto-scroll plugin — drives the exa-trust equipment/
+     certifications strip (see script.js "Trust strip auto-scroll").
+     Synchronous (no defer) so window.EmblaCarousel/EmblaCarouselAutoScroll
+     are guaranteed to exist before script.js's deferred DOMContentLoaded
+     handler runs — synchronous scripts always execute during parsing,
+     which completes before any deferred script fires. -->
+<script src="https://cdn.jsdelivr.net/npm/embla-carousel/embla-carousel.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/embla-carousel-auto-scroll/embla-carousel-auto-scroll.umd.js"></script>
+<!-- defer: fetches all in parallel instead of one at a time, then
+     runs them in this same order once parsing finishes. script.js already
+     wraps everything in a DOMContentLoaded listener, so execution timing
+     relative to the rest of the page is unchanged. -->
+<script src="script.js?v=20260733" defer></script>
+<!-- Chat widget: loaded after page is interactive, zero impact on LCP/FID -->
+<script>
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      var s = document.createElement('script')
+      s.src = '/chat-widget.js'
+      s.async = true
+      document.body.appendChild(s)
+    }, 1500)
+  })
+</script>
+</body>
+</html>
