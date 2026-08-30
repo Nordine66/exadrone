@@ -318,7 +318,7 @@
       }
     } catch (err) {
       hideTyping()
-      appendBubble('assistant', 'Désolé, une erreur est survenue. Appelez-nous directement au 07 70 02 21 72 ou écrivez à contact@exadrone-enterprise.com.')
+      appendBubble('assistant', 'Désolé, une erreur est survenue. Appelez-nous directement au 06 71 31 27 06 ou écrivez à contact@exadrone-enterprise.com.')
       console.error('Chat error:', err)
     } finally {
       isTyping = false

@@ -1367,7 +1367,7 @@ document.addEventListener('DOMContentLoaded', () => {
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(10);
           doc.setTextColor(90, 96, 105);
-          ['Exadrone Enterprise', '31 rue du Saint Gothard, 75014 Paris, France', 'contact@exadrone-enterprise.com · 07 70 02 21 72']
+          ['Exadrone Enterprise', '31 rue du Saint Gothard, 75014 Paris, France', 'contact@exadrone-enterprise.com · 06 71 31 27 06']
             .forEach((line) => { doc.text(line, pageWidth / 2, y, { align: 'center' }); y += 5; });
 
           y += 8;
