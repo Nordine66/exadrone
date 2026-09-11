@@ -1237,85 +1237,314 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ---------- Instant quote calculator ---------- */
-  const estimateArea = document.getElementById('estimateArea');
-  const estimateService = document.getElementById('estimateService');
-  const estimateOutput = document.getElementById('estimateOutput');
-  const estimateHT = document.getElementById('estimateHT');
-  const estimateVAT = document.getElementById('estimateVAT');
-  const estimatePdfBtn = document.getElementById('estimatePdfBtn');
-  const estimateClientName = document.getElementById('estimateClientName');
-  const RATE_PER_SQM_HT = 6;
-  const VAT_RATE = 0.20;
+  /* ---------- Instant quote flow (3 steps: prestation → surface →
+     coordonnées) ----------
+     State lives in this closure, not the DOM — the masked preview in step
+     3 never gets real HT/TVA/TTC numbers written into it; those only
+     exist after requestQuote() resolves. requestQuote() is a single,
+     isolated call site (mocked with the shared pricing.calculateQuote()
+     for now) so swapping in the real POST /api/quote later is a one-
+     function change. */
+  (function initDevisFlow() {
+    const section = document.getElementById('estimate');
+    const pricing = window.ExadronePricing;
+    if (!section || !pricing) return;
 
-  if (estimateArea && estimateOutput) {
-    const fmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
-    let displayedTTC = 0;
-    let targetHT = 0, targetVAT = 0, targetTTC = 0;
-    let animating = false;
+    const stepsList = document.getElementById('devisSteps');
+    const panels = Array.from(section.querySelectorAll('.devis-panel'));
+    const servicesWrap = document.getElementById('devisServices');
+    const surfaceInput = document.getElementById('devisSurface');
+    const surfaceServiceEl = document.getElementById('devisSurfaceService');
+    const surfaceUnitPriceEl = document.getElementById('devisSurfaceUnitPrice');
+    const surfaceContinueBtn = document.getElementById('devisSurfaceContinue');
+    const quotePreview = document.getElementById('devisQuotePreview');
+    const form = document.getElementById('devisForm');
+    const formError = document.getElementById('devisFormError');
+    const renderedAtInput = document.getElementById('devisRenderedAt');
+    const submitBtn = document.getElementById('devisSubmitBtn');
+    const resultEl = document.getElementById('devisResult');
+    if (!stepsList || !servicesWrap || !surfaceInput || !form || !resultEl) return;
 
-    // Auto-shrink-to-fit for the big TTC figure — a fixed clamp() alone
-    // can't guarantee it always fits: the formatted price (thousand
-    // separator included) is one unbreakable string, so on a large surface
-    // typed into a narrow phone the row can't wrap or shrink it on its
-    // own, and it was overflowing right past the card's edge (clipped by
-    // .estimate-card's overflow:hidden — invisible, not just tight).
-    // Resets to the CSS clamp() size first, then steps the font down in
-    // 1px increments only if it's still wider than the space actually
-    // left next to the "Prix TTC" label, so normal-sized totals keep
-    // their full designed size untouched.
-    const fitEstimateOutput = () => {
-      const row = estimateOutput.closest('.estimate-breakdown-total');
-      const label = row && row.querySelector('span:first-child');
-      if (!row || !label) return;
-      estimateOutput.style.fontSize = '';
-      const available = row.clientWidth - label.getBoundingClientRect().width - 16;
-      let size = parseFloat(getComputedStyle(estimateOutput).fontSize);
-      let guard = 0;
-      while (estimateOutput.scrollWidth > available && size > 15 && guard < 40) {
-        size -= 1;
-        estimateOutput.style.fontSize = `${size}px`;
-        guard++;
+    const fmtEur = (n) => pricing.formatCurrency(n);
+    const fmtRate = (n) => `${n.toFixed(2).replace('.', ',')} €`;
+    const fmtSurfaceNum = (n) => new Intl.NumberFormat('fr-FR').format(n);
+    const escapeHtml = (str) => String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    const state = { step: 1, serviceId: null, surface: null, contact: { email: '', phone: '' } };
+
+    /* ---- Step 1: service cards, generated from lib/pricing.js ---- */
+    const cheapest = pricing.getCheapestService();
+    servicesWrap.innerHTML = pricing.config.services.map((s) => `
+      <button type="button" class="devis-service" role="radio" aria-checked="false" data-service="${s.id}">
+        ${s.id === cheapest.id ? '<span class="devis-service__badge">Meilleur prix</span>' : ''}
+        <span class="devis-service__label">${escapeHtml(s.label)}</span>
+        <span class="devis-service__detail">${escapeHtml(s.detail)}</span>
+        <span class="devis-service__price"><strong>${fmtRate(s.priceHT)}</strong> HT/m²</span>
+      </button>
+    `).join('');
+    servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
+      btn.addEventListener('click', () => selectService(btn.dataset.service));
+    });
+
+    function selectService(id) {
+      state.serviceId = id;
+      servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
+        const active = btn.dataset.service === id;
+        btn.classList.toggle('is-selected', active);
+        btn.setAttribute('aria-checked', String(active));
+      });
+      goToStep(2);
+    }
+
+    /* ---- Step 2: surface ---- */
+    function updateSurfaceRateDisplay() {
+      const service = pricing.getService(state.serviceId);
+      if (!service) return;
+      surfaceServiceEl.textContent = service.label;
+      surfaceUnitPriceEl.textContent = `${fmtRate(service.priceHT)} HT/m²`;
+    }
+    function validateSurface() {
+      const parsed = pricing.parseSurface(surfaceInput.value);
+      const valid = parsed !== null && pricing.isValidSurface(parsed);
+      surfaceContinueBtn.disabled = !valid;
+      if (valid) state.surface = parsed;
+      return valid;
+    }
+    surfaceInput.addEventListener('input', validateSurface);
+    section.querySelectorAll('.devis-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        surfaceInput.value = chip.dataset.value;
+        validateSurface();
+        surfaceInput.focus();
+      });
+    });
+    surfaceContinueBtn.addEventListener('click', () => { if (validateSurface()) goToStep(3); });
+
+    /* ---- Step 3: gated preview — labels only, amounts stay masked ---- */
+    function renderMaskedPreview() {
+      const service = pricing.getService(state.serviceId);
+      if (!service || state.surface === null) return;
+      quotePreview.innerHTML = `
+        <div class="devis-quote-row"><span>Prestation</span><span>${escapeHtml(service.label)}</span></div>
+        <div class="devis-quote-row"><span>Surface</span><span>${fmtSurfaceNum(state.surface)}&nbsp;m²</span></div>
+        <div class="devis-quote-row"><span>Prix unitaire</span><span>${fmtRate(service.priceHT)}&nbsp;HT/m²</span></div>
+        <div class="devis-quote-row"><span>Total HT</span><span class="devis-mask">••••&nbsp;€</span></div>
+        <div class="devis-quote-row"><span>TVA 20&nbsp;%</span><span class="devis-mask">••••&nbsp;€</span></div>
+        <div class="devis-quote-row devis-quote-row--total"><span>Total TTC</span><span class="devis-mask">••••&nbsp;€</span></div>
+        <div class="devis-quote-lock">🔒 Votre devis est prêt — renseignez vos coordonnées pour le recevoir.</div>
+      `;
+    }
+
+    /* ---- Step navigation — earlier steps stay clickable to go back ---- */
+    function goToStep(n) {
+      state.step = n;
+      panels.forEach((p) => { p.hidden = Number(p.dataset.panel) !== n; });
+      stepsList.querySelectorAll('.devis-step').forEach((li) => {
+        const num = Number(li.dataset.step);
+        li.classList.toggle('is-active', num === n);
+        li.classList.toggle('is-done', num < n);
+        li.querySelector('.devis-step__btn').disabled = num >= n;
+      });
+      if (n === 2) updateSurfaceRateDisplay();
+      if (n === 3) { renderedAtInput.value = String(Date.now()); renderMaskedPreview(); }
+    }
+    stepsList.querySelectorAll('.devis-step__btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = Number(btn.dataset.goto);
+        if (target < state.step) goToStep(target);
+      });
+    });
+    section.querySelectorAll('[data-back]').forEach((btn) => {
+      btn.addEventListener('click', () => goToStep(Number(btn.dataset.back)));
+    });
+
+    /* ---- Step 3: contact form validation ---- */
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Accepts "06 12 34 56 78", "0612345678", "+33 6 12 34 56 78" — a
+    // leading 0 or +33 then a 9-digit French number, optional separators.
+    const PHONE_RE = /^(?:\+33|0)\s*[1-9](?:[\s.-]?\d{2}){4}$/;
+    const normalizePhone = (raw) => {
+      const digits = raw.trim().replace(/[^\d+]/g, '');
+      if (digits.startsWith('+33')) return digits;
+      if (digits.startsWith('0')) return `+33${digits.slice(1)}`;
+      return digits;
+    };
+    const setFormError = (msg) => {
+      formError.hidden = !msg;
+      formError.textContent = msg || '';
+    };
+    function validateContactForm(data) {
+      if (!data.name.trim()) return { msg: "Merci d'indiquer votre nom et prénom.", field: 'name' };
+      if (!data.email.trim() && !data.phone.trim()) return { msg: "Merci d'indiquer un e-mail ou un numéro de téléphone.", field: 'email' };
+      if (data.email.trim() && !EMAIL_RE.test(data.email.trim())) return { msg: 'Adresse e-mail invalide.', field: 'email' };
+      if (data.phone.trim() && !PHONE_RE.test(data.phone.trim())) return { msg: 'Numéro de téléphone invalide (format français attendu).', field: 'phone' };
+      if (!data.consent) return { msg: "Merci d'accepter l'utilisation de vos données pour continuer.", field: 'consent' };
+      return null;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = {
+        name: form.name.value,
+        company: form.company.value,
+        email: form.email.value,
+        phone: form.phone.value,
+        postalCode: form.postalCode.value,
+        consent: form.consent.checked,
+        honeypot: form.website.value,
+        renderedAt: renderedAtInput.value
+      };
+
+      ['name', 'email', 'phone'].forEach((f) => form[f].removeAttribute('aria-invalid'));
+      const invalid = validateContactForm(data);
+      if (invalid) {
+        setFormError(invalid.msg);
+        if (invalid.field === 'email') { form.email.setAttribute('aria-invalid', 'true'); form.phone.setAttribute('aria-invalid', 'true'); }
+        else if (form[invalid.field]) form[invalid.field].setAttribute('aria-invalid', 'true');
+        return;
       }
-    };
+      setFormError(null);
 
-    // Only the big TTC figure gets the lerp-in animation (matches the
-    // original single-number treatment) — HT/TVA are secondary line items,
-    // updated in lockstep with it on every input so nothing ever looks stale.
-    const renderOutput = () => {
-      displayedTTC += (targetTTC - displayedTTC) * 0.18;
-      if (Math.abs(targetTTC - displayedTTC) < 1) displayedTTC = targetTTC;
-      estimateOutput.innerHTML = `${fmt.format(Math.round(displayedTTC))}&nbsp;€`;
-      fitEstimateOutput();
-      if (displayedTTC !== targetTTC) {
-        requestAnimationFrame(renderOutput);
-      } else {
-        animating = false;
+      const normalizedPhone = data.phone.trim() ? normalizePhone(data.phone) : '';
+      state.contact = { email: data.email.trim(), phone: normalizedPhone };
+
+      const originalLabel = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Génération du devis…';
+
+      try {
+        const payload = {
+          serviceId: state.serviceId,
+          surface: state.surface,
+          name: data.name.trim(),
+          company: data.company.trim(),
+          email: data.email.trim(),
+          phone: normalizedPhone,
+          postalCode: data.postalCode.trim(),
+          consent: data.consent,
+          honeypot: data.honeypot,
+          renderedAt: data.renderedAt
+        };
+        const response = await requestQuote(payload);
+        if (!response.ok) throw new Error(response.error || 'quote_failed');
+        renderResult(response);
+      } catch (err) {
+        console.error('Quote request failed:', err);
+        setFormError('Une erreur est survenue — merci de réessayer ou de nous contacter directement.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel;
       }
-    };
+    });
 
-    const updateEstimate = () => {
-      const area = Math.max(0, parseFloat(estimateArea.value) || 0);
-      targetHT = area * RATE_PER_SQM_HT;
-      targetVAT = targetHT * VAT_RATE;
-      targetTTC = targetHT + targetVAT;
-      if (estimateHT) estimateHT.innerHTML = `${fmt.format(Math.round(targetHT))}&nbsp;€`;
-      if (estimateVAT) estimateVAT.innerHTML = `${fmt.format(Math.round(targetVAT))}&nbsp;€`;
-      if (!animating) { animating = true; requestAnimationFrame(renderOutput); }
-    };
+    /* ---- requestQuote(): isolated call site, mocked for now ----
+       Uses the same shared pricing.calculateQuote() the real /api/quote
+       endpoint will use server-side, so the mocked numbers already match
+       what the real endpoint returns. Swap the body for
+       fetch('/api/quote', {method:'POST', body: JSON.stringify(payload)})
+       in the next task — same signature, same return shape. */
+    function requestQuote(payload) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const q = pricing.calculateQuote(payload.serviceId, payload.surface);
+          if (!q.ok) { resolve({ ok: false, error: 'invalid' }); return; }
+          const now = new Date();
+          const validUntil = new Date(now.getTime() + pricing.config.quoteValidityDays * 24 * 60 * 60 * 1000);
+          const number = `EXA-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+          resolve({
+            ok: true,
+            quote: {
+              number,
+              date: now.toISOString(),
+              validUntil: validUntil.toISOString(),
+              serviceLabel: q.serviceLabel,
+              surface: q.surface,
+              unitPriceHT: q.unitPriceHT,
+              totalHT: q.totalHT,
+              vat: q.vat,
+              totalTTC: q.totalTTC,
+              minimumApplied: q.minimumApplied
+            },
+            emailSent: !!payload.email
+          });
+        }, 900);
+      });
+    }
 
-    estimateArea.addEventListener('input', updateEstimate);
-    estimateService?.addEventListener('change', updateEstimate);
-    // Available width next to the label changes with orientation/resize —
-    // re-fit (never re-animate) so a phone rotated mid-session doesn't get
-    // stuck with a stale font size sized for the old width.
-    window.addEventListener('resize', fitEstimateOutput, { passive: true });
+    /* ---- Unlocked quote ---- */
+    function renderResult(response) {
+      const q = response.quote;
+      form.hidden = true;
+      quotePreview.hidden = true;
+      const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+      const statusHtml = response.emailSent
+        ? `✅ Devis envoyé à <strong>${escapeHtml(state.contact.email)}</strong> — pensez à vérifier vos spams.`
+        : `✅ Votre devis est prêt. Un conseiller vous rappelle au <strong>${escapeHtml(state.contact.phone)}</strong> sous 24&nbsp;h ouvrées.`;
+      const waText = encodeURIComponent(`Bonjour, je viens de recevoir mon devis ${q.number}.`);
 
-    /* ---------- PDF quote (jsPDF, loaded lazily) ----------
-       The library is only fetched on the visitor's first click of
-       "Télécharger le PDF" — nobody pays for it on page load, and most
-       visitors never click it at all. Same lazy-injection pattern as the
-       chat widget below, just gated on a click instead of window load. */
+      resultEl.innerHTML = `
+        <div class="devis-result-card" id="devisResultCard">
+          <p class="devis-result-meta">Devis n° <strong>${q.number}</strong> · ${dateFmt.format(new Date(q.date))} · valable <strong>${pricing.config.quoteValidityDays}&nbsp;jours</strong></p>
+          <div class="devis-result-rows">
+            <div class="devis-result-row"><span>Prestation</span><strong>${escapeHtml(q.serviceLabel)}</strong></div>
+            <div class="devis-result-row"><span>Surface</span><strong>${fmtSurfaceNum(q.surface)}&nbsp;m²</strong></div>
+            <div class="devis-result-row"><span>Prix unitaire</span><strong>${fmtRate(q.unitPriceHT)}&nbsp;HT/m²</strong></div>
+          </div>
+          <div class="devis-result-total">
+            <span>Total HT</span>
+            <strong>${fmtEur(q.totalHT)}</strong>
+          </div>
+          <div class="devis-result-rows">
+            <div class="devis-result-row"><span>TVA 20&nbsp;%</span><span>${fmtEur(q.vat)}</span></div>
+            <div class="devis-result-row devis-result-row--ttc"><span>Total TTC</span><strong>${fmtEur(q.totalTTC)}</strong></div>
+          </div>
+          ${q.minimumApplied ? `<p class="devis-result-note">Forfait minimum d'intervention appliqué : <strong>${fmtEur(pricing.config.minimumOrderHT)}</strong></p>` : ''}
+          <p class="devis-result-included">Inclus : intervention par télépilote certifié, rapport photo avant/après.</p>
+          <p class="devis-result-status">${statusHtml}</p>
+          <div class="devis-result-actions">
+            <button type="button" class="btn btn-primary" id="devisDownloadPdf">Télécharger le PDF</button>
+            <a class="btn btn-ghost" href="tel:+33671312706">Appeler le 06&nbsp;71&nbsp;31&nbsp;27&nbsp;06</a>
+            <a class="btn btn-ghost" href="https://wa.me/33671312706?text=${waText}" target="_blank" rel="noopener">WhatsApp</a>
+            <button type="button" class="devis-btn-secondary" id="devisReset">Nouveau devis</button>
+          </div>
+          <p class="devis-result-fineprint">Estimation établie sur la surface déclarée. Montant confirmé après validation technique du site.</p>
+        </div>
+      `;
+      resultEl.hidden = false;
+
+      document.getElementById('devisReset').addEventListener('click', resetFlow);
+      document.getElementById('devisDownloadPdf').addEventListener('click', () => downloadQuotePdf(q));
+
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const card = document.getElementById('devisResultCard');
+      if (prefersReducedMotion) card.classList.add('is-visible');
+      else requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('is-visible')));
+
+      stepsList.querySelectorAll('.devis-step').forEach((li) => {
+        li.classList.add('is-done');
+        li.classList.remove('is-active');
+      });
+    }
+
+    function resetFlow() {
+      state.step = 1; state.serviceId = null; state.surface = null; state.contact = { email: '', phone: '' };
+      surfaceInput.value = '';
+      surfaceContinueBtn.disabled = true;
+      form.reset();
+      form.hidden = false;
+      quotePreview.hidden = false;
+      setFormError(null);
+      resultEl.hidden = true;
+      resultEl.innerHTML = '';
+      servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
+        btn.classList.remove('is-selected');
+        btn.setAttribute('aria-checked', 'false');
+      });
+      goToStep(1);
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ---- PDF (jsPDF, loaded lazily on first click — same pattern the old
+       single-field estimator used, rebuilt for the new quote fields). ---- */
     let jsPdfLoadPromise = null;
     const loadJsPdf = () => {
       if (window.jspdf?.jsPDF) return Promise.resolve();
@@ -1330,167 +1559,157 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return jsPdfLoadPromise;
     };
-
     let cachedLogoDataUrl = null;
     const loadLogoDataUrl = () => {
       if (cachedLogoDataUrl) return Promise.resolve(cachedLogoDataUrl);
       return fetch('/images/pdf/logo-pdf.png')
-        .then(r => r.blob())
-        .then(blob => new Promise((resolve, reject) => {
+        .then((r) => r.blob())
+        .then((blob) => new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => { cachedLogoDataUrl = reader.result; resolve(cachedLogoDataUrl); };
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         }))
-        .catch(() => null); // missing logo shouldn't block the quote itself
+        .catch(() => null);
     };
 
-    const slugifyForFilename = (str) => {
-      const cleaned = (str || '')
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')
-        .replace(/[^a-zA-Z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '');
-      return cleaned || 'Client';
-    };
+    async function downloadQuotePdf(q) {
+      const btn = document.getElementById('devisDownloadPdf');
+      const originalLabel = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Génération…';
+      try {
+        await loadJsPdf();
+        const { jsPDF } = window.jspdf;
+        const logoDataUrl = await loadLogoDataUrl();
+        const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+        // jsPDF's standard fonts only cover WinAnsi — Intl.NumberFormat('fr-FR')
+        // groups thousands with a narrow no-break space (U+202F), not in that
+        // encoding, which renders as a stray "/" glyph. Swapped for a plain
+        // space here only (the on-page display is HTML and renders it fine).
+        const pdfSafe = (str) => str.replace(/[  ]/g, ' ');
+        const fmtNum = (n) => pdfSafe(new Intl.NumberFormat('fr-FR').format(n));
+        const fmtMoney = (n) => pdfSafe(`${new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)} €`);
 
-    if (estimatePdfBtn) {
-      estimatePdfBtn.addEventListener('click', async () => {
-        const area = Math.max(0, parseFloat(estimateArea.value) || 0);
-        if (area <= 0) { estimateArea.focus(); return; }
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const marginX = 20;
+        let y = 20;
 
-        const originalLabel = estimatePdfBtn.textContent;
-        estimatePdfBtn.disabled = true;
-        estimatePdfBtn.textContent = 'Génération…';
+        if (logoDataUrl) {
+          const logoW = 40, logoH = logoW * (270 / 480);
+          doc.addImage(logoDataUrl, 'PNG', (pageWidth - logoW) / 2, y, logoW, logoH);
+          y += logoH + 8;
+        }
 
-        try {
-          await loadJsPdf();
-          const { jsPDF } = window.jspdf;
-          const logoDataUrl = await loadLogoDataUrl();
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(20, 22, 27);
+        doc.text('Devis — Exadrone Enterprise', pageWidth / 2, y, { align: 'center' });
 
-          const service = estimateService ? estimateService.value : 'Nettoyage par drone';
-          const ht = area * RATE_PER_SQM_HT;
-          const vat = ht * VAT_RATE;
-          const ttc = ht + vat;
-          const clientName = (estimateClientName?.value || '').trim();
-          const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
-          const dateStr = dateFmt.format(new Date());
-          const validUntil = dateFmt.format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-          // jsPDF's standard fonts only cover WinAnsi — Intl.NumberFormat('fr-FR')
-          // groups thousands with a narrow no-break space (U+202F), which isn't in
-          // that encoding and renders as a stray "/" glyph. Swap it for a plain
-          // space so the PDF (this function only — the on-page display is HTML
-          // and renders U+202F correctly) shows "4 000" instead of "4/000".
-          const pdfSafe = (str) => str.replace(/[  ]/g, ' ');
-          const fmtArea = (n) => pdfSafe(new Intl.NumberFormat('fr-FR').format(n));
-          const fmt2 = (n) => pdfSafe(`${new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)} €`);
+        y += 7;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(90, 96, 105);
+        doc.text(`N° ${q.number}`, pageWidth / 2, y, { align: 'center' });
 
-          const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-          const pageWidth = doc.internal.pageSize.getWidth();
-          const marginX = 20;
-          let y = 20;
+        y += 7;
+        ['Exadrone Enterprise', '31 rue du Saint Gothard, 75014 Paris, France', 'contact@exadrone-enterprise.com · 06 71 31 27 06']
+          .forEach((line) => { doc.text(line, pageWidth / 2, y, { align: 'center' }); y += 5; });
 
-          if (logoDataUrl) {
-            const logoW = 40, logoH = logoW * (270 / 480);
-            doc.addImage(logoDataUrl, 'PNG', (pageWidth - logoW) / 2, y, logoW, logoH);
-            y += logoH + 8;
-          }
+        y += 8;
+        doc.setDrawColor(220, 222, 227);
+        doc.line(marginX, y, pageWidth - marginX, y);
+        y += 12;
 
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(20, 22, 27);
+        doc.text('Détails du devis', marginX, y);
+        y += 9;
+
+        const rows = [
+          ['Date', dateFmt.format(new Date(q.date))],
+          ['Validité', `30 jours (jusqu'au ${dateFmt.format(new Date(q.validUntil))})`],
+          ['Service', q.serviceLabel],
+          ['Surface', `${fmtNum(q.surface)} m²`],
+          ['Prix unitaire', `${q.unitPriceHT.toFixed(2).replace('.', ',')} € HT / m²`]
+        ];
+        doc.setFontSize(10.5);
+        rows.forEach(([label, value]) => {
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(18);
-          doc.setTextColor(20, 22, 27);
-          doc.text('Devis — Exadrone Enterprise', pageWidth / 2, y, { align: 'center' });
-
-          y += 9;
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(10);
-          doc.setTextColor(90, 96, 105);
-          ['Exadrone Enterprise', '31 rue du Saint Gothard, 75014 Paris, France', 'contact@exadrone-enterprise.com · 06 71 31 27 06']
-            .forEach((line) => { doc.text(line, pageWidth / 2, y, { align: 'center' }); y += 5; });
-
-          y += 8;
-          doc.setDrawColor(220, 222, 227);
-          doc.line(marginX, y, pageWidth - marginX, y);
-          y += 12;
-
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(11);
-          doc.setTextColor(20, 22, 27);
-          doc.text('Détails du devis', marginX, y);
-          y += 9;
-
-          const rows = [
-            ['Date', dateStr],
-            ...(clientName ? [['Client', clientName]] : []),
-            ['Service', service],
-            ['Surface', `${fmtArea(area)} m²`],
-            ['Prix unitaire', `${RATE_PER_SQM_HT.toFixed(2)} € HT / m²`]
-          ];
-          doc.setFontSize(10.5);
-          rows.forEach(([label, value]) => {
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(60, 64, 70);
-            doc.text(`${label} :`, marginX, y);
-            doc.setFont('helvetica', 'normal');
-            doc.text(String(value), marginX + 45, y);
-            y += 7;
-          });
-
-          y += 5;
-          doc.setDrawColor(220, 222, 227);
-          doc.line(marginX, y, pageWidth - marginX, y);
-          y += 12;
-
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(11);
           doc.setTextColor(60, 64, 70);
-          doc.text('Prix Hors Taxe (HT)', marginX, y);
-          doc.text(fmt2(ht), pageWidth - marginX, y, { align: 'right' });
-          y += 8;
-          doc.text('TVA 20%', marginX, y);
-          doc.text(fmt2(vat), pageWidth - marginX, y, { align: 'right' });
-          y += 10;
+          doc.text(`${label} :`, marginX, y);
+          doc.setFont('helvetica', 'normal');
+          doc.text(String(value), marginX + 45, y);
+          y += 7;
+        });
 
-          doc.setDrawColor(31, 111, 235);
-          doc.setLineWidth(0.6);
-          doc.line(marginX, y - 5, pageWidth - marginX, y - 5);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(14);
-          doc.setTextColor(31, 111, 235);
-          doc.text('PRIX TTC', marginX, y + 2);
-          doc.text(fmt2(ttc), pageWidth - marginX, y + 2, { align: 'right' });
-          doc.setLineWidth(0.2);
+        y += 5;
+        doc.setDrawColor(220, 222, 227);
+        doc.line(marginX, y, pageWidth - marginX, y);
+        y += 12;
 
-          y += 20;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        doc.setTextColor(60, 64, 70);
+        doc.text('Prix Hors Taxe (HT)', marginX, y);
+        doc.text(fmtMoney(q.totalHT), pageWidth - marginX, y, { align: 'right' });
+        y += 8;
+        doc.text('TVA 20%', marginX, y);
+        doc.text(fmtMoney(q.vat), pageWidth - marginX, y, { align: 'right' });
+        y += 10;
+
+        doc.setDrawColor(31, 111, 235);
+        doc.setLineWidth(0.6);
+        doc.line(marginX, y - 5, pageWidth - marginX, y - 5);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(31, 111, 235);
+        doc.text('PRIX TTC', marginX, y + 2);
+        doc.text(fmtMoney(q.totalTTC), pageWidth - marginX, y + 2, { align: 'right' });
+        doc.setLineWidth(0.2);
+        y += 14;
+
+        if (q.minimumApplied) {
           doc.setFont('helvetica', 'italic');
           doc.setFontSize(9);
-          doc.setTextColor(120, 126, 134);
-          doc.text(`Devis valable 30 jours, jusqu'au ${validUntil}. Tarif indicatif — devis ferme après étude du site.`, marginX, y, { maxWidth: pageWidth - marginX * 2 });
-
-          y += 22;
-          doc.setDrawColor(220, 222, 227);
-          doc.line(marginX, y, marginX + 60, y);
-          y += 6;
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(10);
-          doc.setTextColor(60, 64, 70);
-          doc.text('Responsable : Chloé', marginX, y);
-          y += 5;
-          doc.setFontSize(9);
-          doc.setTextColor(120, 126, 134);
-          doc.text('Exadrone Enterprise', marginX, y);
-
-          const filename = `Devis_Exadrone_${slugifyForFilename(clientName)}_${new Date().toISOString().slice(0, 10)}.pdf`;
-          doc.save(filename);
-        } catch (err) {
-          console.error('PDF generation failed:', err);
-          alert('La génération du PDF a échoué — réessayez ou contactez-nous directement.');
-        } finally {
-          estimatePdfBtn.disabled = false;
-          estimatePdfBtn.textContent = originalLabel;
+          doc.setTextColor(90, 96, 105);
+          doc.text(`Forfait minimum d'intervention appliqué : ${fmtMoney(pricing.config.minimumOrderHT)}.`, marginX, y, { maxWidth: pageWidth - marginX * 2 });
+          y += 8;
         }
-      });
+
+        y += 8;
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(9);
+        doc.setTextColor(120, 126, 134);
+        doc.text(`Devis valable 30 jours, jusqu'au ${dateFmt.format(new Date(q.validUntil))}. Estimation établie sur la surface déclarée — montant confirmé après validation technique du site.`, marginX, y, { maxWidth: pageWidth - marginX * 2 });
+
+        y += 22;
+        doc.setDrawColor(220, 222, 227);
+        doc.line(marginX, y, marginX + 60, y);
+        y += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(60, 64, 70);
+        doc.text('Responsable : Chloé', marginX, y);
+        y += 5;
+        doc.setFontSize(9);
+        doc.setTextColor(120, 126, 134);
+        doc.text('Exadrone Enterprise', marginX, y);
+
+        doc.save(`Devis_Exadrone_${q.number}.pdf`);
+      } catch (err) {
+        console.error('PDF generation failed:', err);
+        alert('La génération du PDF a échoué — réessayez ou contactez-nous directement.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      }
     }
-  }
+
+    goToStep(1);
+  })();
 
   /* ---------- Fiabilité accordions ----------
      Single property animates (grid-template-rows, in styles.css) — no

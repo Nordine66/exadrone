@@ -2518,29 +2518,95 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  display: grid;
-  /* minmax(0, 1fr), not a bare 1fr — a bare 1fr track's automatic minimum
-     is its content's min-content size, so it refuses to shrink below
-     that and instead grows the whole grid past the card's own edge the
-     moment any child holds an unbreakable string wider than the column
-     (exactly what the big TTC price is: one nbsp-joined run). That's how
-     the price was overflowing past the visible card, clipped invisible
-     by overflow:hidden above, on narrow phones. minmax(0, …) lets the
-     track actually shrink to the space available. */
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: clamp(28px, 5vw, 56px);
   background: var(--slate-glass);
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--line);
   color: var(--paper);
   border-radius: 20px;
-  padding: clamp(32px, 5vw, 64px);
+  padding: clamp(28px, 5vw, 56px);
   box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 24px 48px -24px rgba(0,0,0,0.55);
 }
-.estimate-input-group { display: flex; flex-direction: column; gap: 14px; }
-.estimate-input-group label {
+
+/* ---------- Step progress indicator ---------- */
+.devis-steps {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 clamp(28px, 4vw, 44px);
+}
+.devis-step { display: flex; align-items: center; flex: 1 1 0; min-width: 0; }
+.devis-step:not(:last-child)::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+  margin: 0 10px;
+  transition: background-color .3s;
+}
+.devis-step.is-done:not(:last-child)::after { background: var(--cro-blue); }
+.devis-step__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  min-width: 0;
+}
+.devis-step__btn:not(:disabled):hover .devis-step__num { box-shadow: 0 0 0 4px var(--signal-soft); }
+.devis-step__btn:disabled { cursor: default; }
+.devis-step__num {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--steel);
+  background: var(--slate);
+  transition: background-color .25s, border-color .25s, color .25s, box-shadow .25s;
+}
+.devis-step__label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--steel);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.devis-step.is-active .devis-step__num,
+.devis-step.is-done .devis-step__num { background: var(--cro-blue); border-color: var(--cro-blue); color: #fff; }
+.devis-step.is-active .devis-step__label { color: var(--paper); }
+@media (prefers-reduced-motion: reduce) {
+  .devis-step:not(:last-child)::after, .devis-step__num { transition: none; }
+}
+
+.devis-panel-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 28px; }
+.devis-btn-secondary {
+  background: none;
+  border: none;
+  padding: 12px 4px;
+  color: var(--steel);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color .2s;
+}
+.devis-btn-secondary:hover, .devis-btn-secondary:focus-visible { color: var(--paper); }
+.devis-label {
+  display: block;
+  margin-bottom: 12px;
   font-family: var(--font-mono);
   font-weight: 600;
   font-size: 0.78rem;
@@ -2548,7 +2614,56 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   text-transform: uppercase;
   color: var(--steel);
 }
-.estimate-input-wrap {
+.devis-helper { margin-top: 10px; font-size: 0.82rem; color: var(--steel-dark); }
+
+/* ---------- Step 1: service cards ---------- */
+.devis-services { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.devis-service {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  padding: 22px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--slate);
+  color: var(--paper);
+  cursor: pointer;
+  transition: border-color .25s, box-shadow .25s, transform .25s var(--ease);
+}
+.devis-service:hover { transform: translateY(-2px); border-color: var(--cro-blue); }
+.devis-service:focus-visible { outline: 2px solid var(--cro-blue); outline-offset: 2px; }
+.devis-service.is-selected {
+  border-color: var(--cro-blue);
+  box-shadow: 0 0 0 3px var(--signal-soft), 0 16px 32px -16px rgba(0, 102, 204, 0.4);
+}
+@media (prefers-reduced-motion: reduce) {
+  .devis-service { transition: border-color .25s, box-shadow .25s; }
+  .devis-service:hover { transform: none; }
+}
+.devis-service__badge {
+  position: absolute;
+  top: -10px;
+  right: 16px;
+  background: var(--cro-blue);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 100px;
+}
+.devis-service__label { font-weight: 700; font-size: 1.02rem; }
+.devis-service__detail { color: var(--steel); font-size: 0.85rem; line-height: 1.4; }
+.devis-service__price { margin-top: auto; padding-top: 10px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--steel); }
+.devis-service__price strong { color: var(--cro-blue); font-size: 1.05rem; }
+
+/* ---------- Step 2: surface ---------- */
+.devis-surface-input {
   display: flex;
   align-items: baseline;
   gap: 10px;
@@ -2556,128 +2671,183 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   padding-bottom: 14px;
   transition: border-color .25s, box-shadow .25s;
 }
-/* Underline-style field (no box), so the "glow ring" is a soft shadow cast
-   under the baseline rather than a ring around the whole control. */
-.estimate-input-wrap:focus-within { border-color: var(--signal); box-shadow: 0 4px 16px -4px var(--signal-soft); }
+.devis-surface-input:focus-within { border-color: var(--signal); box-shadow: 0 4px 16px -4px var(--signal-soft); }
 @media (prefers-reduced-motion: reduce) {
-  .estimate-input-wrap { transition: border-color .25s; }
+  .devis-surface-input { transition: border-color .25s; }
 }
-.estimate-input-wrap input {
+.devis-surface-input input {
   background: none;
   border: none;
   outline: none;
   color: var(--cro-blue);
   font-family: var(--font-display);
-  font-weight: 100; /* ultralight — Apple numeral treatment */
+  font-weight: 100;
   font-size: clamp(2.2rem, 5vw, 3.2rem);
   width: 100%;
   min-width: 0;
 }
-.estimate-input-wrap input::placeholder {
-  color: var(--steel-dark);
-  /* The placeholder is now a full prompt sentence, not a numeral — give it
-     its own modest size/weight so it fits cleanly; the big ultralight
-     numeral treatment above only ever applies to the typed value. */
-  font-size: 1rem;
-  font-weight: 400;
-  letter-spacing: normal;
-}
-.estimate-input-wrap input[type="number"]::-webkit-outer-spin-button,
-.estimate-input-wrap input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.estimate-input-wrap input[type="number"] { -moz-appearance: textfield; }
-.estimate-unit { font-family: var(--font-mono); font-weight: 600; color: var(--steel); font-size: 1.1rem; }
-.estimate-rate { font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; color: var(--signal); letter-spacing: 0.04em; }
-
-/* Service dropdown — underline style to match .estimate-input-wrap rather
-   than the boxed .cta-form select, since this card uses its own minimal
-   "label above, thin rule below" language throughout. */
-.estimate-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M6 9l6 6 6-6' stroke='%234c525c' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right center/14px;
-  border: none;
-  border-bottom: 1px solid var(--line);
-  padding: 10px 24px 10px 0;
-  color: var(--paper);
-  font-family: var(--font-body);
-  font-size: 1rem;
-  cursor: pointer;
-  transition: border-color .25s, box-shadow .25s;
-}
-.estimate-select:focus { outline: none; border-color: var(--signal); box-shadow: 0 4px 16px -4px var(--signal-soft); }
-@media (prefers-reduced-motion: reduce) {
-  .estimate-select { transition: border-color .25s; }
-}
-
-.estimate-divider { width: 1px; align-self: stretch; background: var(--line); }
-
-.estimate-output-group { display: flex; flex-direction: column; gap: 18px; }
-.estimate-output-label {
+.devis-surface-unit { font-family: var(--font-mono); font-weight: 600; color: var(--steel); font-size: 1.1rem; }
+.devis-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.devis-chip {
+  padding: 8px 16px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--steel);
   font-family: var(--font-mono);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color .2s, color .2s;
+}
+.devis-chip:hover, .devis-chip:focus-visible { border-color: var(--cro-blue); color: var(--paper); }
+.devis-applied-rate { margin-top: 20px; font-size: 0.9rem; color: var(--steel); }
+.devis-applied-rate strong { color: var(--paper); }
+
+/* ---------- Step 3: gated quote preview ---------- */
+.devis-quote-preview {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px 22px;
+  margin-bottom: 26px;
+  background: var(--slate);
+}
+.devis-quote-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+  color: var(--steel);
+}
+.devis-quote-row:last-of-type { border-bottom: none; }
+.devis-quote-row span:last-child { color: var(--paper); font-weight: 600; }
+.devis-quote-row--total { font-weight: 700; }
+.devis-mask { filter: blur(4px); color: var(--steel-dark) !important; user-select: none; }
+.devis-quote-lock {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--signal-soft);
+  color: var(--paper);
+  font-size: 0.86rem;
   font-weight: 600;
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+/* ---------- Step 3: contact form ---------- */
+.devis-form { display: flex; flex-direction: column; gap: 16px; }
+.devis-field { display: flex; flex-direction: column; gap: 6px; }
+.devis-field label {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--steel);
 }
-.estimate-output {
+.devis-field input {
+  width: 100%;
+  background: var(--slate);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-size: 1rem; /* >=16px prevents iOS Safari auto-zoom on focus */
+  transition: border-color .25s, box-shadow .25s;
+}
+.devis-field input:focus { outline: none; border-color: var(--signal); box-shadow: 0 0 0 4px var(--signal-soft); }
+.devis-field input[aria-invalid="true"] { border-color: #d92d20; }
+@media (prefers-reduced-motion: reduce) {
+  .devis-field input { transition: border-color .25s; }
+}
+.devis-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.devis-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--steel);
+  cursor: pointer;
+}
+.devis-consent input { flex-shrink: 0; width: 16px; height: 16px; margin-top: 3px; accent-color: var(--cro-blue); }
+.devis-consent a { color: var(--cro-blue); text-decoration: underline; }
+.devis-honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.devis-error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(217, 45, 32, 0.08);
+  color: #d92d20;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+#devisSurfaceContinue:disabled, #devisSubmitBtn:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+
+/* ---------- Unlocked quote ---------- */
+.devis-result-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: clamp(22px, 4vw, 34px);
+  background: var(--slate);
+  filter: blur(10px);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .7s var(--ease), transform .7s var(--ease), filter .7s var(--ease);
+}
+.devis-result-card.is-visible { filter: blur(0); opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .devis-result-card { transition: none; filter: none; opacity: 1; transform: none; }
+}
+.devis-result-meta { font-family: var(--font-mono); font-size: 0.8rem; color: var(--steel); margin: 0 0 20px; }
+.devis-result-rows { display: flex; flex-direction: column; gap: 7px; margin-bottom: 18px; }
+.devis-result-row { display: flex; justify-content: space-between; gap: 12px; font-size: 0.92rem; color: var(--steel); }
+.devis-result-row strong { color: var(--paper); }
+.devis-result-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 16px 0;
+  margin-bottom: 16px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.devis-result-total span:first-child {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+.devis-result-total strong {
   font-family: var(--font-display);
-  font-weight: 100; /* ultralight — Apple numeral treatment */
-  font-size: clamp(2.8rem, 6.5vw, 4.6rem);
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  font-size: clamp(1.9rem, 4.5vw, 2.7rem);
   color: var(--cro-blue);
 }
-
-.estimate-breakdown { display: flex; flex-direction: column; gap: 4px; }
-.estimate-breakdown-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 16px;
-  font-family: var(--font-mono);
-  font-size: 0.88rem;
-  color: var(--steel);
-}
-.estimate-breakdown-row span:last-child { color: var(--paper); font-weight: 600; }
-.estimate-breakdown-total {
-  align-items: flex-end;
-  margin-top: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-.estimate-breakdown-total span:first-child {
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-size: 0.78rem;
-}
-.estimate-breakdown-total span:last-child { color: var(--cro-blue); }
-
-.estimate-name-input {
-  width: 100%;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--line);
-  padding: 8px 0;
+.devis-result-row--ttc strong { color: var(--cro-blue); }
+.devis-result-note {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--signal-soft);
+  font-size: 0.85rem;
   color: var(--paper);
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  transition: border-color .25s, box-shadow .25s;
 }
-.estimate-name-input::placeholder { color: var(--steel-dark); }
-.estimate-name-input:focus { outline: none; border-color: var(--signal); box-shadow: 0 4px 16px -4px var(--signal-soft); }
-@media (prefers-reduced-motion: reduce) {
-  .estimate-name-input { transition: border-color .25s; }
-}
+.devis-result-included { font-size: 0.85rem; color: var(--steel); margin: 0 0 18px; }
+.devis-result-status { font-size: 0.94rem; font-weight: 600; color: var(--paper); margin: 0 0 22px; }
+.devis-result-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.devis-result-actions .btn, .devis-result-actions .devis-btn-secondary { flex: 0 0 auto; }
+.devis-result-fineprint { font-size: 0.76rem; color: var(--steel-dark); margin: 0; }
 
-.estimate-actions { display: flex; flex-wrap: wrap; gap: 12px; }
-.estimate-actions .btn { flex: 0 0 auto; }
-#estimatePdfBtn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
-@media (max-width: 980px) {
-  .estimate-card { grid-template-columns: minmax(0, 1fr); }
-  .estimate-divider { width: 100%; height: 1px; }
+@media (max-width: 640px) {
+  .devis-field-row { grid-template-columns: 1fr; }
+  .devis-steps { gap: 0; }
+  .devis-step__label { display: none; }
+  .devis-panel-actions { flex-wrap: wrap-reverse; }
 }
 
 /* ============================================================
@@ -3330,8 +3500,7 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   .hero-sub { font-size: 0.95rem; max-width: 32ch; }
   .section-title { font-size: clamp(1.6rem, 7vw, 2.2rem); }
   .cta-title { font-size: clamp(1.8rem, 7vw, 2.4rem); }
-  .estimate-output { font-size: clamp(2rem, 10vw, 2.6rem); }
-  .estimate-input-wrap input { font-size: clamp(1.8rem, 9vw, 2.4rem); }
+  .devis-surface-input input { font-size: clamp(1.8rem, 9vw, 2.4rem); }
   .stat-strip-inner { grid-template-columns: 1fr; }
   .btn { padding: 14px 24px; font-size: 0.8rem; }
 }

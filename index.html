@@ -406,46 +406,119 @@
   <!-- ESTIMATION INSTANTANÉE — repositionnée juste après les indicateurs clés -->
   <section class="section estimate-section" id="estimate">
     <div class="section-head">
-      <p class="eyebrow reveal" data-reveal>Premier Chiffrage</p>
-      <h2 class="section-title reveal" data-reveal data-delay="1">Un ordre de grandeur avant même l'échange.</h2>
+      <p class="eyebrow reveal" data-reveal>Devis instantané</p>
+      <h2 class="section-title reveal" data-reveal data-delay="1">Votre devis en 30 secondes.</h2>
     </div>
     <p class="section-lead reveal" data-reveal data-delay="2">
-      Indiquez la surface à traiter pour obtenir un premier cadrage budgétaire indicatif — utile pour
-      préparer un dossier de cahier des charges ou comparer des scénarios. Le devis ferme est établi
-      après étude de votre site ou de votre marché.
+      Choisissez votre prestation, indiquez la surface, recevez votre devis détaillé par e-mail.
     </p>
 
-    <div class="estimate-card reveal" data-reveal data-delay="1">
-      <div class="estimate-input-group">
-        <label for="estimateService">Service</label>
-        <select id="estimateService" class="estimate-select">
-          <option value="Nettoyage de toiture">Nettoyage de toiture</option>
-          <option value="Nettoyage de bardage">Nettoyage de bardage</option>
-          <option value="Nettoyage de façade">Nettoyage de façade</option>
-          <option value="Nettoyage de panneaux solaires photovoltaïques">Nettoyage de panneaux solaires photovoltaïques</option>
-        </select>
+    <div class="estimate-card devis-card reveal" data-reveal data-delay="1">
+      <!-- Progress indicator — earlier steps are real navigation (click to
+           go back and change a choice), current/future steps are inert.
+           script.js ("Instant quote flow") owns all step transitions. -->
+      <ol class="devis-steps" id="devisSteps" aria-label="Étapes du devis">
+        <li class="devis-step is-active" data-step="1">
+          <button type="button" class="devis-step__btn" data-goto="1" disabled>
+            <span class="devis-step__num">1</span>
+            <span class="devis-step__label">Prestation</span>
+          </button>
+        </li>
+        <li class="devis-step" data-step="2">
+          <button type="button" class="devis-step__btn" data-goto="2" disabled>
+            <span class="devis-step__num">2</span>
+            <span class="devis-step__label">Surface</span>
+          </button>
+        </li>
+        <li class="devis-step" data-step="3">
+          <button type="button" class="devis-step__btn" data-goto="3" disabled>
+            <span class="devis-step__num">3</span>
+            <span class="devis-step__label">Coordonnées</span>
+          </button>
+        </li>
+      </ol>
 
-        <label for="estimateArea">Surface à traiter</label>
-        <div class="estimate-input-wrap">
-          <input type="number" id="estimateArea" min="0" step="50" placeholder="saisissez votre surface à nettoyer" inputmode="numeric" aria-describedby="estimateRate">
-          <span class="estimate-unit">m²</span>
-        </div>
-        <span class="estimate-rate" id="estimateRate">Base indicative — 6&nbsp;€&nbsp;HT&nbsp;/&nbsp;m²</span>
+      <!-- Step 1 — Prestation: 5 cards generated from lib/pricing.js by
+           script.js, never hard-coded here. -->
+      <div class="devis-panel" data-panel="1">
+        <div class="devis-services" id="devisServices" role="radiogroup" aria-label="Choisissez votre prestation"></div>
       </div>
 
-      <div class="estimate-divider" aria-hidden="true"></div>
+      <!-- Step 2 — Surface -->
+      <div class="devis-panel" data-panel="2" hidden>
+        <label for="devisSurface" class="devis-label">Surface à traiter</label>
+        <div class="devis-surface-input">
+          <input type="text" id="devisSurface" inputmode="decimal" placeholder="0" aria-describedby="devisSurfaceRate">
+          <span class="devis-surface-unit">m²</span>
+        </div>
+        <div class="devis-chips" role="group" aria-label="Surfaces courantes">
+          <button type="button" class="devis-chip" data-value="100">100 m²</button>
+          <button type="button" class="devis-chip" data-value="250">250 m²</button>
+          <button type="button" class="devis-chip" data-value="500">500 m²</button>
+          <button type="button" class="devis-chip" data-value="1000">1 000 m²</button>
+        </div>
+        <p class="devis-applied-rate" id="devisSurfaceRate">
+          <span id="devisSurfaceService"></span> — Tarif appliqué : <strong id="devisSurfaceUnitPrice"></strong>
+        </p>
+        <p class="devis-helper">Surface approximative ? Pas de souci, elle sera vérifiée avant l'intervention.</p>
+        <div class="devis-panel-actions">
+          <button type="button" class="devis-btn-secondary" data-back="1">← Retour</button>
+          <button type="button" class="btn btn-primary" id="devisSurfaceContinue" disabled>Continuer →</button>
+        </div>
+      </div>
 
-      <div class="estimate-output-group">
-        <span class="estimate-output-label">Cadrage budgétaire estimé</span>
-        <div class="estimate-breakdown">
-          <div class="estimate-breakdown-row"><span>Prix HT</span><span id="estimateHT">0&nbsp;€</span></div>
-          <div class="estimate-breakdown-row"><span>TVA (20&nbsp;%)</span><span id="estimateVAT">0&nbsp;€</span></div>
-          <div class="estimate-breakdown-row estimate-breakdown-total"><span>Prix TTC</span><span class="estimate-output" id="estimateOutput">0&nbsp;€</span></div>
-        </div>
-        <input type="text" id="estimateClientName" class="estimate-name-input" placeholder="Nom / société — pour personnaliser le PDF (optionnel)" aria-label="Nom ou société, pour personnaliser le PDF">
-        <div class="estimate-actions">
-          <button type="button" class="btn btn-primary" id="estimatePdfBtn" data-cursor="link">Télécharger le PDF</button>
-        </div>
+      <!-- Step 3 — Coordonnées: gate. The real totals are never written
+           into #devisQuotePreview — only "•••• €" placeholders — until a
+           successful requestQuote() response arrives. -->
+      <div class="devis-panel" data-panel="3" hidden>
+        <div class="devis-quote-preview" id="devisQuotePreview"></div>
+
+        <form class="devis-form" id="devisForm" novalidate>
+          <div class="devis-field">
+            <label for="devisName">Nom et prénom *</label>
+            <input type="text" id="devisName" name="name" autocomplete="name" required>
+          </div>
+          <div class="devis-field">
+            <label for="devisCompany">Société / Collectivité</label>
+            <input type="text" id="devisCompany" name="company" autocomplete="organization">
+          </div>
+          <div class="devis-field-row">
+            <div class="devis-field">
+              <label for="devisEmail">E-mail</label>
+              <input type="email" id="devisEmail" name="email" autocomplete="email">
+            </div>
+            <div class="devis-field">
+              <label for="devisPhone">Téléphone</label>
+              <input type="tel" id="devisPhone" name="phone" autocomplete="tel">
+            </div>
+          </div>
+          <p class="devis-helper">Renseignez au moins un moyen de contact. Avec un e-mail, vous recevez votre devis immédiatement.</p>
+          <div class="devis-field">
+            <label for="devisPostal">Code postal du site d'intervention</label>
+            <input type="text" id="devisPostal" name="postalCode" inputmode="numeric" autocomplete="postal-code">
+          </div>
+          <label class="devis-consent">
+            <input type="checkbox" id="devisConsent" name="consent" required>
+            <span>J'accepte que mes données soient utilisées pour traiter ma demande de devis. <a href="/politique-de-confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a></span>
+          </label>
+
+          <!-- Honeypot + render timestamp — anti-spam signals read by
+               /api/quote (see api/quote.js), not enforced client-side. -->
+          <div class="devis-honeypot" aria-hidden="true">
+            <label for="devisWebsite">Ne pas remplir ce champ</label>
+            <input type="text" id="devisWebsite" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <input type="hidden" id="devisRenderedAt" name="renderedAt">
+
+          <p class="devis-error" id="devisFormError" role="alert" aria-live="assertive" hidden></p>
+
+          <div class="devis-panel-actions">
+            <button type="button" class="devis-btn-secondary" data-back="2">← Retour</button>
+            <button type="submit" class="btn btn-primary" id="devisSubmitBtn">Recevoir mon devis gratuit</button>
+          </div>
+        </form>
+
+        <div class="devis-result" id="devisResult" hidden></div>
       </div>
     </div>
 
