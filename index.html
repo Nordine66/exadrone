@@ -69,6 +69,14 @@
   ]
 }
 </script>
+<!-- Google tag (gtag.js) — Google Ads conversion tracking. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-767047996"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'AW-767047996');
+</script>
 </head>
 <body>
 
@@ -263,6 +271,27 @@
           <span class="sr-only" id="exaHeroNavAnnounce" aria-live="polite"></span>
         </nav>
 
+        <!-- Price hook — sits between the direct-nav row and the CTA so
+             reading order is headline → price → button. The "2,90 €"
+             figure is never hard-coded: script.js ("Hero price hook")
+             reads the cheapest service's priceHT straight off
+             window.ExadronePricing (lib/pricing.js) and animates the
+             count-up into #exaHeroPriceValue on first view. Rides the
+             site's existing .reveal/[data-reveal]/.is-visible
+             IntersectionObserver system (see styles.css "Reveal
+             animation") via the new .reveal-blur-up modifier — no extra
+             observer needed, it already fires immediately for
+             above-the-fold elements like this one. -->
+        <div class="exa-hero-price reveal reveal-blur-up" data-reveal data-delay="3">
+          <p class="exa-hero-price__eyebrow">Tarif drone professionnel</p>
+          <p class="exa-hero-price__line">
+            <span class="exa-hero-price__prefix">À partir de</span>
+            <span class="exa-hero-price__value" id="exaHeroPriceValue">0,00&nbsp;€</span>
+            <span class="exa-hero-price__unit">HT/m²</span>
+          </p>
+          <p class="exa-hero-price__sub">Sans échafaudage, sans nacelle. Votre devis chiffré en 30 secondes, envoyé dans votre boîte mail.</p>
+        </div>
+
         <!-- "Devis instantané" — links to the instant quote generator
              (#estimate, see index.html "ESTIMATION INSTANTANÉE"). Handled
              in JS with preventDefault + GSAP ScrollToPlugin (see script.js
@@ -270,11 +299,8 @@
              hero's pinned scroll track and stall partway through it; the
              href stays as a real, working no-JS fallback. -->
         <a href="#estimate" class="exa-hero-cta" id="exaHeroCta">
-          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
-          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
-          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
-          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
           <span class="exa-hero-cta__label">Devis instantané</span>
+          <span class="exa-hero-cta__arrow" aria-hidden="true">→</span>
         </a>
 
         <!-- Skip-hero arrow — discreet, always visible. A real shortcut now
@@ -388,46 +414,122 @@
   <!-- ESTIMATION INSTANTANÉE — repositionnée juste après les indicateurs clés -->
   <section class="section estimate-section" id="estimate">
     <div class="section-head">
-      <p class="eyebrow reveal" data-reveal>Premier Chiffrage</p>
-      <h2 class="section-title reveal" data-reveal data-delay="1">Un ordre de grandeur avant même l'échange.</h2>
+      <p class="eyebrow reveal" data-reveal>Devis instantané</p>
+      <h2 class="section-title reveal" data-reveal data-delay="1">Votre devis en 30 secondes.</h2>
     </div>
     <p class="section-lead reveal" data-reveal data-delay="2">
-      Indiquez la surface à traiter pour obtenir un premier cadrage budgétaire indicatif — utile pour
-      préparer un dossier de cahier des charges ou comparer des scénarios. Le devis ferme est établi
-      après étude de votre site ou de votre marché.
+      Choisissez votre prestation, indiquez la surface, recevez votre devis détaillé par e-mail.
     </p>
 
-    <div class="estimate-card reveal" data-reveal data-delay="1">
-      <div class="estimate-input-group">
-        <label for="estimateService">Service</label>
-        <select id="estimateService" class="estimate-select">
-          <option value="Nettoyage de toiture">Nettoyage de toiture</option>
-          <option value="Nettoyage de bardage">Nettoyage de bardage</option>
-          <option value="Nettoyage de façade">Nettoyage de façade</option>
-          <option value="Nettoyage de panneaux solaires photovoltaïques">Nettoyage de panneaux solaires photovoltaïques</option>
-        </select>
+    <div class="estimate-card devis-card reveal" data-reveal data-delay="1">
+      <!-- Progress indicator — earlier steps are real navigation (click to
+           go back and change a choice), current/future steps are inert.
+           script.js ("Instant quote flow") owns all step transitions. -->
+      <ol class="devis-steps" id="devisSteps" aria-label="Étapes du devis">
+        <li class="devis-step is-active" data-step="1">
+          <button type="button" class="devis-step__btn" data-goto="1" disabled>
+            <span class="devis-step__num">1</span>
+            <span class="devis-step__label">Prestation</span>
+          </button>
+        </li>
+        <li class="devis-step" data-step="2">
+          <button type="button" class="devis-step__btn" data-goto="2" disabled>
+            <span class="devis-step__num">2</span>
+            <span class="devis-step__label">Surface</span>
+          </button>
+        </li>
+        <li class="devis-step" data-step="3">
+          <button type="button" class="devis-step__btn" data-goto="3" disabled>
+            <span class="devis-step__num">3</span>
+            <span class="devis-step__label">Coordonnées</span>
+          </button>
+        </li>
+      </ol>
 
-        <label for="estimateArea">Surface à traiter</label>
-        <div class="estimate-input-wrap">
-          <input type="number" id="estimateArea" min="0" step="50" placeholder="saisissez votre surface à nettoyer" inputmode="numeric" aria-describedby="estimateRate">
-          <span class="estimate-unit">m²</span>
-        </div>
-        <span class="estimate-rate" id="estimateRate">Base indicative — 6&nbsp;€&nbsp;HT&nbsp;/&nbsp;m²</span>
+      <!-- Step 1 — Prestation: 5 cards generated from lib/pricing.js by
+           script.js, never hard-coded here. -->
+      <div class="devis-panel" data-panel="1">
+        <div class="devis-services" id="devisServices" role="radiogroup" aria-label="Choisissez votre prestation"></div>
       </div>
 
-      <div class="estimate-divider" aria-hidden="true"></div>
+      <!-- Step 2 — Surface -->
+      <div class="devis-panel" data-panel="2" hidden>
+        <label for="devisSurface" class="devis-label">Surface à traiter</label>
+        <div class="devis-surface-input">
+          <input type="text" id="devisSurface" inputmode="decimal" placeholder="0" aria-describedby="devisSurfaceRate">
+          <span class="devis-surface-unit">m²</span>
+        </div>
+        <div class="devis-chips" role="group" aria-label="Surfaces courantes">
+          <button type="button" class="devis-chip" data-value="100">100 m²</button>
+          <button type="button" class="devis-chip" data-value="250">250 m²</button>
+          <button type="button" class="devis-chip" data-value="500">500 m²</button>
+          <button type="button" class="devis-chip" data-value="1000">1 000 m²</button>
+        </div>
+        <p class="devis-applied-rate" id="devisSurfaceRate">
+          <span id="devisSurfaceService"></span> — Tarif appliqué : <strong id="devisSurfaceUnitPrice"></strong>
+        </p>
+        <p class="devis-helper">Surface approximative ? Pas de souci, elle sera vérifiée avant l'intervention.</p>
+        <div class="devis-panel-actions">
+          <button type="button" class="devis-btn-secondary" data-back="1">← Retour</button>
+          <button type="button" class="btn btn-primary" id="devisSurfaceContinue" disabled>Continuer →</button>
+        </div>
+      </div>
 
-      <div class="estimate-output-group">
-        <span class="estimate-output-label">Cadrage budgétaire estimé</span>
-        <div class="estimate-breakdown">
-          <div class="estimate-breakdown-row"><span>Prix HT</span><span id="estimateHT">0&nbsp;€</span></div>
-          <div class="estimate-breakdown-row"><span>TVA (20&nbsp;%)</span><span id="estimateVAT">0&nbsp;€</span></div>
-          <div class="estimate-breakdown-row estimate-breakdown-total"><span>Prix TTC</span><span class="estimate-output" id="estimateOutput">0&nbsp;€</span></div>
-        </div>
-        <input type="text" id="estimateClientName" class="estimate-name-input" placeholder="Nom / société — pour personnaliser le PDF (optionnel)" aria-label="Nom ou société, pour personnaliser le PDF">
-        <div class="estimate-actions">
-          <button type="button" class="btn btn-primary" id="estimatePdfBtn" data-cursor="link">Télécharger le PDF</button>
-        </div>
+      <!-- Step 3 — Coordonnées: gate. The real totals are never written
+           into #devisQuotePreview — only "•••• €" placeholders — until a
+           successful requestQuote() response arrives. -->
+      <div class="devis-panel" data-panel="3" hidden>
+        <div class="devis-quote-preview" id="devisQuotePreview"></div>
+
+        <form class="devis-form" id="devisForm" novalidate>
+          <p class="devis-form-intro">Encore une étape — la plus rapide : dites-nous où vous joindre et votre devis est à vous. 🎉</p>
+
+          <div class="devis-field">
+            <label for="devisName">Nom et prénom <span class="devis-optional">(optionnel)</span></label>
+            <input type="text" id="devisName" name="name" autocomplete="name">
+          </div>
+          <div class="devis-field">
+            <label for="devisCompany">Société / Collectivité <span class="devis-optional">(optionnel)</span></label>
+            <input type="text" id="devisCompany" name="company" autocomplete="organization">
+          </div>
+          <div class="devis-field-row">
+            <div class="devis-field">
+              <label for="devisEmail">E-mail</label>
+              <input type="email" id="devisEmail" name="email" autocomplete="email">
+            </div>
+            <div class="devis-field">
+              <label for="devisPhone">Téléphone</label>
+              <input type="tel" id="devisPhone" name="phone" autocomplete="tel">
+            </div>
+          </div>
+          <p class="devis-helper">Un seul des deux suffit — e-mail ou téléphone. 📩 Avec un e-mail, votre devis arrive en quelques secondes.</p>
+          <div class="devis-field">
+            <label for="devisPostal">Code postal du site d'intervention <span class="devis-optional">(optionnel)</span></label>
+            <input type="text" id="devisPostal" name="postalCode" inputmode="numeric" autocomplete="postal-code">
+          </div>
+          <label class="devis-consent">
+            <input type="checkbox" id="devisConsent" name="consent" required>
+            <span>J'accepte que mes données soient utilisées pour traiter ma demande de devis. <a href="/politique-de-confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a></span>
+          </label>
+
+          <!-- Honeypot + render timestamp — anti-spam signals read by
+               /api/quote (see api/quote.js), not enforced client-side. -->
+          <div class="devis-honeypot" aria-hidden="true">
+            <label for="devisWebsite">Ne pas remplir ce champ</label>
+            <input type="text" id="devisWebsite" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <input type="hidden" id="devisRenderedAt" name="renderedAt">
+
+          <p class="devis-error" id="devisFormError" role="alert" aria-live="assertive" hidden></p>
+
+          <div class="devis-panel-actions">
+            <button type="button" class="devis-btn-secondary" data-back="2">← Retour</button>
+            <button type="submit" class="btn btn-primary" id="devisSubmitBtn">Recevoir mon devis gratuit</button>
+          </div>
+          <p class="devis-form-trust">🔒 Vos données restent confidentielles · Sans engagement · Zéro spam</p>
+        </form>
+
+        <div class="devis-result" id="devisResult" hidden></div>
       </div>
     </div>
 
@@ -1070,6 +1172,10 @@
      which completes before any deferred script fires. -->
 <script src="https://cdn.jsdelivr.net/npm/embla-carousel/embla-carousel.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/embla-carousel-auto-scroll/embla-carousel-auto-scroll.umd.js"></script>
+<!-- Shared pricing source of truth (also required server-side by
+     api/quote.js) — exposes window.ExadronePricing. Deferred + loaded
+     before script.js, same ordering guarantee as GSAP above. -->
+<script src="/lib/pricing.js" defer></script>
 <!-- defer: fetches all in parallel instead of one at a time, then
      runs them in this same order once parsing finishes. script.js already
      wraps everything in a DOMContentLoaded listener, so execution timing

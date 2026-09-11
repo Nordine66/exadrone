@@ -6,9 +6,17 @@ const { getSettings, getAgent } = require('../../lib/settings')
 const { isAgentBlocked } = require('../../lib/settings')
 const { sendManagedEmail } = require('../../lib/resend-send')
 const { outreachFooterHtml, chloeSignatureHtml } = require('../../lib/email-footer')
+const pricing = require('../../lib/pricing')
 
 const FROM_ADDRESS = 'chloe@exadrone-enterprise.com'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Kept in sync with lib/pricing.js so blog prompts never quote a stale tarif.
+const BLOG_PRICE_TEXT = (() => {
+  const cheapest = pricing.getCheapestService()
+  const fmt = (n) => n.toFixed(2).replace('.', ',')
+  return `à partir de ${fmt(cheapest.priceHT)} € HT/m² selon le service (TVA 20% en sus, forfait minimum ${fmt(pricing.config.minimumOrderHT)} € HT)`
+})()
 
 // Consolidates blog-writer/followup/outreach into one function to stay under
 // Vercel Hobby's 12-serverless-function limit. Original URLs (/api/agents/blog-writer,
@@ -78,7 +86,7 @@ Contraintes SEO :
 - Sous-titres H2 descriptifs et informatifs
 - Paragraphes courts (3-5 lignes max)
 - Mentionner au moins 2 services Exadrone (nettoyage façade, toiture, bardage, panneaux solaires photovoltaïques, cartographie, thermographie) avec suggestion de liens internes vers les pages /renovation-facade.html et /collectivites-territoriales.html
-- Chiffres concrets : 6 €/m² HT (TVA 20% en sus), devis adapté à toute taille de projet, réduction 30–50% vs échafaudage
+- Chiffres concrets : ${BLOG_PRICE_TEXT}, devis adapté à toute taille de projet, réduction 30–50% vs échafaudage
 
 Ton : expert technique, pédagogique, rassurant pour décideurs publics et privés.
 
