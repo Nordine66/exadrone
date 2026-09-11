@@ -1070,6 +1070,10 @@
      which completes before any deferred script fires. -->
 <script src="https://cdn.jsdelivr.net/npm/embla-carousel/embla-carousel.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/embla-carousel-auto-scroll/embla-carousel-auto-scroll.umd.js"></script>
+<!-- Shared pricing source of truth (also required server-side by
+     api/quote.js) — exposes window.ExadronePricing. Deferred + loaded
+     before script.js, same ordering guarantee as GSAP above. -->
+<script src="/lib/pricing.js" defer></script>
 <!-- defer: fetches all in parallel instead of one at a time, then
      runs them in this same order once parsing finishes. script.js already
      wraps everything in a DOMContentLoaded listener, so execution timing
