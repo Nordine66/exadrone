@@ -1474,6 +1474,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* ---- Unlocked quote ---- */
     function renderResult(response) {
+      // Google Ads conversion — fires once per successful quote request,
+      // right where the lead is actually captured (not on page load, not
+      // on every step transition).
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'conversion', {
+          'send_to': 'AW-767047996/UM-XCOu3pfQCElzy40OC'
+        });
+      }
+
       const q = response.quote;
       form.hidden = true;
       quotePreview.hidden = true;
