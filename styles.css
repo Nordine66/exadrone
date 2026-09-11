@@ -1315,34 +1315,123 @@ a, button, input, select, textarea { touch-action: manipulation; }
   animation: beam-spin 4s linear infinite;
 }
 .exa-hero-cta:hover::after { opacity: 1; animation-duration: 2s; }
-/* Four small twinkling sparks near the corners — the lightweight stand-in
-   for a 3D particle effect (see block comment above). */
-.exa-hero-cta__spark {
-  position: absolute;
-  z-index: 0;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #FFFFFF 0%, var(--exa-blue-accent) 55%, transparent 100%);
-  pointer-events: none;
-  opacity: 0;
-  animation: exa-cta-spark 3.6s ease-in-out infinite;
+/* Arrow slides 4px right on hover/focus — transform only, no layout shift
+   (the label's own width doesn't change). */
+.exa-hero-cta__arrow {
+  position: relative;
+  z-index: 2;
+  display: inline-block;
+  margin-left: 8px;
+  transition: transform 220ms ease;
 }
-.exa-hero-cta__spark:nth-child(1) { top: -4px; left: 18%; animation-delay: 0s; }
-.exa-hero-cta__spark:nth-child(2) { top: 32%; right: -4px; animation-delay: 0.9s; }
-.exa-hero-cta__spark:nth-child(3) { bottom: -4px; left: 58%; animation-delay: 1.8s; }
-.exa-hero-cta__spark:nth-child(4) { top: 55%; left: -4px; animation-delay: 2.7s; }
-@keyframes exa-cta-spark {
-  0%, 100% { opacity: 0; transform: scale(0.4); }
-  50% { opacity: 0.9; transform: scale(1); }
-}
+.exa-hero-cta:hover .exa-hero-cta__arrow,
+.exa-hero-cta:focus-visible .exa-hero-cta__arrow { transform: translateX(4px); }
 @media (max-width: 768px) {
-  .exa-hero-cta { margin-top: 20px; }
+  .exa-hero-cta { margin-top: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .exa-hero-cta { animation: none; background-position: 30% 50%; }
   .exa-hero-cta::after { animation: none; opacity: 0.5; }
-  .exa-hero-cta__spark { animation: none; opacity: 0.5; transform: scale(0.8); }
+  .exa-hero-cta__arrow { transition: none; }
+}
+
+/* ---------- Hero price hook ----------
+   Glass pill using the same liquid-glass recipe as .exa-cylinder__face
+   (tinted white/blue gradient + inset highlight + rgba border) rather
+   than the light-mode .glass utility (--slate-glass is near-opaque white,
+   wrong for this dark hero). backdrop-filter gated to desktop only, same
+   performance rationale as .exa-cylinder__face.is-front above. */
+.exa-hero-price {
+  width: fit-content;
+  max-width: 92vw;
+  margin: 10px auto 0;
+  padding: 8px 24px 9px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  /* Opaque-enough dark glass (unlike .exa-cylinder__face's much more
+     translucent recipe) — this pill sits directly over the HUD scrub
+     bar's own text/ticks at short viewport heights, and backdrop-filter
+     is desktop-only below (mobile GPU cost), so opacity alone has to
+     fully hide whatever's behind it on mobile or the two text layers
+     show through each other. Confirmed by screenshot at 375x667. */
+  background: linear-gradient(135deg, rgba(15, 20, 28, 0.92), rgba(10, 14, 20, 0.88) 45%, rgba(20, 40, 64, 0.90));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 12px 28px rgba(10, 14, 20, 0.45);
+  text-align: center;
+}
+@media (min-width: 769px) {
+  .exa-hero-price {
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+  }
+}
+.exa-hero-price__eyebrow {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--exa-blue-accent);
+}
+.exa-hero-price__line {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.exa-hero-price__prefix {
+  font-size: 12px;
+  color: #8A94A3;
+}
+.exa-hero-price__value {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 6vw, 34px);
+  line-height: 1.1;
+  font-weight: 700;
+  color: #FFFFFF;
+  text-shadow: 0 0 18px rgba(77, 163, 255, 0.45);
+}
+.exa-hero-price__unit {
+  font-size: 12px;
+  color: #D9DEE5;
+}
+.exa-hero-price__sub {
+  margin: 3px auto 0;
+  max-width: 420px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #D9DEE5;
+}
+@media (max-width: 768px) {
+  .exa-hero-price { margin-top: 12px; padding: 8px 16px 10px; }
+  .exa-hero-price__sub { font-size: 11.5px; }
+}
+/* Tightest viewports: drop the supporting sentence to protect the
+   hand-tuned vertical budget in the short-mobile block further down
+   (padding/clamp values there already assume this line is gone). */
+@media (max-width: 768px) and (max-height: 820px) {
+  .exa-hero-price { margin-top: 8px; padding: 6px 14px 8px; }
+  .exa-hero-price__sub { display: none; }
+}
+
+/* ---------- Blur-up reveal (headline → price → button reading order) ----------
+   Same .reveal/[data-reveal]/.is-visible system as reveal-from-left/right
+   above, just translateY instead of translateX — kept to this one element
+   rather than made the new site-wide default, same GPU-layer cost
+   rationale the block above already documents. */
+.reveal.reveal-blur-up {
+  filter: blur(10px);
+  transform: translateY(16px);
+  transition: opacity .9s var(--ease), transform .9s var(--ease), filter .9s var(--ease);
+  transition-delay: calc(var(--d, 0) * 90ms);
+}
+.reveal.reveal-blur-up.is-visible { transform: translateY(0); filter: blur(0); }
+@media (prefers-reduced-motion: reduce) {
+  .reveal.reveal-blur-up { transition: none; filter: none; transform: none; }
 }
 
 
@@ -1648,18 +1737,45 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
    max-height:820px (not 760) because the same squeeze was still measured
    at 780-812px; the clamp()'d card converges back to the 768px tier's
    own 224px max right around this boundary, so there's no visible seam
-   at 820. */
+   at 820. The 548px constant was raised to 616px when the price hook was
+   added above the CTA (see index.html "Price hook") — at this width the
+   supporting sentence is already hidden and the pill itself compacted
+   (see .exa-hero-price above), but its eyebrow + price line + margins
+   still add ~68px that has to come out of the cylinder card same as
+   everything else here, or it lands on top of the HUD scrub bar text;
+   re-verified by screenshot at 375x667/375x812 after raising this. */
 @media (max-width: 768px) and (max-height: 820px) {
   .cine-title-block { padding: 130px 16px 190px; }
   .exa-cylinder-stage {
-    --cyl-card-h: clamp(80px, calc(100vh - 548px), 224px);
-    --cyl-card-w: clamp(56px, calc((100vh - 548px) * 0.705), 158px);
+    --cyl-card-h: clamp(80px, calc(100vh - 616px), 224px);
+    --cyl-card-w: clamp(56px, calc((100vh - 616px) * 0.705), 158px);
   }
-  .exa-cylinder__label { font-size: clamp(12px, calc((100vh - 548px) * 0.065), 18px); }
+  .exa-cylinder__label { font-size: clamp(12px, calc((100vh - 616px) * 0.065), 18px); }
   .exa-cylinder__rule { margin: 6px 0; }
   .exa-hero-nav { margin-top: 12px; }
   .exa-hero-cta { margin-top: 10px; padding: 12px 26px; }
   .cine-scroll-hint { margin-top: 8px; gap: 3px; }
+}
+
+/* ---------- Extra-short mobile (iPhone SE-class, ~667px and under) ----------
+   Even at the 80px cylinder-card floor above, the 820px tier's own budget
+   (616px fixed overhead + 80px floor = 696px) doesn't fit a 667px-tall
+   viewport — that was already only 39px of slack before the price hook
+   existed (548+80=628 vs 667) and the hook eats more than that. Rather
+   than let it collide with the HUD scrub bar (measured: it did, at
+   375x667), the eyebrow line is dropped entirely here and the pill
+   compacted further — price + CTA are the two things that actually have
+   to survive this viewport, the eyebrow label doesn't. Comes after the
+   820px tier above (same specificity, later wins) so it only overrides
+   what needs to shrink further. */
+@media (max-width: 768px) and (max-height: 700px) {
+  .exa-hero-price { margin-top: 4px; padding: 4px 14px 5px; }
+  .exa-hero-price__eyebrow { display: none; }
+  .exa-cylinder-stage {
+    --cyl-card-h: clamp(72px, calc(100vh - 592px), 224px);
+    --cyl-card-w: clamp(50px, calc((100vh - 592px) * 0.705), 158px);
+  }
+  .exa-cylinder__label { font-size: clamp(11px, calc((100vh - 592px) * 0.065), 18px); }
 }
 
 /* ---------- Short desktop viewports ----------
@@ -1681,22 +1797,30 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
    the available room — it continuously scales down exactly as far as
    fixed_overhead (below) demands, and no further. fixed_overhead is
    padding-top(148) + padding-bottom(104) + title(~58) + nav
-   margin+height(18+40) + CTA margin+height(14+~50) + skip-hero arrow
-   margin+height(8+48) = 488px, plus a 20px floor left for the auto-margin
-   gap to actually be visible. min-width excludes the mobile flex-column
+   margin+height(18+40) + price-hook margin+height(10+108) + CTA
+   margin+height(14+~50) + skip-hero arrow margin+height(8+48) = 606px,
+   plus a 20px floor left for the auto-margin gap to actually be visible.
+   Threshold raised from the originally-measured 875px to 1000px when the
+   price hook was added above the CTA (see index.html "Price hook") — a
+   1440x900 laptop viewport (the single most common "short desktop" case)
+   now needs the same compression the old 875px-and-under zone already
+   had, or the added block pushes the CTA/skip-hero arrow off the bottom
+   edge and collides with the HUD scrub bar; re-verified by screenshot at
+   1440x900 after raising this. min-width excludes the mobile flex-column
    layout (different padding, see max-width:760px above). */
-@media (max-height: 875px) and (min-width: 761px) {
+@media (max-height: 1000px) and (min-width: 761px) {
   .cine-title-block { padding-bottom: 104px; }
   .exa-cylinder-stage {
-    --cyl-card-h: clamp(150px, calc(100vh - 508px), 296px);
-    --cyl-card-w: clamp(118px, calc((100vh - 508px) * 0.78), 226px);
+    --cyl-card-h: clamp(150px, calc(100vh - 626px), 296px);
+    --cyl-card-w: clamp(118px, calc((100vh - 626px) * 0.78), 226px);
   }
-  .exa-cylinder__label { font-size: clamp(17px, calc((100vh - 508px) * 0.09), 25px); padding: 0 14px; }
+  .exa-cylinder__label { font-size: clamp(17px, calc((100vh - 626px) * 0.09), 25px); padding: 0 14px; }
   .exa-cylinder__rule { margin: 8px 0; }
   .exa-cylinder__desc { font-size: 11.5px; padding: 0 14px; line-height: 1.4; }
   .exa-hero-nav { margin-top: 18px; }
   .exa-hero-nav__chevron { width: 34px; height: 34px; }
-  .exa-hero-cta { margin-top: 14px; padding: 13px 30px; }
+  .exa-hero-price { margin-top: 8px; padding: 7px 22px 8px; }
+  .exa-hero-cta { margin-top: 12px; padding: 13px 30px; }
   .cine-scroll-hint { margin-top: 8px; }
 }
 

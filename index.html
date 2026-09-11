@@ -263,6 +263,27 @@
           <span class="sr-only" id="exaHeroNavAnnounce" aria-live="polite"></span>
         </nav>
 
+        <!-- Price hook — sits between the direct-nav row and the CTA so
+             reading order is headline → price → button. The "2,90 €"
+             figure is never hard-coded: script.js ("Hero price hook")
+             reads the cheapest service's priceHT straight off
+             window.ExadronePricing (lib/pricing.js) and animates the
+             count-up into #exaHeroPriceValue on first view. Rides the
+             site's existing .reveal/[data-reveal]/.is-visible
+             IntersectionObserver system (see styles.css "Reveal
+             animation") via the new .reveal-blur-up modifier — no extra
+             observer needed, it already fires immediately for
+             above-the-fold elements like this one. -->
+        <div class="exa-hero-price reveal reveal-blur-up" data-reveal data-delay="3">
+          <p class="exa-hero-price__eyebrow">Tarif drone professionnel</p>
+          <p class="exa-hero-price__line">
+            <span class="exa-hero-price__prefix">À partir de</span>
+            <span class="exa-hero-price__value" id="exaHeroPriceValue">0,00&nbsp;€</span>
+            <span class="exa-hero-price__unit">HT/m²</span>
+          </p>
+          <p class="exa-hero-price__sub">Sans échafaudage, sans nacelle. Votre devis chiffré en 30 secondes, envoyé dans votre boîte mail.</p>
+        </div>
+
         <!-- "Devis instantané" — links to the instant quote generator
              (#estimate, see index.html "ESTIMATION INSTANTANÉE"). Handled
              in JS with preventDefault + GSAP ScrollToPlugin (see script.js
@@ -270,11 +291,8 @@
              hero's pinned scroll track and stall partway through it; the
              href stays as a real, working no-JS fallback. -->
         <a href="#estimate" class="exa-hero-cta" id="exaHeroCta">
-          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
-          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
-          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
-          <span class="exa-hero-cta__spark" aria-hidden="true"></span>
           <span class="exa-hero-cta__label">Devis instantané</span>
+          <span class="exa-hero-cta__arrow" aria-hidden="true">→</span>
         </a>
 
         <!-- Skip-hero arrow — discreet, always visible. A real shortcut now

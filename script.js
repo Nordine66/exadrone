@@ -867,6 +867,43 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { threshold: 0.6 });
   counters.forEach(el => counterObserver.observe(el));
 
+  /* ---------- Hero price hook: count-up ----------
+     Target is read from window.ExadronePricing (lib/pricing.js, loaded
+     before this script) rather than hard-coded, so the hero always shows
+     the real cheapest per-m² rate even if the pricing config changes. */
+  const heroPriceValue = document.getElementById('exaHeroPriceValue');
+  if (heroPriceValue && window.ExadronePricing) {
+    const target = window.ExadronePricing.getCheapestService().priceHT;
+    const eurFmt = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const setPriceText = (v) => { heroPriceValue.innerHTML = `${eurFmt.format(v)}&nbsp;€`; };
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      setPriceText(target);
+    } else {
+      const duration = 900;
+      const runCountUp = () => {
+        const start = performance.now();
+        const tick = (now) => {
+          const progress = Math.min((now - start) / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          setPriceText(target * eased);
+          if (progress < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      };
+      const priceObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            runCountUp();
+            priceObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.3 });
+      priceObserver.observe(heroPriceValue);
+    }
+  }
+
   /* ---------- Drone showcase scrub (150-frame flip-book, "Le Drone") ----------
      Same technique as the hero's cine scrub (see above) — a pinned stage
      redrawn per scroll-frame from pre-sliced JPEGs, because scrubbing
