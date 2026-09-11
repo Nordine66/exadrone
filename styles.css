@@ -97,6 +97,19 @@
    auto-scroll-container pairing. */
 html { scroll-behavior: smooth; overflow-x: clip; max-width: 100%; }
 
+/* ---------- Anchor-link landing offset ----------
+   The site nav is position:fixed (~91px tall on desktop, see .site-nav)
+   and every in-page anchor link (main nav, the hero CTA) targets one of
+   these sections — without this, the native `scroll-behavior: smooth`
+   above lands each section's top edge at viewport y:0, right under the
+   fixed nav. 100px matches the offset the hero CTA's old GSAP scrollTo
+   used (offsetY:100) before it became a plain anchor, now applied via
+   plain CSS so every anchor link (not just the hero's) gets the same
+   correct landing position for free. */
+#estimate, #capabilities, #process, #fleet, #reliability, #secteurs {
+  scroll-margin-top: 100px;
+}
+
 /* ---------- Native cross-page view transitions ----------
    Chromium-only progressive enhancement: opts every same-origin navigation
    (including the plain <a href> links this multi-page site is built on)
@@ -722,24 +735,27 @@ a, button, input, select, textarea { touch-action: manipulation; }
 
 
 /* ============================================================
-   CINEMATIC HERO — flip-book scroll-scrub with a camera-HUD overlay.
-   .cine-stage is a position:sticky, full-bleed 100vh canvas stage pinned
-   for the 400vh track below (see script.js "Cinematic hero scrub"); the
-   frame shown tracks scroll progress exactly like the old hero canvas
-   did, just full-bleed/cover-fit instead of a boxed portrait clip. Dark
-   brand palette throughout (#0A0E14 base, #0067CC/#4DA3FF accents,
-   #D9DEE5/#8A94A3 text, #FF3B30 reserved for the REC dot only) — see the
-   HUD chrome rules below the title.
+   CINEMATIC HERO — single-viewport hero with a camera-HUD overlay and a
+   swipe-driven slider (see script.js "Hero swipe slider"). Used to be a
+   400vh scroll-scrubbed pinned track; now it's exactly one viewport tall
+   and vertical scroll is 100% native — one scroll down lands straight on
+   the next section. .cine-stage no longer needs position:sticky (there's
+   no taller parent to pin within any more) but stays a distinct element
+   since z-index layering (video < overlay < slider < HUD < title/CTA)
+   and several selectors below still key off it. Dark brand palette
+   throughout (#0A0E14 base, #0067CC/#4DA3FF accents, #D9DEE5/#8A94A3
+   text, #FF3B30 reserved for the REC dot only) — see the HUD chrome
+   rules below the title.
    ============================================================ */
 .cine-hero {
   position: relative;
-  height: 400vh;
+  height: 100vh;
+  height: 100svh;
   background: #0A0E14;
 }
 .cine-stage {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  position: relative;
+  height: 100%;
   width: 100%;
   overflow: hidden;
   background: #0A0E14;
@@ -804,9 +820,9 @@ a, button, input, select, textarea { touch-action: manipulation; }
    The title stays pinned near the top via padding-top (clears the
    REC/specs row, which bottoms out around 127px, see .hud-rec/.hud-specs
    top:108px below), padding-bottom reserves the HUD scrub bar's own space
-   at the bottom — everything from .exa-cylinder-stage down (the coverflow,
-   nav row, CTA, skip-hero arrow) is one cluster that gets margin:auto (see
-   .exa-cylinder-stage below), the flexbox trick that centers one flex item
+   at the bottom — everything from .exa-hero-slider down (the slider,
+   hint, pagination, price hook, CTA) is one cluster that gets margin:auto
+   (see .exa-hero-slider below), the flexbox trick that centers one flex item
    — and everything flowing after it — in whatever space is left between
    those two paddings. This is what actually answers "the services/CTA
    block reads as too close to the title, needs to be centered below it":
@@ -837,88 +853,70 @@ a, button, input, select, textarea { touch-action: manipulation; }
 .cine-title .accent { color: #0067CC; }
 
 /* ============================================================
-   3D LIQUID-GLASS COVERFLOW — replaces the old single-face drum. Turns
-   through the five service keywords (Photovoltaïque → Bardage → Toiture
-   → Façade → Vitrage) as scroll advances, driven by the same progress
-   value the HUD already computes each frame (see script.js "Cylinder
-   rotation") — no second ScrollTrigger/pin, this hero was never GSAP-
-   driven to begin with (position:sticky + a manual rAF progress calc,
-   see "Cinematic hero scrub").
-   Geometry: every face is a fixed-size tall (portrait) panel, centred in
-   the stage by default (top/left 50% + negative margins) and pulled into
-   position purely via a per-frame inline `transform` written by JS —
-   nothing here sets a baseline transform on .exa-cylinder__face itself.
-   For a face at index i with the live (fractional) active index `pos`,
-   the offset = i - pos: the active card (offset 0) faces the viewer
-   dead-on; its immediate neighbours (|offset| toward 1) tilt in via
-   rotateY up to ±45° and slide out via translateX — the "one appears at
-   45°, the next at 135°" brief, read as ±45° either side of the active
-   card's own dead-centre facing — while translateZ pushes them back in
-   depth and opacity fades them down, so scrolling reads as one continuous
-   horizontal glide rather than a swap. */
-.exa-cylinder-stage {
-  --cyl-card-w: 226px;
-  --cyl-card-h: 296px;
+   HERO SWIPE SLIDER — replaces the old scroll-scrubbed 3D coverflow.
+   Same 5 cards, same order, same liquid-glass look (background gradient,
+   inset highlight, specular sweep, contrast pad, label/rule/desc) as the
+   coverflow's .exa-cylinder__face did — only the interaction changed:
+   Embla (already loaded sitewide for the trust strip, see script.js
+   "Trust strip auto-scroll") drives a flat horizontal slide-and-snap
+   track instead of a per-frame 3D transform keyed to scroll progress
+   (see script.js "Hero swipe slider"). No second ScrollTrigger/pin —
+   this hero was never GSAP-driven to begin with.
+   Geometry: --slide-w/--slide-h size one slide identically to how the
+   old --cyl-card-w/--cyl-card-h sized one coverflow face; .exa-hero-slider
+   itself gets the same margin:auto centering .exa-cylinder-stage relied
+   on, so the whole cluster (slider, hint, pagination, price hook, CTA)
+   still centers in whatever vertical space .cine-title-block's
+   padding-top/padding-bottom leave open.
+   ============================================================ */
+.exa-hero-slider {
+  --slide-w: 226px;
+  --slide-h: 296px;
   position: relative;
-  /* z-index scale: video 0 < overlay 1 < cylinder 2 < HUD 3 < title/CTA
-     4. Nested inside .cine-title-block (z-index:4, same as the old word
-     row it replaces) rather than pulled out as a sibling of the HUD, so
-     it keeps the exact same flow-based "sits under the title" placement
-     the word row relied on instead of a fragile fixed offset — z-index:2
-     here is honored relative to its title-block siblings (harmless,
-     nothing there currently overlaps it) rather than globally against
-     the HUD, since nesting puts the whole subtree in title-block's own
-     stacking context. */
   z-index: 2;
-  perspective: 1400px;
-  perspective-origin: 50% 50%;
-  height: var(--cyl-card-h);
-  /* Without this, a flex item that doesn't fit its (definite-height,
-     position:absolute + inset:0) container gets silently shrunk below its
-     own specified height rather than overflowing — which is exactly what
-     was crushing the coverflow cards down to a few px tall on short
-     viewports before the short-viewport/short-mobile-height overrides
-     further down existed to give this real room. flex-shrink:0 turns any
-     future miscalculation there into a visible (and fixable) overflow
-     instead of an invisible, silently-broken card. */
+  height: var(--slide-h);
   flex-shrink: 0;
-  /* margin:auto (all four sides), not a fixed top offset — top+bottom
-     auto is the flexbox trick that centers this item (and the nav/CTA/
-     skip-hero arrow flowing right after it) in whatever vertical space is
-     left between the title above and the padding-bottom reserved on
-     .cine-title-block below; left+right auto centers it horizontally the
-     same way .exa-hero-cta already relies on. Self-adapting to any
-     viewport height instead of a hand-tuned pixel value. */
   margin: auto;
   width: 100%;
   max-width: 720px;
-  overflow: visible;
+  pointer-events: auto;
 }
-.exa-cylinder {
-  position: absolute;
-  inset: 0;
-  transform-style: preserve-3d;
+.exa-hero-slider__viewport {
+  position: relative;
+  width: var(--slide-w);
+  height: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 22px;
+  /* Vertical gestures are NEVER captured here — a vertical swipe/scroll
+     always falls through to native page scroll. Embla itself already
+     sets an equivalent touch-action internally for an x-axis carousel,
+     this just makes the guarantee explicit and CSS-verifiable. */
+  touch-action: pan-y;
+  cursor: grab;
 }
-.exa-cylinder__face {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: var(--cyl-card-w);
-  height: var(--cyl-card-h);
-  margin: calc(var(--cyl-card-h) / -2) 0 0 calc(var(--cyl-card-w) / -2);
+.exa-hero-slider__viewport:active { cursor: grabbing; }
+.exa-hero-slider__container {
+  display: flex;
+  height: 100%;
+  /* Embla writes `transform: translate3d(...)` on this element per drag
+     frame / on settle — nothing else here should ever set transform. */
+}
+.exa-hero-slider__slide {
+  position: relative;
+  flex: 0 0 100%;
+  min-width: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  backface-visibility: hidden;
   overflow: hidden;
   border-radius: 22px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  will-change: transform, opacity;
-  /* Tier B — static glass surface on every face (including the front
+  /* Tier B — static glass surface on every slide (including the selected
      one, underneath tier A's backdrop-filter below). The inset top
-     highlight is what sells "physical panel" — light catching the
-     upper edge — do not drop it. */
+     highlight sells "physical panel" — do not drop it. */
   background: linear-gradient(
       135deg,
       rgba(255, 255, 255, 0.14),
@@ -929,10 +927,9 @@ a, button, input, select, textarea { touch-action: manipulation; }
     inset 0 -1px 0 rgba(255, 255, 255, 0.06),
     0 16px 40px rgba(10, 14, 20, 0.4);
 }
-/* Specular sweep — static, never animated (an animated sweep on five 3D
-   panels is exactly the continuous-repaint cost this stage can't afford,
-   and it would compete visually with the coverflow motion itself). */
-.exa-cylinder__face::before {
+/* Specular sweep — static, never animated (same reasoning as before: an
+   animated sweep would compete with the slide motion itself). */
+.exa-hero-slider__slide::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -945,40 +942,28 @@ a, button, input, select, textarea { touch-action: manipulation; }
       rgba(255, 255, 255, 0.04) 54%,
       transparent 70%);
 }
-/* Tier A — real refraction, active face only (toggled by script.js
-   "Cylinder rotation" off the same per-frame offset calc that drives
-   every face's transform). Only one element ever carries a
-   backdrop-filter at a time, which is what keeps this affordable.
-   Desktop only by default — mobile GPUs handle backdrop-filter worst, so
-   mobile ships tier C (below) instead; this is a conservative default
-   (this environment can't reliably profile real mobile-GPU frame cost to
-   make that call the way the spec asks), worth re-testing tier A on real
-   hardware before enabling it there too. */
+/* Tier A — real refraction, selected slide only (toggled by script.js on
+   Embla's 'select' event). Desktop only, same GPU-cost rationale as
+   before: mobile ships tier C (below) instead. */
 @media (min-width: 769px) {
-  .exa-cylinder__face.is-front {
+  .exa-hero-slider__slide.is-selected {
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
   }
 }
-
 /* Contrast floor — sits above the glass surface, below the label; the
-   single most important element for legibility, since glass over moving
-   footage is the hardest contrast case on the page. Do not drop this in
-   favour of a cleaner look. */
-.exa-cylinder__contrast-pad {
+   background video keeps playing behind the slider exactly as it did
+   behind the coverflow, so this is still the hardest contrast case on
+   the page. Do not drop it. */
+.exa-hero-slider__slide::after {
+  content: "";
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
   background: radial-gradient(ellipse 80% 70% at 50% 50%, rgba(10, 14, 20, 0.46), transparent 78%);
 }
-/* Label — pure white, not --exa-grey-light: over a translucent panel on
-   moving video, grey loses contrast the moment a bright frame passes
-   behind it. No text-shadow — contrast comes from the pad above, not
-   from shadowing the type (a shadow here would fight the glass and read
-   as cheap). translateZ(0) + no fractional positioning keeps it sharp on
-   a rotated plane. */
-.exa-cylinder__label {
+.exa-hero-slider__label {
   position: relative;
   z-index: 2;
   color: #FFFFFF;
@@ -989,12 +974,9 @@ a, button, input, select, textarea { touch-action: manipulation; }
   text-align: center;
   line-height: 1.15;
   padding: 0 22px;
-  transform: translateZ(0);
   -webkit-font-smoothing: antialiased;
 }
-/* Small accent rule separating keyword from description — the one piece
-   of the old flat panel design worth carrying forward as-is. */
-.exa-cylinder__rule {
+.exa-hero-slider__rule {
   position: relative;
   z-index: 2;
   width: 30px;
@@ -1003,7 +985,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
   border-radius: 2px;
   background: linear-gradient(90deg, transparent, #4DA3FF, transparent);
 }
-.exa-cylinder__desc {
+.exa-hero-slider__desc {
   position: relative;
   z-index: 2;
   color: rgba(217, 222, 229, 0.86);
@@ -1014,72 +996,38 @@ a, button, input, select, textarea { touch-action: manipulation; }
   text-align: center;
   padding: 0 26px;
 }
-
-@media (max-width: 768px) {
-  .exa-cylinder-stage { --cyl-card-w: 158px; --cyl-card-h: 224px; }
-  .exa-cylinder__face { border-radius: 16px; }
-  .exa-cylinder__label { font-size: 18px; padding: 0 16px; }
-  .exa-cylinder__rule { margin: 10px 0; }
-  .exa-cylinder__desc { font-size: 11.5px; padding: 0 16px; line-height: 1.4; }
-  /* Tier C fallback on mobile — no backdrop-filter, compensate by
-     raising the tier B surface itself so the panel still reads as
-     frosted rather than flat. */
-  .exa-cylinder__face {
-    background: linear-gradient(
-        135deg,
-        rgba(255, 255, 255, 0.20),
-        rgba(255, 255, 255, 0.05) 40%,
-        rgba(77, 163, 255, 0.08)),
-      rgba(10, 14, 20, 0.22);
-    border-color: rgba(255, 255, 255, 0.24);
-  }
+/* Incoming-slide entrance: subtle fade + 12px rise, 60ms stagger between
+   label and desc — toggled by script.js via .is-entering on the newly
+   selected slide's children right after Embla settles. */
+.exa-hero-slider__slide .exa-hero-slider__label,
+.exa-hero-slider__slide .exa-hero-slider__rule,
+.exa-hero-slider__slide .exa-hero-slider__desc {
+  transition: opacity .5s var(--ease), transform .5s var(--ease);
 }
-
+.exa-hero-slider__slide.is-entering .exa-hero-slider__label { opacity: 0; transform: translateY(12px); transition-delay: 0ms; }
+.exa-hero-slider__slide.is-entering .exa-hero-slider__rule { opacity: 0; transform: translateY(12px); transition-delay: 60ms; }
+.exa-hero-slider__slide.is-entering .exa-hero-slider__desc { opacity: 0; transform: translateY(12px); transition-delay: 120ms; }
 @media (prefers-reduced-motion: reduce) {
-  /* Crossfade instead of a 3D glide — perspective:none flattens the
-     stage, and script.js ("Cylinder rotation") lands on one static face
-     (still derived from hero progress, just not continuously tracked)
-     instead of writing live per-frame transforms. Glass styling is
-     retained — it isn't motion. Non-front faces forced to opacity:0
-     (rather than the partial opacity the normal depth-cue would give
-     them) since without perspective there's no foreshortening to
-     visually separate them — left at partial opacity they'd overlap the
-     front face as a flat, distorted smear instead of cleanly
-     disappearing behind it. */
-  .exa-cylinder-stage { perspective: none; }
-  .exa-cylinder__face { transition: opacity 0.4s var(--ease); }
-  .exa-cylinder__face:not(.is-front) { opacity: 0 !important; }
+  /* Instant reposition, no translate/blur/fade-stagger — see script.js
+     "Hero swipe slider" for the matching Embla duration:1 + skipped
+     entrance-class logic under this same query. */
+  .exa-hero-slider__slide .exa-hero-slider__label,
+  .exa-hero-slider__slide .exa-hero-slider__rule,
+  .exa-hero-slider__slide .exa-hero-slider__desc { transition: none; }
+  .exa-hero-slider__slide.is-entering .exa-hero-slider__label,
+  .exa-hero-slider__slide.is-entering .exa-hero-slider__rule,
+  .exa-hero-slider__slide.is-entering .exa-hero-slider__desc { opacity: 1; transform: none; }
 }
 
-/* ============================================================
-   DIRECT SERVICE NAVIGATION + "DEVIS INSTANTANÉ" CTA ----------
-   Sits in normal flow right after .exa-cylinder-stage, inside
-   .cine-title-block (pointer-events:none) — same "own pointer-events:auto"
-   requirement as .cine-scroll-hint below. Scroll stays the single source
-   of truth: nothing here ever touches the cylinder's transform directly,
-   see script.js "Hero direct navigation" — a click only moves the scroll
-   position to the point that already maps to a service, and the existing
-   cineScrubTick-driven coverflow turns as a consequence. z-index:5 keeps
-   every title-block child (nav, CTA, skip-hero arrow) above the HUD
-   (z-index:3), inside the title-block's own stacking context.
-   ============================================================ */
-.exa-hero-nav {
-  position: relative;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: fit-content;
-  max-width: 100%;
-  margin: 32px auto 0;
-  pointer-events: auto;
-}
-
-/* ---------- Chevrons ---------- */
-.exa-hero-nav__chevron {
-  position: relative;
-  flex: 0 0 auto;
+/* ---------- Desktop arrow buttons ----------
+   Thin glass circles either side of the slide, low opacity until the
+   hero is hovered, hidden entirely on touch (no hover to reveal them
+   there, and the swipe gesture already covers the same job). */
+.exa-hero-slider__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1092,161 +1040,113 @@ a, button, input, select, textarea { touch-action: manipulation; }
   -webkit-backdrop-filter: blur(12px);
   color: #FFFFFF;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
-}
-/* 40px is already close to the 44px minimum hit area — a 2px overhang on
-   every side (a child, so clicks on it register as clicks on the button
-   itself) closes the gap without changing the visible circle. */
-.exa-hero-nav__chevron::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-}
-.exa-hero-nav__chevron:hover:not(:disabled) {
-  background: rgba(77, 163, 255, 0.18);
-  border-color: rgba(77, 163, 255, 0.45);
-}
-.exa-hero-nav__chevron:active:not(:disabled) { transform: scale(0.94); }
-.exa-hero-nav__chevron:focus-visible {
-  outline: 2px solid var(--exa-blue-accent);
-  outline-offset: 2px;
-}
-/* No wrapping: a bound reached disables that end's chevron rather than
-   looping to the other end of the service row (see script.js "Hero
-   direct navigation" 1.6 — a wrapping control would jump the page from
-   one end of the pinned hero to the other, which reads as a glitch). */
-.exa-hero-nav__chevron:disabled {
-  opacity: 0.3;
-  cursor: default;
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 0.25s var(--ease), background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+.exa-hero-slider__arrow--prev { left: -52px; }
+.exa-hero-slider__arrow--next { right: -52px; }
+@media (min-width: 769px) and (hover: hover) and (pointer: fine) {
+  .cine-hero:hover .exa-hero-slider__arrow,
+  .exa-hero-slider__arrow:focus-visible { opacity: 0.55; pointer-events: auto; }
+  .exa-hero-slider__arrow:hover { opacity: 1 !important; background: rgba(77, 163, 255, 0.18); border-color: rgba(77, 163, 255, 0.45); }
+  .exa-hero-slider__arrow:active { transform: translateY(-50%) scale(0.94); }
+}
+.exa-hero-slider__arrow:focus-visible { outline: 2px solid var(--exa-blue-accent); outline-offset: 2px; }
+@media (hover: none), (pointer: coarse) {
+  .exa-hero-slider__arrow { display: none; }
+}
+@media (max-width: 900px) {
+  /* Not enough room beside the slide below desktop — arrows are already
+     hidden on touch above, this covers a touch-capable-but-wide-cursor
+     edge case (e.g. a touch laptop) so they never overlap the slide. */
+  .exa-hero-slider__arrow { display: none; }
 }
 
-/* ---------- Service labels (desktop) ---------- */
-.exa-hero-nav__labels {
+/* ---------- Interaction hint ---------- */
+.exa-hero-hint {
   position: relative;
+  z-index: 5;
+  margin: 14px auto 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #D9DEE5;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  opacity: 0.7;
+  transition: opacity 0.4s var(--ease);
+}
+.exa-hero-hint.is-dismissed { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .exa-hero-hint { transition: none; }
+}
+
+/* ---------- Pagination — thin clickable line segments ---------- */
+.exa-hero-pagination {
+  position: relative;
+  z-index: 5;
   display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 10px auto 0;
+  pointer-events: auto;
 }
-.exa-hero-nav__label {
+.exa-hero-pagination__seg {
   position: relative;
-  z-index: 1;
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.45);
-  background: none;
-  border: none;
-  padding: 10px 16px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color 200ms ease;
-}
-/* Visual padding alone doesn't clear the 44px minimum hit area vertically
-   — an invisible pseudo-element pads it out instead of enlarging the type
-   itself (see brief 1.10: "extend their tappable area... rather than
-   enlarging the text"). */
-.exa-hero-nav__label::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 44px;
-  transform: translateY(-50%);
-}
-.exa-hero-nav__label:hover { color: rgba(255, 255, 255, 0.75); }
-.exa-hero-nav__label[aria-current="true"] {
-  color: #FFFFFF;
-  font-weight: 500;
-}
-.exa-hero-nav__label:focus-visible {
-  outline: 2px solid var(--exa-blue-accent);
-  outline-offset: 2px;
-}
-/* Tweened via GSAP in script.js (x + width, 0.4s power2.out) to the active
-   label's own bounds, rather than jumping instantly between labels. */
-.exa-hero-nav__underline {
-  position: absolute;
-  left: 0;
-  bottom: 2px;
-  width: 0;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--exa-blue-accent);
-  pointer-events: none;
-}
-
-/* ---------- Dots (mobile stand-in for the labels) ---------- */
-.exa-hero-nav__dots {
-  display: none;
-  align-items: center;
-  gap: 12px;
-}
-.exa-hero-nav__dot {
-  position: relative;
-  width: 8px;
-  height: 8px;
+  width: 30px;
+  height: 3px;
   padding: 0;
   border: none;
-  background: none;
+  border-radius: 2px;
+  background: #8A94A3;
+  opacity: 0.3;
   cursor: pointer;
+  overflow: hidden;
+  transition: opacity 0.25s var(--ease);
 }
-/* Same padded-hit-area technique as the chevrons/labels above — 8px visual
-   dot, 44px tappable area (inset -18px each side: 8 + 18*2 = 44). */
-.exa-hero-nav__dot::before {
+/* 3px visual, 44px tappable area — same padded-hit-area technique the
+   old nav dots used. */
+.exa-hero-pagination__seg::before {
   content: "";
   position: absolute;
-  inset: -18px;
+  inset: -16px -4px;
 }
-.exa-hero-nav__dot span {
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.30);
-  transition: background-color 0.2s ease, width 0.2s ease, height 0.2s ease, margin 0.2s ease;
+.exa-hero-pagination__seg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #4DA3FF;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.35s var(--ease);
 }
-.exa-hero-nav__dot[aria-current="true"] span {
-  width: 10px;
-  height: 10px;
-  margin: -1px;
-  background: var(--exa-blue-accent);
-}
-.exa-hero-nav__dot:focus-visible {
+.exa-hero-pagination__seg:hover { opacity: 0.55; }
+.exa-hero-pagination__seg.is-active { opacity: 1; }
+.exa-hero-pagination__seg.is-active::after { transform: scaleX(1); }
+.exa-hero-pagination__seg:focus-visible {
   outline: 2px solid var(--exa-blue-accent);
-  outline-offset: 2px;
-  border-radius: 50%;
+  outline-offset: 3px;
 }
-
-@media (max-width: 768px) {
-  .exa-hero-nav { margin-top: 24px; gap: 10px; }
-  .exa-hero-nav__labels { display: none; }
-  .exa-hero-nav__dots { display: flex; }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .exa-hero-nav__chevron,
-  .exa-hero-nav__label,
-  .exa-hero-nav__dot span,
-  .exa-hero-cta { transition: none; }
+  .exa-hero-pagination__seg,
+  .exa-hero-pagination__seg::after { transition: none; }
 }
 
 /* ---------- "Devis instantané" CTA ----------
-   The strongest element in the hero, by design — the service row above it
-   stays visibly secondary (rgba(255,255,255,0.45) inactive, no pill/fill)
-   specifically so it never competes for attention with this button.
-   Three layers on top of the base gradient fill: (1) a slow animated
-   gradient shift for a "dynamic" fill rather than a flat blue, (2) a
-   rotating conic-gradient border beam reusing the sitewide --beam-angle
-   custom property + beam-spin keyframe (see .btn::after above — same
-   glowing-border technique, exa-blue toned instead of the sitewide
-   --beam-color pair), and (3) four small twinkling sparks standing in for
-   a full 3D particle system — real 3D particles (canvas/WebGL) would add
-   a second render loop on a hero that already carries an autoplay video,
-   a 3D coverflow and several GSAP-driven scroll tweens, for a payoff this
-   CSS-only version gets most of the way to at near-zero cost. isolation:
-   isolate matches .btn's own stacking setup so the masked ::after beam
-   layers correctly without leaking outside the button's rounded corners. */
+   The strongest element in the hero, by design — the slider above it
+   stays visibly secondary specifically so it never competes for
+   attention with this button. Three layers on top of the base gradient
+   fill: (1) a slow animated gradient shift for a "dynamic" fill rather
+   than a flat blue, (2) a rotating conic-gradient border beam reusing
+   the sitewide --beam-angle custom property + beam-spin keyframe (see
+   .btn::after above — same glowing-border technique, exa-blue toned
+   instead of the sitewide --beam-color pair). isolation:isolate matches
+   .btn's own stacking setup so the masked ::after beam layers correctly
+   without leaking outside the button's rounded corners. */
 .exa-hero-cta {
   position: relative;
   isolation: isolate;
@@ -1259,8 +1159,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
      the title-block becomes a column flexbox (see the mobile block
      further down) which blockifies every direct child into a flex item —
      text-align stops centering it at that point, and auto side-margins
-     are what take over (same trick .exa-cylinder-stage/.cine-scroll-hint
-     already rely on). */
+     are what take over (same trick .exa-hero-slider already relies on). */
   margin: 28px auto 0;
   padding: 17px 36px;
   border-radius: 18px;
@@ -1336,11 +1235,11 @@ a, button, input, select, textarea { touch-action: manipulation; }
 }
 
 /* ---------- Hero price hook ----------
-   Glass pill using the same liquid-glass recipe as .exa-cylinder__face
+   Glass pill using the same liquid-glass recipe as .exa-hero-slider__slide
    (tinted white/blue gradient + inset highlight + rgba border) rather
    than the light-mode .glass utility (--slate-glass is near-opaque white,
    wrong for this dark hero). backdrop-filter gated to desktop only, same
-   performance rationale as .exa-cylinder__face.is-front above. */
+   performance rationale as .exa-hero-slider__slide.is-selected above. */
 .exa-hero-price {
   width: fit-content;
   max-width: 92vw;
@@ -1348,7 +1247,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
   padding: 8px 24px 9px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  /* Opaque-enough dark glass (unlike .exa-cylinder__face's much more
+  /* Opaque-enough dark glass (unlike .exa-hero-slider__slide's much more
      translucent recipe) — this pill sits directly over the HUD scrub
      bar's own text/ticks at short viewport heights, and backdrop-filter
      is desktop-only below (mobile GPU cost), so opacity alone has to
@@ -1438,11 +1337,15 @@ a, button, input, select, textarea { touch-action: manipulation; }
 
 /* ============================================================
    HUD — camera viewfinder overlay. Entirely pointer-events:none except
-   the mute button; every value (timecode/section/frame counter/scrub
-   fill) is written by script.js's cineScrubTick, gated to only touch the
-   DOM when its own value actually changes. Condensed/technical feel
-   reuses --font-mono (already the site's "technical label" font, see
-   .eyebrow) rather than importing a new typeface just for this. */
+   the arrow/pagination/hint controls, which opt back into pointer-events
+   individually. Section label + tick fill are cosmetic HUD chrome, kept
+   but now driven by the active slide (see script.js "Hero swipe slider")
+   instead of scroll progress; REC/timecode are unaffected — timecode is
+   now a real elapsed-time counter (see script.js), paused off-screen via
+   the same IntersectionObserver pattern the background video already
+   uses. Condensed/technical feel reuses --font-mono (already the site's
+   "technical label" font, see .eyebrow) rather than importing a new
+   typeface just for this. */
 .cine-hud {
   position: absolute;
   inset: 0;
@@ -1528,10 +1431,9 @@ a, button, input, select, textarea { touch-action: manipulation; }
   text-transform: uppercase;
   color: #8A94A3;
 }
-.hud-vertical-left { left: 22px; }
 .hud-vertical-right { right: 22px; }
 
-/* ---------- Bottom scrub timeline ---------- */
+/* ---------- Bottom HUD readout (cosmetic — section label + tick fill) ---------- */
 .hud-scrubbar {
   position: absolute;
   left: 0;
@@ -1539,7 +1441,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
   bottom: 0;
   /* Right padding is wider than the left — clears the permanent WhatsApp
      FAB (position:fixed, 60px circle at right:24/bottom:24, z-index:210 —
-     see .whatsapp-fab) so "SECTION 0X/05" and "SCRUB ACTIF" never run
+     see .whatsapp-fab) so the section label / "0X / 05" counter never run
      underneath it. */
   padding: 10px 108px 14px 20px;
   background: linear-gradient(180deg, rgba(10, 14, 20, 0) 0%, rgba(10, 14, 20, 0.55) 40%, rgba(10, 14, 20, 0.88) 100%);
@@ -1547,12 +1449,12 @@ a, button, input, select, textarea { touch-action: manipulation; }
 }
 /* The cookie banner (#cookieBanner, position:fixed, bottom:0, z-index:200
    — see styles.css further down) sits directly on top of this bar for
-   every first-time visitor, hiding the section/frame counters underneath
-   it. Same fix already used for .whatsapp-fab:
-   shift up out of the way for as long as the banner is showing. Offsets
-   measured against the banner's actual rendered height rather than
-   guessed — it reflows at two widths (row layout above 640px, up to
-   ~175px tall; stacked column layout at/below 640px, up to ~247px). */
+   every first-time visitor, hiding the section label/counter underneath
+   it. Same fix already used for .whatsapp-fab: shift up out of the way
+   for as long as the banner is showing. Offsets measured against the
+   banner's actual rendered height rather than guessed — it reflows at
+   two widths (row layout above 640px, up to ~175px tall; stacked column
+   layout at/below 640px, up to ~247px). */
 body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px); }
 @media (max-width: 640px) {
   body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-266px); }
@@ -1560,9 +1462,9 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 .hud-scrubbar-top {
   display: flex;
   align-items: center;
-  /* wrap, not nowrap — the section label plus the ISO/WB/section-count
-     meta doesn't reliably fit on one line at every width; wrapping the
-     meta group onto its own line is a cleaner outcome than a horizontal
+  /* wrap, not nowrap — the section label plus the ISO/WB/counter meta
+     doesn't reliably fit on one line at every width; wrapping the meta
+     group onto its own line is a cleaner outcome than a horizontal
      overflow creeping into the padding reserved for the WhatsApp FAB. */
   flex-wrap: wrap;
   gap: 8px 16px;
@@ -1583,7 +1485,6 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 .hud-ticks-wrap {
   position: relative;
   height: 12px;
-  margin-bottom: 6px;
   overflow: hidden;
   border-radius: 1px;
 }
@@ -1593,6 +1494,7 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   width: 0%;
   background: #4DA3FF;
   opacity: 0.22;
+  transition: width 0.35s var(--ease);
 }
 .hud-ticks-base,
 .hud-ticks-active {
@@ -1601,77 +1503,9 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   background-image: repeating-linear-gradient(to right, currentColor 0, currentColor 1.5px, transparent 1.5px, transparent 9px);
 }
 .hud-ticks-base { color: #8A94A3; }
-.hud-ticks-active { width: 0%; color: #0067CC; }
-.hud-bottom-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #D9DEE5;
-}
-.hud-scrub-active { color: #0067CC; }
-
-/* ---------- Skip-hero arrow — discreet, always visible ----------
-   A real shortcut (see script.js "Skip hero"), not just a "keep
-   scrolling" nudge: clicking it jumps straight past the whole pinned
-   400vh hero to the next section. A plain <button> now (was a decorative
-   <div>), so it needs its own reset + pointer-events:auto — the parent
-   .cine-title-block is pointer-events:none. Sits in normal flow right
-   after the CTA (not position:absolute against a hand-tuned bottom
-   offset) so it stacks under everything else in .cine-title-block and
-   never has to fight the HUD scrub bar — or the cookie banner's own
-   shift of that scrub bar — for the same fixed spot near the bottom of
-   the frame. */
-.cine-scroll-hint {
-  position: relative;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  margin: 20px auto 0;
-  padding: 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  opacity: 0.68;
-  pointer-events: auto;
-  transition: opacity 0.25s var(--ease);
-}
-.cine-scroll-hint:hover,
-.cine-scroll-hint:focus-visible { opacity: 1; }
-.cine-scroll-hint:focus-visible { outline: 2px solid #4DA3FF; outline-offset: 3px; }
-.cine-scroll-hint-label {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #D9DEE5;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
-}
-.cine-scroll-hint-arrow {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  color: #D9DEE5;
-}
-/* Reuses the same bounce-fade keyframes as .action-scroll-chevron further
-   down (identical "nudge downward" motion) rather than duplicating the
-   animation for a second, unrelated scroll hint. */
-.cine-scroll-hint-chevron {
-  display: block;
-  opacity: 0;
-  animation: action-hint-flow 1.7s var(--ease) infinite;
-}
-.cine-scroll-hint-chevron-2 { animation-delay: 0.22s; }
+.hud-ticks-active { width: 0%; color: #0067CC; transition: width 0.35s var(--ease); }
 @media (prefers-reduced-motion: reduce) {
-  .cine-scroll-hint { transition: none; }
-  .cine-scroll-hint-chevron { animation: none; opacity: 1; }
+  .hud-scrub-fill-bg, .hud-ticks-active { transition: none; }
 }
 
 @media (max-width: 760px) {
@@ -1680,21 +1514,18 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
      138px clears that with a real ~20px buffer, matching the same
      clearance philosophy the desktop rule above uses against its own REC
      row (148px top vs REC bottom ~127.6px). The centering mechanism
-     itself (.exa-cylinder-stage's margin:auto) is inherited from the base
+     itself (.exa-hero-slider's margin:auto) is inherited from the base
      rule above. padding-bottom reserves the bottom HUD scrub bar's own
      height (~90-105px depending on how its meta row wraps) PLUS
-     everything that follows the panel in flow — the nav row (chevrons +
-     dots), the CTA, the skip-hero arrow — so that centering space is
-     computed above all of it; their own margins were trimmed slightly
-     (nav/CTA/skip-hero arrow below) to give the extra top clearance
-     without reopening the "no genuine leftover height for a visible gap"
-     problem on a normal-height phone (844px) — measured, not guessed. */
+     everything that follows the slider in flow — the hint, pagination,
+     price hook, CTA — so that centering space is computed above all of
+     it. */
   .cine-title-block { padding: 138px 16px 230px; }
   .cine-title { font-size: clamp(1.5rem, 7.4vw, 2.3rem); }
-  .exa-cylinder-stage { max-width: 92vw; }
-  .exa-hero-nav { margin-top: 16px; }
+  .exa-hero-slider { max-width: 92vw; }
+  .exa-hero-hint { margin-top: 12px; }
+  .exa-hero-pagination { margin-top: 8px; }
   .exa-hero-cta { margin-top: 14px; }
-  .cine-scroll-hint { margin-top: 14px; }
   .hud-corner { width: 18px; height: 18px; }
   /* Mobile nav is shorter (~74px) than desktop but still fixed/opaque —
      same clearance fix as the desktop rules above, just a bit lower than
@@ -1711,117 +1542,78 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   .hud-scrubbar-top { flex-wrap: wrap; gap: 8px 12px; font-size: 0.58rem; }
   .hud-meta { gap: 8px; width: 100%; order: 3; margin-left: 0; }
   .hud-meta span:nth-child(1), .hud-meta span:nth-child(2) { display: none; }
-  .hud-bottom-meta { font-size: 0.56rem; }
 }
 
 /* ---------- Short mobile viewports (iPhone SE-class up through ~820px) ----------
-   Placed after the max-width:760px block above (not before it, where an
-   earlier version of this rule quietly lost the cascade — same
-   selector/specificity, later rule wins, and .cine-title-block's own
-   padding from that block was overriding this one's for any viewport
-   both applied to). The 768px-wide tier further up sizes the card
-   assuming a "standard" phone height (iPhone 12/13/14-class, 840px+) —
-   on shorter ones the fixed padding plus title/nav/CTA/skip-hero-arrow
-   heights alone already add up to more than the viewport (flex-shrink:0
-   on .exa-cylinder-stage turns what used to be an invisible crush-to-7px
-   card into a visible overflow instead, which is what surfaced this in
-   the first place). padding-top is 130, not a smaller value that would
-   leave more budget for the cylinder below: the REC row + corner
-   brackets sit lower now too (see .hud-corner-tl etc. in the block
-   above, bottom edge ~117.6px), and this needs to clear that with a real
-   buffer just like the taller-viewport tier does — the card size is what
-   flexes to make room, not the top clearance. --cyl-card-w/h scale
-   continuously via clamp() tied to 100vh — same reasoning as the
-   short-desktop-viewport block below — rather than a fixed size that
-   would just move the breakpoint problem to a different height.
-   max-height:820px (not 760) because the same squeeze was still measured
-   at 780-812px; the clamp()'d card converges back to the 768px tier's
-   own 224px max right around this boundary, so there's no visible seam
-   at 820. The 548px constant was raised to 616px when the price hook was
-   added above the CTA (see index.html "Price hook") — at this width the
-   supporting sentence is already hidden and the pill itself compacted
-   (see .exa-hero-price above), but its eyebrow + price line + margins
-   still add ~68px that has to come out of the cylinder card same as
-   everything else here, or it lands on top of the HUD scrub bar text;
-   re-verified by screenshot at 375x667/375x812 after raising this. */
+   Placed after the max-width:760px block above (later wins on equal
+   specificity). The 768px-wide tier further up sizes the slide assuming
+   a "standard" phone height (iPhone 12/13/14-class, 840px+) — on shorter
+   ones the fixed padding plus title/slider/hint/pagination/price/CTA
+   heights alone already add up to more than the viewport, so the slide
+   itself is what shrinks to make room (flex-shrink:0 on .exa-hero-slider
+   turns any future miscalculation into a visible, fixable overflow
+   instead of an invisible crush). --slide-w/h scale continuously via
+   clamp() tied to 100vh, same reasoning as the short-desktop tier below.
+   fixed_overhead dropped from 616px (coverflow + old nav + old skip-hero
+   arrow) to 567px now that the nav row (~52px) and skip-hero arrow
+   (~48px) are gone, replaced by the much smaller hint (~24px) and
+   pagination (~27px) — first-pass estimate, re-verify by screenshot at
+   375x667/375x812 same as the original tuning pass did. */
 @media (max-width: 768px) and (max-height: 820px) {
   .cine-title-block { padding: 130px 16px 190px; }
-  .exa-cylinder-stage {
-    --cyl-card-h: clamp(80px, calc(100vh - 616px), 224px);
-    --cyl-card-w: clamp(56px, calc((100vh - 616px) * 0.705), 158px);
+  .exa-hero-slider {
+    --slide-h: clamp(80px, calc(100vh - 567px), 224px);
+    --slide-w: clamp(56px, calc((100vh - 567px) * 0.705), 158px);
   }
-  .exa-cylinder__label { font-size: clamp(12px, calc((100vh - 616px) * 0.065), 18px); }
-  .exa-cylinder__rule { margin: 6px 0; }
-  .exa-hero-nav { margin-top: 12px; }
+  .exa-hero-slider__label { font-size: clamp(12px, calc((100vh - 567px) * 0.065), 18px); }
+  .exa-hero-slider__rule { margin: 6px 0; }
+  .exa-hero-hint { margin-top: 8px; }
+  .exa-hero-pagination { margin-top: 6px; }
   .exa-hero-cta { margin-top: 10px; padding: 12px 26px; }
-  .cine-scroll-hint { margin-top: 8px; gap: 3px; }
 }
 
 /* ---------- Extra-short mobile (iPhone SE-class, ~667px and under) ----------
-   Even at the 80px cylinder-card floor above, the 820px tier's own budget
-   (616px fixed overhead + 80px floor = 696px) doesn't fit a 667px-tall
-   viewport — that was already only 39px of slack before the price hook
-   existed (548+80=628 vs 667) and the hook eats more than that. Rather
-   than let it collide with the HUD scrub bar (measured: it did, at
-   375x667), the eyebrow line is dropped entirely here and the pill
-   compacted further — price + CTA are the two things that actually have
-   to survive this viewport, the eyebrow label doesn't. Comes after the
-   820px tier above (same specificity, later wins) so it only overrides
-   what needs to shrink further. */
+   Same idea as the price hook's own extra-short tier: even at the slide's
+   floor, the 820px tier's own budget can still be tight on the very
+   shortest phones. Drops the hint text and compacts pagination spacing
+   further here — the slide + price + CTA are what actually have to
+   survive this viewport. */
 @media (max-width: 768px) and (max-height: 700px) {
-  .exa-hero-price { margin-top: 4px; padding: 4px 14px 5px; }
-  .exa-hero-price__eyebrow { display: none; }
-  .exa-cylinder-stage {
-    --cyl-card-h: clamp(72px, calc(100vh - 592px), 224px);
-    --cyl-card-w: clamp(50px, calc((100vh - 592px) * 0.705), 158px);
+  .exa-hero-hint { display: none; }
+  .exa-hero-pagination { margin-top: 4px; }
+  .exa-hero-slider {
+    --slide-h: clamp(72px, calc(100vh - 543px), 224px);
+    --slide-w: clamp(50px, calc((100vh - 543px) * 0.705), 158px);
   }
-  .exa-cylinder__label { font-size: clamp(11px, calc((100vh - 592px) * 0.065), 18px); }
+  .exa-hero-slider__label { font-size: clamp(11px, calc((100vh - 543px) * 0.065), 18px); }
 }
 
 /* ---------- Short desktop viewports ----------
-   .exa-cylinder-stage's margin:auto (base rule above) centers the whole
+   .exa-hero-slider's margin:auto (base rule above) centers the whole
    cluster in whatever space is left between .cine-title-block's
-   padding-top/padding-bottom — but a flex item's explicit height still
-   competes with its siblings for that space: .cine-title-block is
-   position:absolute + inset:0, which gives it a definite (not auto)
-   height, and a flex child that doesn't fit inside a definite-height
-   container gets its own height silently shrunk by the flex algorithm
-   (min-height:auto/flex-shrink:1 by default) rather than overflowing —
-   which was quietly squashing the coverflow cards shorter than their own
-   --cyl-card-h, well below what the auto-margin trick could visibly show
-   as a gap under the title (measured: a real squeeze zone from ~761px up
-   to ~875px tall, not just the 1280x720-class heights this used to
-   target). --cyl-card-w/h are a clamp() tied to 100vh here instead of a
-   fixed pair, precisely so there's no discrete breakpoint boundary inside
-   that zone where the card size jumps and either over- or under-shoots
-   the available room — it continuously scales down exactly as far as
-   fixed_overhead (below) demands, and no further. fixed_overhead is
-   padding-top(148) + padding-bottom(104) + title(~58) + nav
-   margin+height(18+40) + price-hook margin+height(10+108) + CTA
-   margin+height(14+~50) + skip-hero arrow margin+height(8+48) = 606px,
-   plus a 20px floor left for the auto-margin gap to actually be visible.
-   Threshold raised from the originally-measured 875px to 1000px when the
-   price hook was added above the CTA (see index.html "Price hook") — a
-   1440x900 laptop viewport (the single most common "short desktop" case)
-   now needs the same compression the old 875px-and-under zone already
-   had, or the added block pushes the CTA/skip-hero arrow off the bottom
-   edge and collides with the HUD scrub bar; re-verified by screenshot at
-   1440x900 after raising this. min-width excludes the mobile flex-column
-   layout (different padding, see max-width:760px above). */
+   padding-top/padding-bottom. --slide-w/h are a clamp() tied to 100vh
+   here instead of a fixed pair, so there's no discrete breakpoint
+   boundary where the slide size jumps. fixed_overhead dropped from 626px
+   (coverflow + old nav row + old skip-hero arrow) to ~572px now that the
+   nav row (~58px) and skip-hero arrow (~56px) are gone, replaced by the
+   much smaller hint (~31px) and pagination (~29px) — first-pass estimate,
+   re-verify by screenshot at 1440x900 same as the original tuning pass
+   did (that 1440x900 laptop viewport is the single most common "short
+   desktop" case). min-width excludes the mobile flex-column layout
+   (different padding, see max-width:760px above). */
 @media (max-height: 1000px) and (min-width: 761px) {
   .cine-title-block { padding-bottom: 104px; }
-  .exa-cylinder-stage {
-    --cyl-card-h: clamp(150px, calc(100vh - 626px), 296px);
-    --cyl-card-w: clamp(118px, calc((100vh - 626px) * 0.78), 226px);
+  .exa-hero-slider {
+    --slide-h: clamp(150px, calc(100vh - 572px), 296px);
+    --slide-w: clamp(118px, calc((100vh - 572px) * 0.78), 226px);
   }
-  .exa-cylinder__label { font-size: clamp(17px, calc((100vh - 626px) * 0.09), 25px); padding: 0 14px; }
-  .exa-cylinder__rule { margin: 8px 0; }
-  .exa-cylinder__desc { font-size: 11.5px; padding: 0 14px; line-height: 1.4; }
-  .exa-hero-nav { margin-top: 18px; }
-  .exa-hero-nav__chevron { width: 34px; height: 34px; }
+  .exa-hero-slider__label { font-size: clamp(17px, calc((100vh - 572px) * 0.09), 25px); padding: 0 14px; }
+  .exa-hero-slider__rule { margin: 8px 0; }
+  .exa-hero-slider__desc { font-size: 11.5px; padding: 0 14px; line-height: 1.4; }
+  .exa-hero-hint { margin-top: 10px; }
+  .exa-hero-pagination { margin-top: 8px; }
   .exa-hero-price { margin-top: 8px; padding: 7px 22px 8px; }
   .exa-hero-cta { margin-top: 12px; padding: 13px 30px; }
-  .cine-scroll-hint { margin-top: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -161,10 +161,13 @@ document.addEventListener('DOMContentLoaded', () => {
      continuously-running rAF loop lerps that raw value into a smoothed
      one and is the only place that ever touches the DOM (the nav class
      here, the --glow-y/--scroll-bg custom properties below) — and also
-     calls cineScrubTick/droneScrubTick each frame (see further down),
-     since the hero's own scroll-scrub is a manual position:sticky +
+     calls droneScrubTick each frame (see further down, "Drone showcase
+     scrub"), since that section's own scroll-scrub is a manual
      getBoundingClientRect calc, not a GSAP ScrollTrigger, so there's no
-     second internal ticker of its own to avoid duplicating. */
+     second internal ticker of its own to avoid duplicating. The hero
+     used to have an equivalent cineScrubTick here too — removed along
+     with the rest of the scroll-scrubbed hero (see "Hero swipe slider"
+     further down), it's now interaction-driven, not scroll-driven. */
   let targetScrollY = window.scrollY;
   let currentScrollY = targetScrollY;
   window.addEventListener('scroll', () => { targetScrollY = window.scrollY; }, { passive: true });
@@ -177,22 +180,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastRawScrollY = targetScrollY;
   let navHideAccum = 0;
 
-  // Assigned further down (see "Cinematic hero HUD + cylinder scrub")
-  // once the hero exists — reading it here rather than adding a second
-  // rAF loop, per the note above. Safe to reference before assignment:
-  // this function's *body* only runs on the next animation frame, by
-  // which point the whole synchronous DOMContentLoaded callback
-  // (including the assignment below) has run.
-  let cineScrubTick = null;
-  // Same "read further down, called from this shared ticker" pattern as
-  // cineScrubTick above — see "Drone showcase scrub".
+  // Assigned further down (see "Drone showcase scrub") once that section
+  // exists — reading it here rather than adding a second rAF loop, per
+  // the note above. Safe to reference before assignment: this function's
+  // *body* only runs on the next animation frame, by which point the
+  // whole synchronous DOMContentLoaded callback (including the
+  // assignment below) has run.
   let droneScrubTick = null;
 
   const scrollTick = () => {
     currentScrollY += (targetScrollY - currentScrollY) * 0.25;
     if (Math.abs(targetScrollY - currentScrollY) < 0.05) currentScrollY = targetScrollY;
 
-    if (cineScrubTick) cineScrubTick();
     if (droneScrubTick) droneScrubTick();
 
     nav.classList.toggle('scrolled', currentScrollY > 40);
@@ -222,75 +221,27 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   requestAnimationFrame(scrollTick);
 
-  /* ---------- Camera shutter click (synthesized, no audio file) ----------
-     A previous version of the hero had a continuous drone-engine hum and
-     it was cut for good after it wouldn't loop cleanly (see git history)
-     — this is a deliberately different kind of sound: a single ~70ms
-     two-click shutter fired at most 4 times total (once per hero
-     keyword), synthesized from noise bursts rather than shipping an
-     audio file, so there's nothing to download and nothing to loop.
-     Browsers block audio before any user gesture, so playback is a
-     no-op until the visitor's first click/tap/keypress unlocks the
-     AudioContext — after that it plays; before that it silently does
-     nothing (the flash/frame still fire regardless, so the transition
-     always reads even when the click can't play yet). */
-  let shutterAudioCtx = null;
-  const unlockShutterAudio = () => {
-    if (shutterAudioCtx) return;
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    try { shutterAudioCtx = new Ctx(); } catch { /* unsupported — stays silent */ }
-  };
-  ['pointerdown', 'keydown', 'touchstart'].forEach((evt) => {
-    window.addEventListener(evt, unlockShutterAudio, { once: true, passive: true });
-  });
-
-  const playCameraShutter = () => {
-    const ctx = shutterAudioCtx;
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    const t0 = ctx.currentTime;
-    // Two short filtered-noise bursts (first + second curtain) rather
-    // than a tone — a real shutter is a broadband click, not a pitch.
-    const click = (time, duration, freq, peakGain) => {
-      const frames = Math.max(1, Math.round(ctx.sampleRate * duration));
-      const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      const bandpass = ctx.createBiquadFilter();
-      bandpass.type = 'bandpass';
-      bandpass.frequency.value = freq;
-      bandpass.Q.value = 1.1;
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.exponentialRampToValueAtTime(peakGain, time + 0.002);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-      noise.connect(bandpass);
-      bandpass.connect(gain);
-      gain.connect(ctx.destination);
-      noise.start(time);
-      noise.stop(time + duration + 0.01);
-    };
-    click(t0, 0.018, 2600, 0.22);
-    click(t0 + 0.05, 0.014, 1800, 0.15);
-  };
-
   /* ---------- Hero background video ----------
-     Looping background video, fully independent of scroll — it autoplays
-     and loops on its own (attributes on the <video> element itself), no
-     seeking, no per-scroll-frame work. play() can legitimately reject
-     (no user gesture yet on some mobile browsers, asset not in yet) —
-     caught and dropped silently; the poster stays up as an acceptable
-     degraded state, never surfaced as an error. Paused via
+     Looping background video, fully independent of interaction — it
+     autoplays and loops on its own (attributes on the <video> element
+     itself), no seeking, no per-frame work. play() can legitimately
+     reject (no user gesture yet on some mobile browsers, asset not in
+     yet) — caught and dropped silently; the poster stays up as an
+     acceptable degraded state, never surfaced as an error. Paused via
      IntersectionObserver once the hero scrolls off-screen and resumed on
-     re-entry — the only JS that ever touches playback. Placeholder
-     source paths: drop the real Matrice 4E footage in at
-     /assets/video/ before deploying. */
+     re-entry — same observer also drives the HUD timecode's pause/resume
+     and the keyboard-arrow "hero in view" gate below, so there's only
+     one visibility check for the whole hero rather than three. */
   const exaHeroVideo = document.getElementById('exaHeroVideo');
   const cineHero = document.querySelector('.cine-hero');
   const heroReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let heroInView = true;
+  // Assigned below (see "HUD timecode") once the hero exists — same
+  // "declare a no-op default, reassign further down, safe because
+  // observer callbacks only ever fire after the synchronous
+  // DOMContentLoaded body has finished" pattern used throughout this
+  // file (droneScrubTick, cineScrubTick formerly, etc).
+  let setTimecodeActive = () => {};
   if (exaHeroVideo && cineHero) {
     if (heroReducedMotion) {
       // Poster only — never autoplay under reduced motion (the HTML
@@ -301,74 +252,38 @@ document.addEventListener('DOMContentLoaded', () => {
       const attemptPlay = () => { const p = exaHeroVideo.play(); if (p && p.catch) p.catch(() => {}); };
       attemptPlay();
       const heroVideoObserver = new IntersectionObserver(([entry]) => {
-        if (entry.isIntersecting) attemptPlay();
-        else exaHeroVideo.pause();
+        heroInView = entry.isIntersecting;
+        if (entry.isIntersecting) { attemptPlay(); setTimecodeActive(true); }
+        else { exaHeroVideo.pause(); setTimecodeActive(false); }
       }, { threshold: 0 });
       heroVideoObserver.observe(cineHero);
     }
   }
 
-
-  /* ---------- Cinematic hero HUD + cylinder scrub ----------
-     The section is pinned (position: sticky, see .cine-hero/.cine-stage
-     in styles.css) on every viewport size; scroll progress through that
-     pinned 400vh track is computed in cineScrubTick, called from the
-     shared scrollTick loop above rather than a second listener/rAF, and
-     drives both the HUD readouts and the 3D keyword cylinder below —
-     nothing here is GSAP-pinned (no ScrollTrigger involved), so there's
-     no double-pin risk to manage. */
+  /* ---------- Hero HUD + swipe slider ----------
+     Used to be a 400vh scroll-scrubbed pinned track (position:sticky +
+     a manual per-frame progress calc) driving a 3D coverflow and every
+     HUD readout. Now the hero is exactly one viewport tall, vertical
+     scroll is 100% native, and the 5 service cards are a plain
+     interaction-driven slider (Embla — already loaded sitewide for the
+     trust strip, see "Trust strip auto-scroll" further down) — nothing
+     here is tied to scroll position any more. */
   if (cineHero) {
-    /* ---------- HUD (timecode / section label / frame counter / scrub bar) ---------- */
     const hudTimecode = document.getElementById('hudTimecode');
     const hudSectionLabel = document.getElementById('hudSectionLabel');
     const hudSectionCount = document.getElementById('hudSectionCount');
-    const hudFrameCounter = document.getElementById('hudFrameCounter');
     const hudTicksActive = document.getElementById('hudTicksActive');
     const hudScrubFillBg = document.getElementById('hudScrubFillBg');
 
-    // Purely cosmetic — the HUD frame counter is kept (see "KEEP EXACTLY
-    // AS-IS: the camera HUD overlay") but it no longer indexes into a
-    // real frame array (there isn't one any more): this just reproduces
-    // the same 1-049 readout the counter always showed, derived straight
-    // from progress, with nothing behind it to preload/decode/draw.
-    const HUD_COSMETIC_FRAME_COUNT = 49;
-
-    // Six acts, sharing their boundaries exactly with the coverflow's
-    // turn/dwell timeline below (Photovoltaïque → Bardage → Toiture →
-    // Façade → Vitrage → the drone touching down) rather than an even
-    // split — one coherent timeline instead of two that drift out of
-    // sync. Thresholds below are the exact end-of-turn points for
-    // CYL_DWELL=0.12 (each turn takes (1 - CYL_DWELL*5)/4 of total
-    // progress) — see "Cylinder rotation" further down, which builds the
-    // actual timeline off the same CYL_DWELL constant so the two can't
-    // drift apart.
-    const CYL_DWELL = 0.12;
-    const CYL_TURN = (1 - CYL_DWELL * 5) / 4;
-    const CINE_PHASES = [
-      { label: 'Photovoltaïque', from: 0 },
-      { label: 'Bardage', from: CYL_DWELL + CYL_TURN },
-      { label: 'Toiture', from: 2 * (CYL_DWELL + CYL_TURN) },
-      { label: 'Façade', from: 3 * (CYL_DWELL + CYL_TURN) },
-      { label: 'Vitrage', from: 4 * (CYL_DWELL + CYL_TURN) },
-      { label: 'Atterrissage', from: 0.97 },
-    ];
-    const getPhaseIndex = (progress) => {
-      let idx = 0;
-      for (let i = 0; i < CINE_PHASES.length; i++) {
-        if (progress >= CINE_PHASES[i].from) idx = i;
-      }
-      return idx;
-    };
-    const CINE_VIRTUAL_DURATION_S = 118; // purely cosmetic — just gives the HUD timecode somewhere to count up to
+    /* ---------- HUD timecode ----------
+       Was `progress * 118s` (purely cosmetic even then — see git
+       history, it never indexed into a real frame array). With no more
+       scroll progress to key off, it's now a real elapsed-time counter:
+       counts up for as long as the hero is on screen, pauses/resumes via
+       setTimecodeActive (called from the video's IntersectionObserver
+       above) rather than resetting, so stepping away and back doesn't
+       jump the readout. */
     const CINE_VIRTUAL_FPS = 24;
-    let cineLastSectionIdx = -1;
-    let cineLastProgress = 0;
-    // No-op default: nothing currently consumes hero active/inactive state,
-    // but cineScrubTick and the reduced-motion branch below call this
-    // unconditionally every frame, so it stays a safe, cheap default rather
-    // than adding a conditional at every call site.
-    let setHeroActive = () => {};
-
     const formatTimecode = (totalSeconds) => {
       const totalFrames = Math.max(0, Math.round(totalSeconds * CINE_VIRTUAL_FPS));
       const ff = totalFrames % CINE_VIRTUAL_FPS;
@@ -379,357 +294,138 @@ document.addEventListener('DOMContentLoaded', () => {
       const pad = (n) => String(n).padStart(2, '0');
       return `${pad(hh)}:${pad(mm)}:${pad(ss)}:${pad(ff)}`;
     };
-
-    /* ---------- Cylinder rotation (Photovoltaïque → Bardage → Toiture →
-       Façade → Vitrage) ----------
-       Replaces the old single-face drum with a 3D liquid-glass coverflow
-       (see .exa-cylinder-stage in styles.css). Every face is centred in
-       the stage by CSS (top/left 50% + negative margins); this is the
-       only code that ever moves them, via a full inline `transform`
-       written per face, per frame — no CSS placement rules to keep in
-       sync with it. For a face at index i, offset = i - pos (pos being
-       the live fractional "active index", 0..4): the active face
-       (offset 0) sits dead-centre, faces the viewer flat and is full
-       opacity/scale; its immediate neighbours tilt in via rotateY up to
-       ±45° (capped there — offset 2 sits at the same 45° as offset 1,
-       just further back/smaller/fainter) while translateX/translateZ/
-       scale/opacity all keep changing continuously with distance, which
-       is what makes scrolling read as one fluid horizontal glide instead
-       of a hard swap. A paused GSAP timeline (5 dwell segments + 4 eased
-       turns, power2.inOut) is scrubbed via .progress(heroProgress)
-       rather than played over time, so it's always in lockstep with
-       scroll in both directions — reverse scroll runs it backwards for
-       free. */
-    const exaCylinder = document.getElementById('exaCylinder');
-    const exaCylinderFaces = exaCylinder ? Array.from(exaCylinder.querySelectorAll('.exa-cylinder__face')) : [];
-    const exaCylinderLabels = exaCylinderFaces.map((f) => f.querySelector('.exa-cylinder__label'));
-    let updateCylinder = () => {};
-
-    if (exaCylinder && exaCylinderFaces.length === 5) {
-      const GREY_LIGHT_RGB = [0xD9, 0xDE, 0xE5]; // --exa-grey-light, for the active->off-axis label color shift
-      const COVERFLOW_ANGLE = 46; // deg — matches the brief's "45° left / 135° (=180-45) right" framing
-      const COVERFLOW_SPACING = 172; // px between card centers, desktop
-      const COVERFLOW_DEPTH = 92; // px pushed back per step
-      const COVERFLOW_SCALE_STEP = 0.15;
-      const applyCoverflowPosition = (pos) => {
-        exaCylinder.style.setProperty('--cyl-pos', pos.toFixed(3));
-        const spacing = window.innerWidth <= 768 ? COVERFLOW_SPACING * 0.62 : COVERFLOW_SPACING;
-        exaCylinderFaces.forEach((face, i) => {
-          const offset = i - pos;
-          const absOffset = Math.abs(offset);
-          const sign = offset === 0 ? 0 : Math.sign(offset);
-          const rotateY = -sign * COVERFLOW_ANGLE * Math.min(absOffset, 1);
-          const depthOffset = Math.min(absOffset, 2.2);
-          const translateX = offset * spacing;
-          const translateZ = -depthOffset * COVERFLOW_DEPTH;
-          const scale = Math.max(0.6, 1 - depthOffset * COVERFLOW_SCALE_STEP);
-          face.style.transform = `translateX(${translateX.toFixed(1)}px) translateZ(${translateZ.toFixed(1)}px) rotateY(${rotateY.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
-          face.classList.toggle('is-front', absOffset < 0.06);
-          // active 1.0 / ±1 step 0.5 / ±2 steps 0.14, piecewise-linear,
-          // fully hidden past that so far-off faces never ghost through.
-          let opacity;
-          if (absOffset <= 1) opacity = 1 - absOffset * 0.5;
-          else if (absOffset <= 2) opacity = 0.5 - (absOffset - 1) * 0.36;
-          else opacity = Math.max(0, 0.14 - (absOffset - 2) * 0.14);
-          face.style.opacity = opacity.toFixed(3);
-          face.style.zIndex = String(Math.round(100 - absOffset * 10));
-          const label = exaCylinderLabels[i];
-          if (label) {
-            const mix = Math.min(1, absOffset / 1.4);
-            const r = Math.round(255 + (GREY_LIGHT_RGB[0] - 255) * mix);
-            const g = Math.round(255 + (GREY_LIGHT_RGB[1] - 255) * mix);
-            const b = Math.round(255 + (GREY_LIGHT_RGB[2] - 255) * mix);
-            label.style.color = `rgb(${r}, ${g}, ${b})`;
-          }
-        });
-      };
-
-      if (window.gsap) {
-        // ~60% dwell / ~40% turning across the 5 keywords — CYL_DWELL/
-        // CYL_TURN declared above alongside CINE_PHASES, so the HUD's
-        // section-change points and the coverflow's own turns can't
-        // drift apart from each other.
-        const cylTimeline = gsap.timeline({ paused: true });
-        const cylState = { pos: 0 };
-        let t = CYL_DWELL;
-        for (let i = 0; i < 4; i++) {
-          cylTimeline.to(cylState, { pos: i + 1, duration: CYL_TURN, ease: 'power2.inOut' }, t);
-          t += CYL_TURN + CYL_DWELL;
-        }
-        // The last tween added ends four DWELL+TURN steps short of the
-        // trailing final dwell, so the timeline's own natural duration
-        // would land there, not at 1 — this zero-effect marker at t=1
-        // extends it to exactly 1 so .progress(heroProgress) below maps
-        // 1:1 onto the absolute positions above, instead of a compressed
-        // range.
-        cylTimeline.set(cylState, {}, 1);
-        updateCylinder = (progress) => {
-          cylTimeline.progress(progress);
-          applyCoverflowPosition(cylState.pos);
-        };
+    if (hudTimecode) {
+      if (heroReducedMotion) {
+        hudTimecode.textContent = formatTimecode(0);
       } else {
-        // GSAP failed to load off the CDN — plain linear fallback, no
-        // dwell/ease, still fully scroll-scrubbed and reversible.
-        updateCylinder = (progress) => applyCoverflowPosition(progress * 4);
+        let accumulatedMs = 0;
+        let runStartTs = null;
+        let timecodeRAF = null;
+        const tick = () => {
+          const elapsedMs = accumulatedMs + (runStartTs !== null ? performance.now() - runStartTs : 0);
+          hudTimecode.textContent = formatTimecode(elapsedMs / 1000);
+          timecodeRAF = requestAnimationFrame(tick);
+        };
+        setTimecodeActive = (active) => {
+          if (active && runStartTs === null) {
+            runStartTs = performance.now();
+            if (!timecodeRAF) timecodeRAF = requestAnimationFrame(tick);
+          } else if (!active && runStartTs !== null) {
+            accumulatedMs += performance.now() - runStartTs;
+            runStartTs = null;
+            if (timecodeRAF) { cancelAnimationFrame(timecodeRAF); timecodeRAF = null; }
+          }
+        };
       }
     }
 
-    /* ---------- Hero direct navigation + "Devis instantané" CTA ----------
-       An additional path to a service on top of scroll — scroll stays the
-       single source of truth. A click never touches the cylinder's own
-       transform: it moves the real scroll position to the exact point that
-       already maps to that service (targetProgress = targetIndex /
-       (faceCount - 1)), and the coverflow turns as a pure consequence,
-       through the exact same cineScrubTick -> updateCylinder path a manual
-       scroll takes — including the HUD's phase-change shutter click, which
-       already fires off a progress threshold each rAF frame regardless of
-       what moved scrollY, so control-triggered service changes get it for
-       free.
-       This hero was never GSAP ScrollTrigger-pinned to begin with (see
-       "Cinematic hero HUD + cylinder scrub" below — manual position:sticky
-       + a live getBoundingClientRect() scrub), so there's no
-       trigger.start/trigger.end to read; getHeroScrollTarget derives the
-       equivalent live, every call, rather than caching pixel values: docTop
-       is the absolute document-space top of .cine-hero (scrollY + rect.top
-       cancels out the current scroll position, so it's constant no matter
-       where the page is currently scrolled), and the scrollable range is
-       the 400vh pin's height minus one viewport — exactly what
-       cineScrubTick's own progress calc divides by. */
-    const exaHeroNav = document.getElementById('exaHeroNav');
-    const exaHeroNavPrev = document.getElementById('exaHeroNavPrev');
-    const exaHeroNavNext = document.getElementById('exaHeroNavNext');
-    const exaHeroNavLabels = exaHeroNav ? Array.from(exaHeroNav.querySelectorAll('.exa-hero-nav__label')) : [];
-    const exaHeroNavDots = exaHeroNav ? Array.from(exaHeroNav.querySelectorAll('.exa-hero-nav__dot')) : [];
-    const exaHeroNavUnderline = document.getElementById('exaHeroNavUnderline');
-    const exaHeroNavAnnounce = document.getElementById('exaHeroNavAnnounce');
-    const exaHeroCta = document.getElementById('exaHeroCta');
-    // Repurposed from a passive "keep scrolling" nudge into a real
-    // shortcut: jumps straight past the whole pinned hero to the next
-    // section, for a visitor who came for the rest of the site rather
-    // than the cinematic intro (see index.html "Skip-hero arrow").
-    const exaSkipHero = document.getElementById('cineScrollHint');
+    /* ---------- Swipe slider ---------- */
     const HERO_SERVICE_LABELS = ['Photovoltaïque', 'Bardage', 'Toiture', 'Façade', 'Vitrage'];
-    const HERO_FACE_COUNT = exaCylinderFaces.length || HERO_SERVICE_LABELS.length;
+    const heroSliderViewport = document.getElementById('exaHeroSliderViewport');
+    const heroSlides = heroSliderViewport ? Array.from(heroSliderViewport.querySelectorAll('.exa-hero-slider__slide')) : [];
+    const heroPrevBtn = document.getElementById('exaHeroPrev');
+    const heroNextBtn = document.getElementById('exaHeroNext');
+    const heroHint = document.getElementById('exaHeroHint');
+    const heroPagination = document.getElementById('exaHeroPagination');
+    const heroPaginationSegs = heroPagination ? Array.from(heroPagination.querySelectorAll('.exa-hero-pagination__seg')) : [];
+    const heroAnnounce = document.getElementById('exaHeroSliderAnnounce');
 
-    // Reassigned below if the nav row exists — called every frame from
-    // cineScrubTick (and once, statically, from the reduced-motion branch)
-    // further down, kept a no-op default so both call sites can always
-    // call it unconditionally regardless of whether the row is in the DOM
-    // or GSAP/ScrollToPlugin loaded off the CDN.
-    let updateNavRow = () => {};
+    if (heroSliderViewport && heroSlides.length && window.EmblaCarousel) {
+      const emblaApi = EmblaCarousel(heroSliderViewport, {
+        loop: true,
+        align: 'center',
+        // Near-instant under reduced motion — Embla always positions via
+        // transform, so "no translate" isn't achievable while staying
+        // draggable; this is the closest honest equivalent (an instant
+        // reposition instead of an animated slide).
+        duration: heroReducedMotion ? 1 : 25,
+      });
 
-    if (window.gsap && window.ScrollToPlugin && (exaHeroNav || exaHeroCta || exaSkipHero)) {
-      gsap.registerPlugin(ScrollToPlugin);
+      const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+      if (heroHint) heroHint.textContent = isTouch ? 'Glissez pour découvrir' : '← →';
 
-      // Shared by both the nav row and the CTA below — only one
-      // control-triggered scroll ever runs at a time. autoKill is left off
-      // on every tween that uses this; the wheel/touchstart listeners
-      // right below do that job explicitly instead, per the brief.
-      let heroScrollTween = null;
-      // The sitewide `html { scroll-behavior: smooth }` (see styles.css
-      // "html") fights ScrollToPlugin: every scrollTop it writes each tick
-      // would itself kick off a second, overlapping native smooth-scroll
-      // animation, and the two fighting over the same scrollTop is exactly
-      // what produced the overshoot-then-stuck scrolling this had before
-      // this guard was added. Switched to 'auto' only for the lifetime of
-      // a control-triggered tween, then handed back — every other bare
-      // href="#..." on the page (nav links, footer, etc.) still gets the
-      // native smooth scroll as before.
-      const setNativeSmoothScroll = (enabled) => {
-        document.documentElement.style.scrollBehavior = enabled ? '' : 'auto';
+      let hintDismissed = false;
+      const dismissHint = () => {
+        if (hintDismissed || !heroHint) return;
+        hintDismissed = true;
+        heroHint.classList.add('is-dismissed');
       };
-      const killHeroScrollTween = () => {
-        if (!heroScrollTween) return;
-        heroScrollTween.kill();
-        heroScrollTween = null;
-        setNativeSmoothScroll(true);
-      };
-      window.addEventListener('wheel', killHeroScrollTween, { passive: true });
-      window.addEventListener('touchstart', killHeroScrollTween, { passive: true });
 
-      if (exaHeroNav) {
-        let navActiveIndex = 0;
-        let navUnderlineReady = false;
+      const updateSliderUI = () => {
+        const index = emblaApi.selectedScrollSnap();
+        const total = heroSlides.length;
 
-        const getHeroScrollTarget = (targetIndex) => {
-          const rect = cineHero.getBoundingClientRect();
-          const docTop = window.scrollY + rect.top;
-          const scrollableRange = cineHero.offsetHeight - window.innerHeight;
-          const targetProgress = targetIndex / (HERO_FACE_COUNT - 1);
-          return docTop + scrollableRange * targetProgress;
-        };
+        heroSlides.forEach((slide, i) => slide.classList.toggle('is-selected', i === index));
 
-        // Duration scales with distance so a Photovoltaïque -> Vitrage
-        // jump doesn't feel abrupt while an adjacent step (including every
-        // chevron press, which is always exactly one step) stays snappy.
-        const scrollToServiceIndex = (targetIndex) => {
-          const clamped = Math.min(HERO_FACE_COUNT - 1, Math.max(0, targetIndex));
-          if (clamped === navActiveIndex) return;
-          const distance = Math.abs(clamped - navActiveIndex);
-          killHeroScrollTween();
-          setNativeSmoothScroll(false);
-          heroScrollTween = gsap.to(window, {
-            duration: heroReducedMotion ? 0.01 : (distance <= 1 ? 0.5 : 0.8),
-            ease: 'power2.inOut',
-            scrollTo: { y: () => getHeroScrollTarget(clamped), autoKill: false },
-            onComplete: () => { heroScrollTween = null; setNativeSmoothScroll(true); },
-          });
-        };
-
-        exaHeroNavPrev.addEventListener('click', () => scrollToServiceIndex(navActiveIndex - 1));
-        exaHeroNavNext.addEventListener('click', () => scrollToServiceIndex(navActiveIndex + 1));
-        [...exaHeroNavLabels, ...exaHeroNavDots].forEach((btn) => {
-          btn.addEventListener('click', () => scrollToServiceIndex(Number(btn.dataset.index)));
-        });
-        // ArrowLeft/ArrowRight step through services while focus is
-        // anywhere inside the row (event delegation off the <nav> itself).
-        exaHeroNav.addEventListener('keydown', (e) => {
-          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-          e.preventDefault();
-          scrollToServiceIndex(navActiveIndex + (e.key === 'ArrowLeft' ? -1 : 1));
+        heroPaginationSegs.forEach((seg, i) => {
+          const active = i === index;
+          seg.classList.toggle('is-active', active);
+          seg.setAttribute('aria-current', active ? 'true' : 'false');
         });
 
-        const updateNavUnderline = (immediate) => {
-          const activeLabel = exaHeroNavLabels[navActiveIndex];
-          if (!activeLabel || !exaHeroNavUnderline) return;
-          const bounds = { x: activeLabel.offsetLeft, width: activeLabel.offsetWidth };
-          if (immediate || heroReducedMotion) gsap.set(exaHeroNavUnderline, bounds);
-          else gsap.to(exaHeroNavUnderline, { ...bounds, duration: 0.4, ease: 'power2.out' });
-        };
-        // Keeps the underline glued to its label across layout reflows
-        // (e.g. a phone rotated mid-session), not just on index change.
-        window.addEventListener('resize', () => updateNavUnderline(true));
+        if (hudSectionLabel) hudSectionLabel.textContent = `${String(index + 1).padStart(2, '0')} · ${HERO_SERVICE_LABELS[index].toUpperCase()}`;
+        if (hudSectionCount) hudSectionCount.textContent = `${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+        const pct = `${((index + 1) / total * 100).toFixed(2)}%`;
+        if (hudTicksActive) hudTicksActive.style.width = pct;
+        if (hudScrubFillBg) hudScrubFillBg.style.width = pct;
 
-        updateNavRow = (progress) => {
-          const index = Math.round(progress * (HERO_FACE_COUNT - 1));
-          if (index === navActiveIndex && navUnderlineReady) return;
-          const firstRun = !navUnderlineReady;
-          navActiveIndex = index;
-          navUnderlineReady = true;
+        if (heroAnnounce) heroAnnounce.textContent = `${HERO_SERVICE_LABELS[index]}, ${index + 1} sur ${total}`;
 
-          exaHeroNavLabels.forEach((btn, i) => {
-            if (i === index) btn.setAttribute('aria-current', 'true');
-            else btn.removeAttribute('aria-current');
-          });
-          exaHeroNavDots.forEach((btn, i) => {
-            if (i === index) btn.setAttribute('aria-current', 'true');
-            else btn.removeAttribute('aria-current');
-          });
-          // No wrapping — a bound reached disables that end's chevron
-          // rather than looping to the other end of the row.
-          exaHeroNavPrev.disabled = index === 0;
-          exaHeroNavPrev.setAttribute('aria-disabled', String(index === 0));
-          exaHeroNavNext.disabled = index === HERO_FACE_COUNT - 1;
-          exaHeroNavNext.setAttribute('aria-disabled', String(index === HERO_FACE_COUNT - 1));
-          if (exaHeroNavAnnounce) exaHeroNavAnnounce.textContent = HERO_SERVICE_LABELS[index] || '';
-          updateNavUnderline(firstRun);
-        };
-      }
-
-      if (exaHeroCta) {
-        const estimateSection = document.getElementById('estimate');
-        // A bare href relies on the sitewide `scroll-behavior: smooth`
-        // (see styles.css "html"), which fights this hero's own pinned
-        // scroll track and stalls partway through it — handled fully in JS
-        // instead; the href stays in the markup as a working no-JS
-        // fallback (see index.html "Devis instantané").
-        if (estimateSection) {
-          exaHeroCta.addEventListener('click', (e) => {
-            e.preventDefault();
-            killHeroScrollTween();
-            setNativeSmoothScroll(false);
-            heroScrollTween = gsap.to(window, {
-              duration: heroReducedMotion ? 0.01 : 1.0,
-              ease: 'power2.inOut',
-              // offsetY clears the fixed .site-nav (~91px tall, see
-              // .site-nav) so the section's heading lands visible under it
-              // instead of hidden beneath it.
-              scrollTo: { y: estimateSection, offsetY: 100, autoKill: false },
-              onComplete: () => { heroScrollTween = null; setNativeSmoothScroll(true); },
-            });
-          });
+        // Incoming-slide entrance (fade + 12px rise, 60ms stagger via CSS
+        // transition-delay on the label/rule/desc, see styles.css) —
+        // skipped under reduced motion, where that CSS is neutralized
+        // anyway; toggling the class is harmless either way but there's
+        // no reason to force a reflow for nothing.
+        if (!heroReducedMotion) {
+          const slide = heroSlides[index];
+          slide.classList.remove('is-entering');
+          void slide.offsetWidth; // restart the transition from a clean state
+          slide.classList.add('is-entering');
+          requestAnimationFrame(() => requestAnimationFrame(() => slide.classList.remove('is-entering')));
         }
-      }
-
-      if (exaSkipHero) {
-        // Same "no bare href, own JS tween" reasoning as the CTA above.
-        // Targets whichever section immediately follows .cine-hero in the
-        // DOM (currently .hero-lede) rather than a hardcoded id, so it
-        // keeps working if that section is ever renamed.
-        const afterHero = cineHero.nextElementSibling;
-        if (afterHero) {
-          exaSkipHero.addEventListener('click', () => {
-            killHeroScrollTween();
-            setNativeSmoothScroll(false);
-            heroScrollTween = gsap.to(window, {
-              duration: heroReducedMotion ? 0.01 : 1.0,
-              ease: 'power2.inOut',
-              scrollTo: { y: afterHero, offsetY: 100, autoKill: false },
-              onComplete: () => { heroScrollTween = null; setNativeSmoothScroll(true); },
-            });
-          });
-        }
-      }
-    }
-
-    const updateHud = (progress) => {
-      const sectionIdx = getPhaseIndex(progress);
-      if (sectionIdx !== cineLastSectionIdx) {
-        cineLastSectionIdx = sectionIdx;
-        if (hudSectionLabel) hudSectionLabel.textContent = `${String(sectionIdx + 1).padStart(2, '0')} · ${CINE_PHASES[sectionIdx].label.toUpperCase()}`;
-        if (hudSectionCount) hudSectionCount.textContent = `SECTION ${String(sectionIdx + 1).padStart(2, '0')} / ${String(CINE_PHASES.length).padStart(2, '0')}`;
-        // Only the first 5 phases have a matching keyword face — the 6th
-        // ("Atterrissage") is HUD-only, nothing to click for.
-        if (sectionIdx < 5) playCameraShutter();
-      }
-      if (hudTimecode) hudTimecode.textContent = formatTimecode(progress * CINE_VIRTUAL_DURATION_S);
-      if (hudFrameCounter) hudFrameCounter.textContent = `CADRE ${String(Math.round(progress * (HUD_COSMETIC_FRAME_COUNT - 1)) + 1).padStart(3, '0')} / ${String(HUD_COSMETIC_FRAME_COUNT).padStart(3, '0')}`;
-      const pct = `${(progress * 100).toFixed(2)}%`;
-      if (hudTicksActive) hudTicksActive.style.width = pct;
-      if (hudScrubFillBg) hudScrubFillBg.style.width = pct;
-    };
-
-    if (heroReducedMotion) {
-      // No scrub — land on one representative point (same ~30%-through
-      // convention as before) with the HUD and cylinder reflecting that
-      // static state, instead of ticking off scroll. The cylinder still
-      // fades its one resulting face in (see the reduced-motion rule on
-      // .exa-cylinder__face in styles.css — "still driven by hero
-      // progress", just not continuously). Hero "active" here just
-      // tracks whether the section is still on screen at all, via
-      // IntersectionObserver, since there's no per-frame progress being
-      // computed to key off instead.
-      const stillProgress = 0.3;
-      cineLastProgress = stillProgress;
-      updateHud(stillProgress);
-      updateCylinder(stillProgress);
-      updateNavRow(stillProgress);
-      const cineHeroObserver = new IntersectionObserver(
-        ([entry]) => setHeroActive(entry.isIntersecting),
-        { threshold: 0 }
-      );
-      cineHeroObserver.observe(cineHero);
-    } else {
-      cineScrubTick = () => {
-        const rect = cineHero.getBoundingClientRect();
-        // Pure perf floor: once the whole 400vh block — sticky stage AND
-        // the dead-space runway below it that exists purely to build
-        // scroll distance — has scrolled out above the viewport, there is
-        // nothing left to compute, ever again, for the rest of the page.
-        if (rect.bottom <= 0) { setHeroActive(false); return; }
-
-        const scrollable = rect.height - window.innerHeight;
-        const progress = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0;
-        cineLastProgress = progress;
-        updateHud(progress);
-        updateCylinder(progress);
-        updateNavRow(progress);
-        // progress reaching 1 is the moment the sticky stage un-sticks and
-        // the hero visually ends (see the comment on rect.bottom above —
-        // that's a much later boundary, only reached ~1 extra viewport of
-        // scroll after this).
-        setHeroActive(progress < 1);
       };
+
+      emblaApi.on('select', updateSliderUI);
+      emblaApi.on('init', updateSliderUI);
+      emblaApi.on('pointerDown', dismissHint);
+
+      if (heroPrevBtn) heroPrevBtn.addEventListener('click', () => { dismissHint(); emblaApi.scrollPrev(); });
+      if (heroNextBtn) heroNextBtn.addEventListener('click', () => { dismissHint(); emblaApi.scrollNext(); });
+      heroPaginationSegs.forEach((seg, i) => {
+        seg.addEventListener('click', () => { dismissHint(); emblaApi.scrollTo(i); });
+      });
+
+      // Keyboard arrows — active whenever the hero is in view (the video
+      // observer above keeps heroInView current), or whenever focus is
+      // actually inside the hero (a slide, an arrow, a pagination
+      // segment), matching "when the hero is in view or focused".
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        const heroFocused = cineHero.contains(document.activeElement);
+        if (!heroInView && !heroFocused) return;
+        e.preventDefault();
+        dismissHint();
+        if (e.key === 'ArrowLeft') emblaApi.scrollPrev(); else emblaApi.scrollNext();
+      });
+
+      // Desktop horizontal trackpad swipe — deltaX only. Vertical wheel
+      // is NEVER intercepted: preventDefault only fires once deltaX
+      // genuinely dominates the gesture, so a plain vertical scroll over
+      // the hero always scrolls the page natively. A short cooldown
+      // stops one continuous trackpad swipe (which fires dozens of wheel
+      // events) from paging through several slides at once.
+      let wheelCooldown = false;
+      heroSliderViewport.addEventListener('wheel', (e) => {
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || Math.abs(e.deltaX) < 12) return;
+        e.preventDefault();
+        if (wheelCooldown) return;
+        wheelCooldown = true;
+        dismissHint();
+        if (e.deltaX > 0) emblaApi.scrollNext(); else emblaApi.scrollPrev();
+        setTimeout(() => { wheelCooldown = false; }, 500);
+      }, { passive: false });
+    } else if (heroHint) {
+      heroHint.style.display = 'none';
     }
   }
 
@@ -1188,6 +884,16 @@ document.addEventListener('DOMContentLoaded', () => {
         };
       },
     });
+    // The hero shrank from a 400vh scroll-scrubbed track to a single
+    // viewport (see "Hero HUD + swipe slider" above) — every trigger
+    // position below it in the document shifts up as a result. GSAP
+    // measures live at ScrollTrigger.create() time, so this trigger
+    // already gets the right numbers on first paint; 'load' is a safety
+    // net for anything that still shifts layout after that (web fonts
+    // swapping in, the hero video's poster settling to its real
+    // dimensions) — invalidateOnRefresh:true above makes sure
+    // getScrollDistance() is recomputed fresh, not just repositioned.
+    window.addEventListener('load', () => ScrollTrigger.refresh());
   }
 
   /* ---------- Trust strip auto-scroll (Embla + auto-scroll plugin) ----------

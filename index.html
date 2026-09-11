@@ -127,24 +127,22 @@
 <main id="top">
 
   <!-- HERO — looping background video with a camera-HUD overlay and a 3D
-       liquid-glass keyword coverflow. Video playback is fully independent
-       of scroll: it autoplays and loops on its own (see "Hero background
-       video" in script.js), paused only via IntersectionObserver while
-       the hero is off-screen — nothing about it is scroll-scrubbed. The
-       title is plain static markup (always full opacity, no scroll-gated
-       reveal), sat just under the REC/specs line rather than centered so
-       it never covers the drone. Directly under it, .exa-cylinder-stage
-       turns through the five service keywords (Photovoltaïque → Bardage →
-       Toiture → Façade → Vitrage) as a row of tall glass panels: the
-       active card faces the viewer dead-on while its left/right neighbours
-       sit tilted in 3D on either side (a coverflow, not the old single-face
-       drum), driven by the same scroll-progress value the HUD already
-       computes each frame — see "Cylinder rotation" in script.js. The HUD
-       chrome (#cineHud) is entirely pointer-events:none decoration.
-       .cineScrollHint is a discreet "scroll to continue" nudge, hidden
-       until 5s of inactivity with no scroll input (see "Scroll-down hint"
-       in script.js) — dismissed for good the moment the visitor scrolls,
-       wheels, touches or presses a scroll key. .cineSoundToggle is the
+       liquid-glass keyword coverflow (now a flat swipe slider, see below).
+       Video playback is fully independent of scroll: it autoplays and
+       loops on its own (see "Hero background video" in script.js), paused
+       only via IntersectionObserver while the hero is off-screen — nothing
+       about it is scroll-scrubbed, and the hero itself is a single
+       viewport tall (no pinned scroll track any more). The title is plain
+       static markup (always full opacity), sat just under the REC/specs
+       line rather than centered so it never covers the drone. Directly
+       under it, .exa-hero-slider shows the five service keywords
+       (Photovoltaïque → Bardage → Toiture → Façade → Vitrage) one at a
+       time as flat glass cards — swipe/drag/arrows/keyboard/pagination
+       change the active one (Embla-driven, see "Hero HUD + swipe slider"
+       in script.js), scroll never does. The HUD chrome (#cineHud) is
+       entirely pointer-events:none decoration except the arrow/
+       pagination/hint controls, which opt back into pointer-events
+       individually. .cineSoundToggle is the
        one interactive, audible piece: off by default, it plays a very
        faint synthesized drone-hover hum only while both (a) the button is
        on and (b) the hero is still the active section — see "Hero hover
@@ -186,90 +184,71 @@
       <div class="cine-title-block">
         <h1 class="cine-title">Nettoyage par <span class="accent">drone</span></h1>
 
-        <!-- 3D liquid-glass coverflow — replaces the old single-face drum.
-             Order left-to-right of scroll: Photovoltaïque → Bardage →
-             Toiture → Façade → Vitrage (see script.js "Cylinder rotation").
-             Every face is tall (portrait) and carries its own one-line
-             description under the keyword. Only the active face is ever
-             dead-centre/full-facing; its neighbours sit tilted ~45° to
-             either side, receding in depth — script.js writes each face's
-             transform every frame from the same scroll progress the HUD
-             already computes, so the row glides in lockstep with the
-             scrub in both directions. Faces stay in the accessibility
-             tree at all times (role="listitem", no aria-hidden) since the
-             keywords are real content, not decoration — only the video is
-             aria-hidden. -->
-        <div class="exa-cylinder-stage" id="exaCylinderStage" role="list" aria-label="Nos services">
-          <div class="exa-cylinder" id="exaCylinder">
-            <div class="exa-cylinder__face" id="exaFace0" data-index="0" role="listitem">
-              <span class="exa-cylinder__contrast-pad" aria-hidden="true"></span>
-              <span class="exa-cylinder__label">Photovoltaïque</span>
-              <span class="exa-cylinder__rule" aria-hidden="true"></span>
-              <span class="exa-cylinder__desc">Rendement préservé, sans risque de casse.</span>
-            </div>
-            <div class="exa-cylinder__face" id="exaFace1" data-index="1" role="listitem">
-              <span class="exa-cylinder__contrast-pad" aria-hidden="true"></span>
-              <span class="exa-cylinder__label">Bardage</span>
-              <span class="exa-cylinder__rule" aria-hidden="true"></span>
-              <span class="exa-cylinder__desc">Aspect neuf retrouvé, sans échafaudage.</span>
-            </div>
-            <div class="exa-cylinder__face" id="exaFace2" data-index="2" role="listitem">
-              <span class="exa-cylinder__contrast-pad" aria-hidden="true"></span>
-              <span class="exa-cylinder__label">Toiture</span>
-              <span class="exa-cylinder__rule" aria-hidden="true"></span>
-              <span class="exa-cylinder__desc">Mousses et lichens éliminés sans y monter.</span>
-            </div>
-            <div class="exa-cylinder__face" id="exaFace3" data-index="3" role="listitem">
-              <span class="exa-cylinder__contrast-pad" aria-hidden="true"></span>
-              <span class="exa-cylinder__label">Façade</span>
-              <span class="exa-cylinder__rule" aria-hidden="true"></span>
-              <span class="exa-cylinder__desc">Pierre, enduit ou verre, nettoyés en douceur.</span>
-            </div>
-            <div class="exa-cylinder__face" id="exaFace4" data-index="4" role="listitem">
-              <span class="exa-cylinder__contrast-pad" aria-hidden="true"></span>
-              <span class="exa-cylinder__label">Vitrage</span>
-              <span class="exa-cylinder__rule" aria-hidden="true"></span>
-              <span class="exa-cylinder__desc">Vitres et verrières en hauteur, sans risque.</span>
+        <!-- Horizontal swipe slider (Embla — already loaded sitewide for
+             the trust strip, see script.js "Hero swipe slider"). Replaces
+             the old scroll-scrubbed 3D coverflow: same 5 cards, same
+             glass look, same order, but the visitor changes cards with a
+             swipe/drag/arrow/keyboard instead of scrolling — vertical
+             scroll on the hero is 100% native (touch-action:pan-y on the
+             viewport below). Loop enabled, no autoplay. -->
+        <div class="exa-hero-slider" id="exaHeroSlider" role="region" aria-roledescription="carousel" aria-label="Nos prestations de nettoyage par drone">
+          <div class="exa-hero-slider__viewport" id="exaHeroSliderViewport">
+            <div class="exa-hero-slider__container" id="exaHeroSliderContainer">
+              <div class="exa-hero-slider__slide" role="group" aria-roledescription="slide" aria-label="1 sur 5">
+                <span class="exa-hero-slider__label">Photovoltaïque</span>
+                <span class="exa-hero-slider__rule" aria-hidden="true"></span>
+                <span class="exa-hero-slider__desc">Rendement préservé, sans risque de casse.</span>
+              </div>
+              <div class="exa-hero-slider__slide" role="group" aria-roledescription="slide" aria-label="2 sur 5">
+                <span class="exa-hero-slider__label">Bardage</span>
+                <span class="exa-hero-slider__rule" aria-hidden="true"></span>
+                <span class="exa-hero-slider__desc">Aspect neuf retrouvé, sans échafaudage.</span>
+              </div>
+              <div class="exa-hero-slider__slide" role="group" aria-roledescription="slide" aria-label="3 sur 5">
+                <span class="exa-hero-slider__label">Toiture</span>
+                <span class="exa-hero-slider__rule" aria-hidden="true"></span>
+                <span class="exa-hero-slider__desc">Mousses et lichens éliminés sans y monter.</span>
+              </div>
+              <div class="exa-hero-slider__slide" role="group" aria-roledescription="slide" aria-label="4 sur 5">
+                <span class="exa-hero-slider__label">Façade</span>
+                <span class="exa-hero-slider__rule" aria-hidden="true"></span>
+                <span class="exa-hero-slider__desc">Pierre, enduit ou verre, nettoyés en douceur.</span>
+              </div>
+              <div class="exa-hero-slider__slide" role="group" aria-roledescription="slide" aria-label="5 sur 5">
+                <span class="exa-hero-slider__label">Vitrage</span>
+                <span class="exa-hero-slider__rule" aria-hidden="true"></span>
+                <span class="exa-hero-slider__desc">Vitres et verrières en hauteur, sans risque.</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Direct service navigation — an additional path to a service on
-             top of scroll, not a replacement for it. Never sets rotation
-             itself: a click just moves the scroll position to the point
-             that already maps to that service, and the cylinder turns as
-             a consequence through the exact same scroll-scrub path (see
-             script.js "Hero direct navigation"). Active state mirrors live
-             scroll progress at all times, including during manual
-             scrolling, never "the last thing clicked". -->
-        <nav class="exa-hero-nav" id="exaHeroNav" aria-label="Naviguer directement vers un service">
-          <button type="button" class="exa-hero-nav__chevron exa-hero-nav__chevron--prev" id="exaHeroNavPrev" aria-label="Service précédent" disabled aria-disabled="true">
+          <!-- Desktop only (hidden on touch, see styles.css), low opacity
+               until the hero is hovered. -->
+          <button type="button" class="exa-hero-slider__arrow exa-hero-slider__arrow--prev" id="exaHeroPrev" aria-label="Prestation précédente">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
           </button>
-
-          <div class="exa-hero-nav__labels" id="exaHeroNavLabels">
-            <span class="exa-hero-nav__underline" id="exaHeroNavUnderline" aria-hidden="true"></span>
-            <button type="button" class="exa-hero-nav__label" data-index="0" aria-label="Voir le service Photovoltaïque" aria-current="true">Photovoltaïque</button>
-            <button type="button" class="exa-hero-nav__label" data-index="1" aria-label="Voir le service Bardage">Bardage</button>
-            <button type="button" class="exa-hero-nav__label" data-index="2" aria-label="Voir le service Toiture">Toiture</button>
-            <button type="button" class="exa-hero-nav__label" data-index="3" aria-label="Voir le service Façade">Façade</button>
-            <button type="button" class="exa-hero-nav__label" data-index="4" aria-label="Voir le service Vitrage">Vitrage</button>
-          </div>
-
-          <div class="exa-hero-nav__dots" id="exaHeroNavDots">
-            <button type="button" class="exa-hero-nav__dot" data-index="0" aria-label="Voir le service Photovoltaïque" aria-current="true"><span></span></button>
-            <button type="button" class="exa-hero-nav__dot" data-index="1" aria-label="Voir le service Bardage"><span></span></button>
-            <button type="button" class="exa-hero-nav__dot" data-index="2" aria-label="Voir le service Toiture"><span></span></button>
-            <button type="button" class="exa-hero-nav__dot" data-index="3" aria-label="Voir le service Façade"><span></span></button>
-            <button type="button" class="exa-hero-nav__dot" data-index="4" aria-label="Voir le service Vitrage"><span></span></button>
-          </div>
-
-          <button type="button" class="exa-hero-nav__chevron exa-hero-nav__chevron--next" id="exaHeroNavNext" aria-label="Service suivant">
+          <button type="button" class="exa-hero-slider__arrow exa-hero-slider__arrow--next" id="exaHeroNext" aria-label="Prestation suivante">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
           </button>
+        </div>
 
-          <span class="sr-only" id="exaHeroNavAnnounce" aria-live="polite"></span>
-        </nav>
+        <!-- Interaction hint — "Glissez pour découvrir" on touch, "← →" on
+             desktop (text set by script.js based on pointer type), fades
+             out for good after the first swipe/click/keypress. -->
+        <p class="exa-hero-hint" id="exaHeroHint" aria-hidden="true"></p>
+
+        <!-- Pagination — clickable, replaces the old direct-nav row
+             (chevrons + text labels + dots). One thin segment per slide;
+             fills solid on the active one. -->
+        <div class="exa-hero-pagination" id="exaHeroPagination" role="group" aria-label="Aller directement à une prestation">
+          <button type="button" class="exa-hero-pagination__seg" data-index="0" aria-label="Aller à la prestation 1"></button>
+          <button type="button" class="exa-hero-pagination__seg" data-index="1" aria-label="Aller à la prestation 2"></button>
+          <button type="button" class="exa-hero-pagination__seg" data-index="2" aria-label="Aller à la prestation 3"></button>
+          <button type="button" class="exa-hero-pagination__seg" data-index="3" aria-label="Aller à la prestation 4"></button>
+          <button type="button" class="exa-hero-pagination__seg" data-index="4" aria-label="Aller à la prestation 5"></button>
+        </div>
+
+        <span class="sr-only" id="exaHeroSliderAnnounce" aria-live="polite"></span>
 
         <!-- Price hook — sits between the direct-nav row and the CTA so
              reading order is headline → price → button. The "2,90 €"
@@ -292,32 +271,15 @@
           <p class="exa-hero-price__sub">Sans échafaudage, sans nacelle. Votre devis chiffré en 30 secondes, envoyé dans votre boîte mail.</p>
         </div>
 
-        <!-- "Devis instantané" — links to the instant quote generator
-             (#estimate, see index.html "ESTIMATION INSTANTANÉE"). Handled
-             in JS with preventDefault + GSAP ScrollToPlugin (see script.js
-             "Hero direct navigation") since a bare href would fight the
-             hero's pinned scroll track and stall partway through it; the
-             href stays as a real, working no-JS fallback. -->
+        <!-- "Devis instantané" — plain anchor to #estimate. Now that the
+             hero is a single viewport (no more pinned scroll track to
+             fight), the sitewide `html { scroll-behavior: smooth }` (see
+             styles.css "html") handles this exactly like every other nav
+             link already does — no JS hijack needed any more. -->
         <a href="#estimate" class="exa-hero-cta" id="exaHeroCta">
           <span class="exa-hero-cta__label">Devis instantané</span>
           <span class="exa-hero-cta__arrow" aria-hidden="true">→</span>
         </a>
-
-        <!-- Skip-hero arrow — discreet, always visible. A real shortcut now
-             (see script.js "Skip hero"), not just a "keep scrolling" nudge:
-             it jumps straight past the whole pinned 400vh hero to the next
-             section, for a visitor who came for the rest of the site, not
-             the cinematic intro. Sits in normal flow right after the CTA
-             (not position:absolute) so it stacks under everything else in
-             .cine-title-block and never fights the HUD scrub bar for the
-             same fixed bottom offset. -->
-        <button type="button" class="cine-scroll-hint" id="cineScrollHint" aria-label="Passer l'introduction et aller directement au reste du site">
-          <span class="cine-scroll-hint-label">Passer l'introduction</span>
-          <span class="cine-scroll-hint-arrow" aria-hidden="true">
-            <svg class="cine-scroll-hint-chevron" viewBox="0 0 24 14" width="18" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l10 10 10-10"/></svg>
-            <svg class="cine-scroll-hint-chevron cine-scroll-hint-chevron-2" viewBox="0 0 24 14" width="18" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l10 10 10-10"/></svg>
-          </span>
-        </button>
       </div>
 
       <div class="cine-hud" id="cineHud" aria-hidden="true">
@@ -336,26 +298,26 @@
 
         <div class="hud-specs">4K · 30 FPS · F2.8 · 1/50</div>
 
-        <div class="hud-vertical hud-vertical-left">Défilez pour explorer</div>
         <div class="hud-vertical hud-vertical-right">Exadrone // Nettoyage</div>
 
+        <!-- Section label + tick fill are cosmetic HUD chrome, kept but
+             now driven by the active slide (see script.js "Hero swipe
+             slider") instead of scroll progress. The "01 / 05" counter
+             replaces the old scroll-bound "SECTION 01 / 06" +
+             "CADRE 001 / 049" pair; REC/timecode above are untouched. -->
         <div class="hud-scrubbar">
           <div class="hud-scrubbar-top">
-            <span class="hud-section-label" id="hudSectionLabel">01 · APERÇU</span>
+            <span class="hud-section-label" id="hudSectionLabel">01 · PHOTOVOLTAÏQUE</span>
             <div class="hud-meta">
               <span>ISO 800</span>
               <span>WB 5600K</span>
-              <span id="hudSectionCount">SECTION 01 / 06</span>
+              <span id="hudSectionCount">01 / 05</span>
             </div>
           </div>
           <div class="hud-ticks-wrap">
             <div class="hud-scrub-fill-bg" id="hudScrubFillBg"></div>
             <div class="hud-ticks-base"></div>
             <div class="hud-ticks-active" id="hudTicksActive"></div>
-          </div>
-          <div class="hud-bottom-meta">
-            <span id="hudFrameCounter">CADRE 001 / 049</span>
-            <span class="hud-scrub-active">SCRUB ACTIF</span>
           </div>
         </div>
       </div>
@@ -1160,16 +1122,20 @@
      order). -->
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
-<!-- ScrollToPlugin — drives the hero's direct-service nav row + "Devis
-     instantané" CTA (see script.js "Hero direct navigation"). Same
-     load-order rationale as ScrollTrigger above. -->
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollToPlugin.min.js" defer></script>
+<!-- ScrollToPlugin removed — its only consumer was the hero's old
+     scroll-hijacking CTA/nav-row click handlers (see script.js "Hero
+     direct navigation", removed along with the rest of the scroll-
+     scrubbed hero). Nothing else on the page uses it; GSAP/ScrollTrigger
+     themselves stay loaded above for the "Le drone" pinned section. -->
 <!-- Embla + auto-scroll plugin — drives the exa-trust equipment/
-     certifications strip (see script.js "Trust strip auto-scroll").
-     Synchronous (no defer) so window.EmblaCarousel/EmblaCarouselAutoScroll
-     are guaranteed to exist before script.js's deferred DOMContentLoaded
-     handler runs — synchronous scripts always execute during parsing,
-     which completes before any deferred script fires. -->
+     certifications strip (see script.js "Trust strip auto-scroll") and,
+     as of the hero swipe slider, the hero's own service slider too (see
+     script.js "Hero HUD + swipe slider" — no auto-scroll plugin there,
+     interaction only). Synchronous (no defer) so
+     window.EmblaCarousel/EmblaCarouselAutoScroll are guaranteed to exist
+     before script.js's deferred DOMContentLoaded handler runs —
+     synchronous scripts always execute during parsing, which completes
+     before any deferred script fires. -->
 <script src="https://cdn.jsdelivr.net/npm/embla-carousel/embla-carousel.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/embla-carousel-auto-scroll/embla-carousel-auto-scroll.umd.js"></script>
 <!-- Shared pricing source of truth (also required server-side by
