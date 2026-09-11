@@ -1331,7 +1331,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="devis-quote-row"><span>Total HT</span><span class="devis-mask">••••&nbsp;€</span></div>
         <div class="devis-quote-row"><span>TVA 20&nbsp;%</span><span class="devis-mask">••••&nbsp;€</span></div>
         <div class="devis-quote-row devis-quote-row--total"><span>Total TTC</span><span class="devis-mask">••••&nbsp;€</span></div>
-        <div class="devis-quote-lock">🔒 Votre devis est prêt — renseignez vos coordonnées pour le recevoir.</div>
+        <div class="devis-quote-lock">🎉 Votre devis chiffré est prêt ! Indiquez où l'envoyer pour le débloquer instantanément.</div>
       `;
     }
 
@@ -1374,7 +1374,9 @@ document.addEventListener('DOMContentLoaded', () => {
       formError.textContent = msg || '';
     };
     function validateContactForm(data) {
-      if (!data.name.trim()) return { msg: "Merci d'indiquer votre nom et prénom.", field: 'name' };
+      // Name/company/postal code are deliberately optional — the only hard
+      // requirements are a way to reach the prospect (email or phone) and
+      // consent, so step 3 stays as low-friction as possible.
       if (!data.email.trim() && !data.phone.trim()) return { msg: "Merci d'indiquer un e-mail ou un numéro de téléphone.", field: 'email' };
       if (data.email.trim() && !EMAIL_RE.test(data.email.trim())) return { msg: 'Adresse e-mail invalide.', field: 'email' };
       if (data.phone.trim() && !PHONE_RE.test(data.phone.trim())) return { msg: 'Numéro de téléphone invalide (format français attendu).', field: 'phone' };
@@ -1395,7 +1397,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderedAt: renderedAtInput.value
       };
 
-      ['name', 'email', 'phone'].forEach((f) => form[f].removeAttribute('aria-invalid'));
+      ['email', 'phone'].forEach((f) => form[f].removeAttribute('aria-invalid'));
       const invalid = validateContactForm(data);
       if (invalid) {
         setFormError(invalid.msg);

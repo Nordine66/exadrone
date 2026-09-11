@@ -474,12 +474,14 @@
         <div class="devis-quote-preview" id="devisQuotePreview"></div>
 
         <form class="devis-form" id="devisForm" novalidate>
+          <p class="devis-form-intro">Encore une étape — la plus rapide : dites-nous où vous joindre et votre devis est à vous. 🎉</p>
+
           <div class="devis-field">
-            <label for="devisName">Nom et prénom *</label>
-            <input type="text" id="devisName" name="name" autocomplete="name" required>
+            <label for="devisName">Nom et prénom <span class="devis-optional">(optionnel)</span></label>
+            <input type="text" id="devisName" name="name" autocomplete="name">
           </div>
           <div class="devis-field">
-            <label for="devisCompany">Société / Collectivité</label>
+            <label for="devisCompany">Société / Collectivité <span class="devis-optional">(optionnel)</span></label>
             <input type="text" id="devisCompany" name="company" autocomplete="organization">
           </div>
           <div class="devis-field-row">
@@ -492,9 +494,9 @@
               <input type="tel" id="devisPhone" name="phone" autocomplete="tel">
             </div>
           </div>
-          <p class="devis-helper">Renseignez au moins un moyen de contact. Avec un e-mail, vous recevez votre devis immédiatement.</p>
+          <p class="devis-helper">Un seul des deux suffit — e-mail ou téléphone. 📩 Avec un e-mail, votre devis arrive en quelques secondes.</p>
           <div class="devis-field">
-            <label for="devisPostal">Code postal du site d'intervention</label>
+            <label for="devisPostal">Code postal du site d'intervention <span class="devis-optional">(optionnel)</span></label>
             <input type="text" id="devisPostal" name="postalCode" inputmode="numeric" autocomplete="postal-code">
           </div>
           <label class="devis-consent">
@@ -516,6 +518,7 @@
             <button type="button" class="devis-btn-secondary" data-back="2">← Retour</button>
             <button type="submit" class="btn btn-primary" id="devisSubmitBtn">Recevoir mon devis gratuit</button>
           </div>
+          <p class="devis-form-trust">🔒 Vos données restent confidentielles · Sans engagement · Zéro spam</p>
         </form>
 
         <div class="devis-result" id="devisResult" hidden></div>

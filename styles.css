@@ -2615,6 +2615,15 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   color: var(--steel);
 }
 .devis-helper { margin-top: 10px; font-size: 0.82rem; color: var(--steel-dark); }
+.devis-form-intro { margin: 0; font-size: 1rem; font-weight: 600; color: var(--paper); }
+.devis-optional { font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--steel-dark); }
+.devis-form-trust {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--steel-dark);
+  text-align: center;
+}
 
 /* ---------- Step 1: service cards ---------- */
 .devis-services { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
