@@ -9,6 +9,12 @@ const { outreachFooterHtml, chloeSignatureHtml } = require('../../lib/email-foot
 const pricing = require('../../lib/pricing')
 
 const FROM_ADDRESS = 'chloe@exadrone-enterprise.com'
+// chloe@ isn't connected to an inbox anyone actually reads (no MX/inbound
+// routing set up for it yet — see api/agents/inbound-email.js's own "once
+// MX points to Resend" note); only contact@ forwards to a real mailbox.
+// Chloé still sends and signs from chloe@, but a prospect's reply needs to
+// land somewhere a human sees it, so Reply-To points at contact@ instead.
+const REPLY_TO = 'contact@exadrone-enterprise.com'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // Kept in sync with lib/pricing.js so blog prompts never quote a stale tarif.
@@ -265,7 +271,7 @@ async function handleFollowup(req, res) {
           to: prospect.email,
           subject,
           html: fullHtml,
-          replyTo: FROM_ADDRESS,
+          replyTo: REPLY_TO,
           headers: {
             'Message-ID': newMessageId,
             ...(referenceIds.length ? { 'In-Reply-To': referenceIds[referenceIds.length - 1], References: referenceIds.join(' ') } : {})
@@ -450,7 +456,7 @@ async function handleSendBatch(req, res, supabase) {
         to: prospect.email,
         subject,
         html: fullHtml,
-        replyTo: FROM_ADDRESS,
+        replyTo: REPLY_TO,
         headers: { 'Message-ID': emailMessageId }
       })
 
