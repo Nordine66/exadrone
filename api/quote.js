@@ -2,6 +2,7 @@ const crypto = require('crypto')
 const { getSupabase } = require('../lib/supabase')
 const { sendManagedEmail } = require('../lib/resend-send')
 const { escapeHtml } = require('../lib/http')
+const { buildQuotePdf } = require('../lib/quote-pdf')
 const pricing = require('../lib/pricing')
 
 // Victoria is the persona that "generates instant quotes" per her system
@@ -34,24 +35,21 @@ function validateContact({ email, phone, consent }) {
   return null
 }
 
+// Short and simple on purpose — the itemized breakdown now lives in the
+// attached PDF (see lib/quote-pdf.js), so the email body's only job is to
+// greet, give the headline total for an at-a-glance read, and point to the
+// attachment for the rest. Duplicating the full line-item table here on
+// top of the PDF would just be the same "wall of numbers" problem twice.
 function quoteEmailHtml({ name, quote, service }) {
   const greeting = name ? `Bonjour ${escapeHtml(name)},` : 'Bonjour,'
-  const row = (label, value) => `<tr><td style="padding:8px 0;color:#64748b">${label}</td><td style="padding:8px 0;text-align:right;font-weight:600">${value}</td></tr>`
   return `
 <div style="font-family:-apple-system,sans-serif;max-width:560px;color:#0f172a">
   <p>${greeting}</p>
-  <p>Merci pour votre demande — voici votre devis <strong>${quote.number}</strong> pour une prestation de nettoyage par drone Exadrone Enterprise, sans échafaudage ni nacelle.</p>
-  <table style="border-collapse:collapse;width:100%;margin:20px 0">
-    ${row('Prestation', escapeHtml(service.label))}
-    ${row('Surface', `${quote.surface}&nbsp;m²`)}
-    ${row('Prix unitaire HT', `${pricing.formatCurrency(quote.unitPriceHT)}/m²`)}
-    <tr><td colspan="2"><hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0"></td></tr>
-    ${row('Total HT', pricing.formatCurrency(quote.totalHT))}
-    ${row('TVA 20%', pricing.formatCurrency(quote.vat))}
-    <tr><td style="padding:10px 0;font-weight:700;font-size:18px">Total TTC</td><td style="padding:10px 0;text-align:right;font-weight:700;font-size:18px">${pricing.formatCurrency(quote.totalTTC)}</td></tr>
-  </table>
-  ${quote.minimumApplied ? '<p style="color:#64748b;font-size:13px">Le forfait minimum de commande a été appliqué à ce devis.</p>' : ''}
-  <p style="color:#64748b;font-size:13px">Devis valable jusqu'au ${new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(quote.validUntil))}.</p>
+  <p>Merci pour votre demande — votre devis <strong>${quote.number}</strong> pour une prestation de <strong>${escapeHtml(service.label.toLowerCase())}</strong> par drone (${quote.surface}&nbsp;m², sans échafaudage ni nacelle) est en pièce jointe, au format PDF.</p>
+  <p style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;font-size:18px;font-weight:700">
+    Total TTC&nbsp;: ${pricing.formatCurrency(quote.totalTTC)}
+    <span style="display:block;font-size:12px;font-weight:400;color:#64748b;margin-top:4px">Devis valable jusqu'au ${new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(quote.validUntil))}</span>
+  </p>
   <p>Pour confirmer l'intervention ou poser une question, il vous suffit de répondre directement à cet e-mail.</p>
   <p>Bien à vous,<br><strong>Victoria</strong><br>Exadrone Enterprise</p>
 </div>`
@@ -106,6 +104,24 @@ module.exports = async (req, res) => {
     minimumApplied: q.minimumApplied
   }
 
+  const trimmedPostalCode = String(postalCode).trim()
+
+  // Built once, attached to both the customer email and the internal
+  // notification below — a real devis document (letterhead, SIREN/SIRET,
+  // itemized line, totals, acceptance box) instead of numbers pasted into
+  // an email body. See lib/quote-pdf.js for the layout.
+  let pdfBuffer = null
+  try {
+    pdfBuffer = await buildQuotePdf({
+      quote,
+      service,
+      contact: { name: String(name).trim(), company: String(company).trim(), email: trimmedEmail, phone: trimmedPhone, postalCode: trimmedPostalCode }
+    })
+  } catch (e) {
+    console.error('Quote PDF generation failed:', e)
+  }
+  const pdfAttachment = pdfBuffer ? [{ filename: `devis-exadrone-${quote.number}.pdf`, content: pdfBuffer }] : undefined
+
   let emailSent = false
   if (trimmedEmail) {
     try {
@@ -124,7 +140,8 @@ module.exports = async (req, res) => {
         to: trimmedEmail,
         replyTo: REPLY_TO,
         subject: `Votre devis Exadrone Enterprise — ${quote.number}`,
-        html: quoteEmailHtml({ name: String(name).trim(), quote, service })
+        html: quoteEmailHtml({ name: String(name).trim(), quote, service }),
+        attachments: pdfAttachment
       })
       emailSent = true
     } catch (e) {
@@ -133,7 +150,10 @@ module.exports = async (req, res) => {
   }
 
   // Lead visibility for the admin dashboard — best-effort, never blocks
-  // the customer's own response on a Supabase hiccup.
+  // the customer's own response on a Supabase hiccup. organization_type
+  // is the contact form's "collectivité / entreprise BTP / ..." field,
+  // which this flow never collects — postal code goes in the free-text
+  // message instead rather than overloading that column.
   try {
     const supabase = getSupabase()
     await supabase.from('leads').insert({
@@ -142,8 +162,8 @@ module.exports = async (req, res) => {
       email: trimmedEmail || null,
       phone: trimmedPhone || null,
       project_type: service.label,
-      organization_type: String(postalCode).trim() || null,
-      message: `Devis instantané ${quote.number} — ${quote.surface} m² — ${pricing.formatCurrency(quote.totalTTC)} TTC`,
+      organization_type: null,
+      message: `Devis instantané ${quote.number} — ${quote.surface} m² — ${pricing.formatCurrency(quote.totalTTC)} TTC${trimmedPostalCode ? ` — CP ${trimmedPostalCode}` : ''}`,
       source: 'devis_instantane',
       score: 'hot',
       status: 'new'
@@ -154,7 +174,8 @@ module.exports = async (req, res) => {
 
   // Internal notification, same fallback address the contact form
   // already notifies — lets Nordine see a devis went out even when the
-  // dashboard isn't open.
+  // dashboard isn't open, PDF attached so it's the exact document the
+  // customer received.
   const fallback = process.env.NOTIFICATION_EMAIL
   if (fallback) {
     try {
@@ -169,7 +190,8 @@ module.exports = async (req, res) => {
     ${[['Prestation', service.label], ['Surface', `${quote.surface} m²`], ['Total TTC', pricing.formatCurrency(quote.totalTTC)], ['Nom', name], ['Société', company], ['Email', email], ['Téléphone', trimmedPhone], ['Code postal', postalCode]]
       .map(([k, v]) => `<tr><td style="padding:8px;border:1px solid #e2e8f0;color:#64748b;width:140px">${k}</td><td style="padding:8px;border:1px solid #e2e8f0">${escapeHtml(v) || '—'}</td></tr>`).join('')}
   </table>
-</div>`
+</div>`,
+        attachments: pdfAttachment
       })
     } catch (e) {
       console.error('Quote internal notification failed:', e)
