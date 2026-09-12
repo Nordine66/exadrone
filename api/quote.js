@@ -12,7 +12,11 @@ const pricing = require('../lib/pricing')
 // api/agents/tasks.js, api/contact.js), so no separate domain
 // verification is needed for this local part.
 const FROM_ADDRESS = 'Victoria — Exadrone Enterprise <victoria@exadrone-enterprise.com>'
-const REPLY_TO = 'victoria@exadrone-enterprise.com'
+// Replies go to contact@ rather than victoria@ — victoria@/chloe@ aren't
+// connected to an inbox anyone actually reads, only contact@ forwards to
+// Nordine's real mailbox. Victoria still signs and sends the email; a
+// reply just needs to land somewhere a human sees it.
+const REPLY_TO = 'contact@exadrone-enterprise.com'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE_RE = /^(?:\+33|0)\s*[1-9](?:[\s.-]?\d{2}){4}$/

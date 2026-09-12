@@ -1,5 +1,10 @@
 {
   "trailingSlash": false,
+  "functions": {
+    "api/quote.js": {
+      "includeFiles": "node_modules/pdfkit/js/**"
+    }
+  },
   "crons": [
     {
       "path": "/api/agents/tasks?agent=blog-writer",
