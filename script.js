@@ -1282,38 +1282,26 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    /* ---- requestQuote(): isolated call site, mocked for now ----
-       Uses the same shared pricing.calculateQuote() the real /api/quote
-       endpoint will use server-side, so the mocked numbers already match
-       what the real endpoint returns. Swap the body for
-       fetch('/api/quote', {method:'POST', body: JSON.stringify(payload)})
-       in the next task — same signature, same return shape. */
-    function requestQuote(payload) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const q = pricing.calculateQuote(payload.serviceId, payload.surface);
-          if (!q.ok) { resolve({ ok: false, error: 'invalid' }); return; }
-          const now = new Date();
-          const validUntil = new Date(now.getTime() + pricing.config.quoteValidityDays * 24 * 60 * 60 * 1000);
-          const number = `EXA-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-          resolve({
-            ok: true,
-            quote: {
-              number,
-              date: now.toISOString(),
-              validUntil: validUntil.toISOString(),
-              serviceLabel: q.serviceLabel,
-              surface: q.surface,
-              unitPriceHT: q.unitPriceHT,
-              totalHT: q.totalHT,
-              vat: q.vat,
-              totalTTC: q.totalTTC,
-              minimumApplied: q.minimumApplied
-            },
-            emailSent: !!payload.email
-          });
-        }, 900);
-      });
+    /* ---- requestQuote(): isolated call site, now wired to the real
+       serverless endpoint (api/quote.js) ----
+       That endpoint recomputes the quote server-side with the same
+       shared pricing.calculateQuote() (never trusts client numbers),
+       sends the devis email itself (from Victoria — the persona that
+       "génère des devis instantanés" per lib/agent-personas.js), and
+       returns the exact { ok, quote, emailSent } shape this used to
+       fabricate locally — nothing else in this file needed to change. */
+    async function requestQuote(payload) {
+      try {
+        const res = await fetch('/api/quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        return await res.json();
+      } catch (err) {
+        console.error('Quote request network error:', err);
+        return { ok: false, error: 'network' };
+      }
     }
 
     /* ---- Unlocked quote ---- */
