@@ -320,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /* ---------- Swipe slider ---------- */
-    const HERO_SERVICE_LABELS = ['Photovoltaïque', 'Bardage', 'Toiture', 'Façade', 'Vitrage'];
+    const HERO_SERVICE_LABELS = ['Photovoltaïque', 'Toiture', 'Bardage', 'Façade', 'Vitrage'];
     const heroSliderViewport = document.getElementById('exaHeroSliderViewport');
     const heroSlides = heroSliderViewport ? Array.from(heroSliderViewport.querySelectorAll('.exa-hero-slider__slide')) : [];
     const heroPrevBtn = document.getElementById('exaHeroPrev');
@@ -402,8 +402,8 @@ document.addEventListener('DOMContentLoaded', () => {
          that query flattens the stage and hard-hides every non-selected
          slide instead). */
       if (!heroReducedMotion) {
-        const COVERFLOW_ANGLE = 46; // deg
-        const COVERFLOW_DEPTH = 92; // px pushed back per step
+        const COVERFLOW_ANGLE = 50; // deg
+        const COVERFLOW_DEPTH = 100; // px pushed back per step
         const COVERFLOW_SCALE_STEP = 0.15;
         const total = heroSlides.length;
 
@@ -412,8 +412,17 @@ document.addEventListener('DOMContentLoaded', () => {
           const scrollProgress = emblaApi.scrollProgress();
           // Slide width == viewport width by construction (one full slide
           // per view, see styles.css --slide-w) — read live so a resize
-          // (or the short-viewport clamp() tiers) is always honored.
+          // (or the short-viewport clamp() tiers) is always honored. Bails
+          // out on a zero-width read (element not yet laid out — e.g. the
+          // very first call before fonts/layout settle) rather than
+          // writing wrapShiftPx values computed against a bogus 0px
+          // width: that used to plant a wrong translateX on the wrapped
+          // neighbours until the next 'scroll' frame corrected it, which
+          // read as a neighbouring card ("fenêtre") popping in from the
+          // wrong spot for a frame — the resize/orientation sync below
+          // re-runs this as soon as a real width is available instead.
           const slideWidthPx = heroSliderViewport.getBoundingClientRect().width;
+          if (!slideWidthPx) return;
 
           emblaApi.scrollSnapList().forEach((scrollSnap, snapIndex) => {
             let diffToTarget = scrollSnap - scrollProgress;
@@ -462,19 +471,60 @@ document.addEventListener('DOMContentLoaded', () => {
             if (absOffset <= 1) opacity = 1 - absOffset * 0.5;
             else if (absOffset <= 2) opacity = 0.5 - (absOffset - 1) * 0.36;
             else opacity = Math.max(0, 0.14 - (absOffset - 2) * 0.14);
+            // Depth shading — a real coverflow card doesn't just fade out
+            // as it recedes, it also visually dims (less light reaches
+            // it), which sells the illusion of physical depth far better
+            // than opacity alone against a moving video background.
+            const brightness = Math.max(0.45, 1 - depthOffset * 0.22);
 
             const slide = heroSlides[snapIndex];
             if (!slide) return;
             slide.style.transform = `translateX(${wrapShiftPx.toFixed(1)}px) translateZ(${translateZ.toFixed(1)}px) rotateY(${rotateY.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+            // Hinge the rotation at the slide's inner edge (the edge
+            // nearest the centered card) instead of its own center — the
+            // signature look of a "real" coverflow, where each neighbour
+            // reads as a panel swinging away around a shared axis rather
+            // than a flat card tilting in place. Only meaningfully
+            // different from center once a slide has actually left dead
+            // center, so the switch at sign===0 lines up with rotateY
+            // already being 0deg there — no visible seam.
+            slide.style.transformOrigin = sign > 0 ? '0% 50%' : sign < 0 ? '100% 50%' : '50% 50%';
             slide.style.opacity = opacity.toFixed(3);
+            slide.style.filter = `brightness(${brightness.toFixed(3)})`;
             slide.style.zIndex = String(Math.round(100 - absOffset * 10));
-            slide.classList.toggle('is-selected', absOffset < 0.06);
           });
         };
 
         emblaApi.on('scroll', tweenCoverflow);
         emblaApi.on('reInit', tweenCoverflow);
         tweenCoverflow();
+
+        // Keep the per-slide transform in sync with the slider's own box
+        // size whenever it changes outside of an Embla 'scroll' event —
+        // most importantly the mobile browser-chrome collapse/expand that
+        // happens as the page is scrolled (which live-resizes the
+        // --slide-w/h clamp() tiers via 100vh) and orientation changes.
+        // Without this, the JS-applied translateZ/scale/wrapShiftPx stay
+        // pinned to whatever width was last measured on a drag while the
+        // CSS box silently resizes underneath them, so a neighbouring
+        // card can end up mis-scaled/mis-positioned relative to its own
+        // box for a few frames — exactly the "window" popping in/out
+        // effect this was reported as. ResizeObserver catches the box
+        // itself resizing; the window 'resize' listener is the fallback
+        // for engines where that alone isn't enough (older WebKit).
+        let coverflowResizeRAF = null;
+        const scheduleCoverflowResync = () => {
+          if (coverflowResizeRAF) return;
+          coverflowResizeRAF = requestAnimationFrame(() => {
+            coverflowResizeRAF = null;
+            tweenCoverflow();
+          });
+        };
+        if (window.ResizeObserver) {
+          new ResizeObserver(scheduleCoverflowResync).observe(heroSliderViewport);
+        }
+        window.addEventListener('resize', scheduleCoverflowResync, { passive: true });
+        window.addEventListener('orientationchange', scheduleCoverflowResync);
       }
 
       if (heroPrevBtn) heroPrevBtn.addEventListener('click', () => { dismissHint(); emblaApi.scrollPrev(); });

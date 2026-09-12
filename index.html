@@ -133,10 +133,11 @@
        only via IntersectionObserver while the hero is off-screen — nothing
        about it is scroll-scrubbed, and the hero itself is a single
        viewport tall (no pinned scroll track any more). The title is plain
-       static markup (always full opacity), sat just under the REC/specs
-       line rather than centered so it never covers the drone. Directly
-       under it, .exa-hero-slider shows the five service keywords
-       (Photovoltaïque → Bardage → Toiture → Façade → Vitrage) one at a
+       static markup (a self-contained CSS shine-sweep loop, see
+       .cine-title in styles.css — not scroll-tied), sat just under the
+       REC/specs line rather than centered so it never covers the drone.
+       Directly under it, .exa-hero-slider shows the five service keywords
+       (Photovoltaïque → Toiture → Bardage → Façade → Vitrage) one at a
        time as flat glass cards — swipe/drag/arrows/keyboard/pagination
        change the active one (Embla-driven, see "Hero HUD + swipe slider"
        in script.js), scroll never does. The HUD chrome (#cineHud) is
@@ -200,14 +201,14 @@
                 <span class="exa-hero-slider__desc">Rendement préservé, sans risque de casse.</span>
               </div>
               <div class="exa-hero-slider__slide" role="group" aria-roledescription="slide" aria-label="2 sur 5">
-                <span class="exa-hero-slider__label">Bardage</span>
-                <span class="exa-hero-slider__rule" aria-hidden="true"></span>
-                <span class="exa-hero-slider__desc">Aspect neuf retrouvé, sans échafaudage.</span>
-              </div>
-              <div class="exa-hero-slider__slide" role="group" aria-roledescription="slide" aria-label="3 sur 5">
                 <span class="exa-hero-slider__label">Toiture</span>
                 <span class="exa-hero-slider__rule" aria-hidden="true"></span>
                 <span class="exa-hero-slider__desc">Mousses et lichens éliminés sans y monter.</span>
+              </div>
+              <div class="exa-hero-slider__slide" role="group" aria-roledescription="slide" aria-label="3 sur 5">
+                <span class="exa-hero-slider__label">Bardage</span>
+                <span class="exa-hero-slider__rule" aria-hidden="true"></span>
+                <span class="exa-hero-slider__desc">Aspect neuf retrouvé, sans échafaudage.</span>
               </div>
               <div class="exa-hero-slider__slide" role="group" aria-roledescription="slide" aria-label="4 sur 5">
                 <span class="exa-hero-slider__label">Façade</span>

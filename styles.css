@@ -846,11 +846,49 @@ a, button, input, select, textarea { touch-action: manipulation; }
   text-transform: uppercase;
   line-height: 1.05;
   letter-spacing: -0.01em;
-  color: #D9DEE5;
   text-shadow: 0 6px 40px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.5);
   font-size: clamp(1.7rem, 4.2vw, 3.6rem);
+  /* Shine sweep — a soft glow drifts across the title on a loop. The
+     gradient ramps up and back down over a wide span (30%→70%, six
+     stops) rather than a hard peak, so the light reads as gently
+     brightening each letter as it passes rather than a flash; the base
+     (unlit) portion sits at 0.6 opacity of #D9DEE5, never
+     near-transparent, so the headline stays fully legible even between
+     passes. The sweep itself (0%→50% of the animation) is slow — ~4.5s —
+     with ease-in-out easing so it glides in and out rather than moving
+     at a constant speed, then rests for the back half of the cycle
+     before looping. Uses background-clip:text so the glow reads as light
+     moving across the letterforms themselves rather than a bar sliding
+     over solid text. */
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(
+      100deg,
+      rgba(217, 222, 229, 0.6) 0%,
+      rgba(217, 222, 229, 0.6) 30%,
+      rgba(238, 241, 245, 0.8) 42%,
+      #FFFFFF 50%,
+      rgba(238, 241, 245, 0.8) 58%,
+      rgba(217, 222, 229, 0.6) 70%,
+      rgba(217, 222, 229, 0.6) 100%);
+  background-size: 320% 100%;
+  background-position: 220% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: cineTitleShine 9s ease-in-out infinite;
+  animation-delay: 1.5s;
 }
-.cine-title .accent { color: #0067CC; }
+@keyframes cineTitleShine {
+  0% { background-position: 220% 0; }
+  50%, 100% { background-position: -120% 0; }
+}
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .cine-title { color: #D9DEE5; -webkit-text-fill-color: #D9DEE5; background-image: none; animation: none; }
+}
+.cine-title .accent { color: #0067CC; -webkit-text-fill-color: #0067CC; }
+@media (prefers-reduced-motion: reduce) {
+  .cine-title { animation: none; background-position: -120% 0; }
+}
 
 /* ============================================================
    HERO SWIPE SLIDER — 3D coverflow look, swipe-driven interaction.
@@ -893,7 +931,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
   width: 100%;
   max-width: 720px;
   pointer-events: auto;
-  perspective: 1400px;
+  perspective: 1200px;
   perspective-origin: 50% 50%;
 }
 .exa-hero-slider__viewport {
@@ -930,7 +968,7 @@ a, button, input, select, textarea { touch-action: manipulation; }
   border-radius: 22px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   backface-visibility: hidden;
-  will-change: transform, opacity;
+  will-change: transform, opacity, filter;
   /* Tier B — static glass surface on every slide (including the selected
      one, underneath tier A's backdrop-filter below). The inset top
      highlight sells "physical panel" — do not drop it. */

@@ -20,3 +20,4 @@ npm-debug.log*
 # Regenerable script output
 prospects_mairies_66.csv
 prospects_mairies_66_import.csv
+.env*
