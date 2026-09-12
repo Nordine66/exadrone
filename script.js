@@ -1114,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fmtSurfaceNum = (n) => new Intl.NumberFormat('fr-FR').format(n);
     const escapeHtml = (str) => String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-    const state = { step: 1, serviceId: null, surface: null, contact: { email: '', phone: '' } };
+    const state = { step: 1, serviceId: null, surface: null, contact: { name: '', company: '', email: '', phone: '', postalCode: '' } };
 
     /* ---- Step 1: service cards, generated from lib/pricing.js ---- */
     const cheapest = pricing.getCheapestService();
@@ -1252,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setFormError(null);
 
       const normalizedPhone = data.phone.trim() ? normalizePhone(data.phone) : '';
-      state.contact = { email: data.email.trim(), phone: normalizedPhone };
+      state.contact = { name: data.name.trim(), company: data.company.trim(), email: data.email.trim(), phone: normalizedPhone, postalCode: data.postalCode.trim() };
 
       const originalLabel = submitBtn.textContent;
       submitBtn.disabled = true;
@@ -1355,7 +1355,7 @@ document.addEventListener('DOMContentLoaded', () => {
       resultEl.hidden = false;
 
       document.getElementById('devisReset').addEventListener('click', resetFlow);
-      document.getElementById('devisDownloadPdf').addEventListener('click', () => downloadQuotePdf(q));
+      document.getElementById('devisDownloadPdf').addEventListener('click', () => downloadQuotePdf(q, state.contact));
 
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       const card = document.getElementById('devisResultCard');
@@ -1369,7 +1369,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetFlow() {
-      state.step = 1; state.serviceId = null; state.surface = null; state.contact = { email: '', phone: '' };
+      state.step = 1; state.serviceId = null; state.surface = null; state.contact = { name: '', company: '', email: '', phone: '', postalCode: '' };
       surfaceInput.value = '';
       surfaceContinueBtn.disabled = true;
       form.reset();
@@ -1416,7 +1416,17 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(() => null);
     };
 
-    async function downloadQuotePdf(q) {
+    // Brand palette — same tokens as the server-side PDF (lib/quote-pdf.js)
+    // and the site's own blue accent (--exa-blue-accent / .cine-title
+    // .accent), so the downloaded PDF, the emailed PDF, and the site look
+    // like one document family instead of three different tools' defaults.
+    const PDF_BLUE = [0, 103, 204];
+    const PDF_DARK = [15, 23, 42];
+    const PDF_GRAY = [100, 116, 139];
+    const PDF_BORDER = [226, 232, 240];
+    const PDF_PANEL = [248, 250, 252];
+
+    async function downloadQuotePdf(q, contact) {
       const btn = document.getElementById('devisDownloadPdf');
       const originalLabel = btn.textContent;
       btn.disabled = true;
@@ -1427,119 +1437,190 @@ document.addEventListener('DOMContentLoaded', () => {
         const logoDataUrl = await loadLogoDataUrl();
         const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
         // jsPDF's standard fonts only cover WinAnsi — Intl.NumberFormat('fr-FR')
-        // groups thousands with a narrow no-break space (U+202F), not in that
-        // encoding, which renders as a stray "/" glyph. Swapped for a plain
-        // space here only (the on-page display is HTML and renders it fine).
-        const pdfSafe = (str) => str.replace(/[  ]/g, ' ');
+        // groups thousands with a narrow no-break space (U+202F) and pads the
+        // currency symbol with a no-break space (U+00A0), neither in that
+        // encoding, which rendered as a stray "/" glyph. The previous version
+        // of this fix used a character class with two literal ASCII spaces
+        // (typed in an editor instead of the two real characters), so it
+        // silently matched nothing.
+        const pdfSafe = (str) => str.replace(/[  ]/g, ' ');
         const fmtNum = (n) => pdfSafe(new Intl.NumberFormat('fr-FR').format(n));
-        const fmtMoney = (n) => pdfSafe(`${new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)} €`);
+        const fmtMoney = (n) => pdfSafe(pricing.formatCurrency(n));
+        const service = pricing.getService(state.serviceId);
 
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
         const pageWidth = doc.internal.pageSize.getWidth();
         const marginX = 20;
-        let y = 20;
+        const contentW = pageWidth - marginX * 2;
+
+        /* ---- Header: DEVIS + meta (left) / logo (right) ---- */
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(26);
+        doc.setTextColor(...PDF_BLUE);
+        doc.text('DEVIS', marginX, 26);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...PDF_DARK);
+        doc.text(`N° ${q.number}`, marginX, 34);
+        doc.setTextColor(...PDF_GRAY);
+        doc.text(`Émis le ${dateFmt.format(new Date(q.date))}`, marginX, 39.5);
+        doc.text(`Valable jusqu'au ${dateFmt.format(new Date(q.validUntil))}`, marginX, 45);
 
         if (logoDataUrl) {
-          const logoW = 40, logoH = logoW * (270 / 480);
-          doc.addImage(logoDataUrl, 'PNG', (pageWidth - logoW) / 2, y, logoW, logoH);
-          y += logoH + 8;
+          const logoW = 32, logoH = logoW * (270 / 480);
+          doc.addImage(logoDataUrl, 'PNG', pageWidth - marginX - logoW, 14, logoW, logoH);
         }
 
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(18);
-        doc.setTextColor(20, 22, 27);
-        doc.text('Devis — Exadrone Enterprise', pageWidth / 2, y, { align: 'center' });
-
-        y += 7;
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(90, 96, 105);
-        doc.text(`N° ${q.number}`, pageWidth / 2, y, { align: 'center' });
+        doc.setFontSize(8);
+        doc.setTextColor(...PDF_GRAY);
+        ;['Nordine Berkane — Exadrone Enterprise (nom commercial)', 'Entrepreneur individuel — 31 rue du Saint-Gothard, 75014 Paris', 'SIREN 878 531 607 · TVA FR73 878 531 607 · contact@exadrone-enterprise.com']
+          .forEach((line, i) => doc.text(line, pageWidth - marginX, 34 + i * 4, { align: 'right' }));
 
-        y += 7;
-        ['Exadrone Enterprise', '31 rue du Saint Gothard, 75014 Paris, France', 'contact@exadrone-enterprise.com · 06 71 31 27 06']
-          .forEach((line) => { doc.text(line, pageWidth / 2, y, { align: 'center' }); y += 5; });
+        doc.setDrawColor(...PDF_BORDER);
+        doc.setLineWidth(0.3);
+        doc.line(marginX, 54, pageWidth - marginX, 54);
 
-        y += 8;
-        doc.setDrawColor(220, 222, 227);
-        doc.line(marginX, y, pageWidth - marginX, y);
-        y += 12;
-
+        /* ---- "Adressé à" — label/value form rows, underlined ---- */
+        let y = 64;
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.setTextColor(20, 22, 27);
-        doc.text('Détails du devis', marginX, y);
-        y += 9;
+        doc.setFontSize(8);
+        doc.setTextColor(...PDF_GRAY);
+        doc.text('ADRESSÉ À', marginX, y);
+        y += 7;
 
-        const rows = [
-          ['Date', dateFmt.format(new Date(q.date))],
-          ['Validité', `30 jours (jusqu'au ${dateFmt.format(new Date(q.validUntil))})`],
-          ['Service', q.serviceLabel],
-          ['Surface', `${fmtNum(q.surface)} m²`],
-          ['Prix unitaire', `${q.unitPriceHT.toFixed(2).replace('.', ',')} € HT / m²`]
-        ];
-        doc.setFontSize(10.5);
-        rows.forEach(([label, value]) => {
+        const addrRow = (label, value) => {
+          if (!value) return;
           doc.setFont('helvetica', 'bold');
-          doc.setTextColor(60, 64, 70);
-          doc.text(`${label} :`, marginX, y);
+          doc.setFontSize(8.5);
+          doc.setTextColor(...PDF_GRAY);
+          doc.text(label, marginX, y);
           doc.setFont('helvetica', 'normal');
-          doc.text(String(value), marginX + 45, y);
-          y += 7;
-        });
+          doc.setFontSize(10.5);
+          doc.setTextColor(...PDF_DARK);
+          doc.text(String(value), marginX + 42, y);
+          doc.setDrawColor(...PDF_BORDER);
+          doc.line(marginX, y + 2, pageWidth - marginX, y + 2);
+          y += 9;
+        };
+        addrRow('NOM / SOCIÉTÉ', [contact?.name, contact?.company].filter(Boolean).join(' — ') || 'Client');
+        addrRow('EMAIL', contact?.email);
+        addrRow('TÉLÉPHONE', contact?.phone);
+        addrRow('CODE POSTAL', contact?.postalCode);
 
-        y += 5;
-        doc.setDrawColor(220, 222, 227);
-        doc.line(marginX, y, pageWidth - marginX, y);
-        y += 12;
+        /* ---- Line-item table ---- */
+        const tableY = y + 6;
+        const colSurfaceX = pageWidth - marginX - 90;
+        const colUnitX = pageWidth - marginX - 60;
+        const colTotalRight = pageWidth - marginX;
 
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(11);
-        doc.setTextColor(60, 64, 70);
-        doc.text('Prix Hors Taxe (HT)', marginX, y);
-        doc.text(fmtMoney(q.totalHT), pageWidth - marginX, y, { align: 'right' });
-        y += 8;
-        doc.text('TVA 20%', marginX, y);
-        doc.text(fmtMoney(q.vat), pageWidth - marginX, y, { align: 'right' });
-        y += 10;
-
-        doc.setDrawColor(31, 111, 235);
-        doc.setLineWidth(0.6);
-        doc.line(marginX, y - 5, pageWidth - marginX, y - 5);
+        doc.setFillColor(...PDF_BLUE);
+        doc.rect(marginX, tableY, contentW, 8, 'F');
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(14);
-        doc.setTextColor(31, 111, 235);
-        doc.text('PRIX TTC', marginX, y + 2);
-        doc.text(fmtMoney(q.totalTTC), pageWidth - marginX, y + 2, { align: 'right' });
-        doc.setLineWidth(0.2);
-        y += 14;
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        doc.text('PRESTATION', marginX + 3, tableY + 5.5);
+        doc.text('SURFACE', colSurfaceX, tableY + 5.5, { align: 'right' });
+        doc.text('PRIX UNIT. HT', colUnitX, tableY + 5.5, { align: 'right' });
+        doc.text('MONTANT', colTotalRight - 3, tableY + 5.5, { align: 'right' });
 
+        const rowH = 16;
+        const rowY = tableY + 8;
+        doc.setFillColor(...PDF_PANEL);
+        doc.rect(marginX, rowY, contentW, rowH, 'F');
+        doc.setDrawColor(...PDF_BORDER);
+        doc.rect(marginX, tableY, contentW, 8 + rowH);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...PDF_DARK);
+        doc.text(service?.label || q.serviceLabel, marginX + 3, rowY + 6);
+        if (service?.detail) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(...PDF_GRAY);
+          doc.text(service.detail, marginX + 3, rowY + 11);
+        }
+        const rawSubtotal = Math.round(q.surface * q.unitPriceHT * 100) / 100;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...PDF_DARK);
+        doc.text(`${fmtNum(q.surface)} m²`, colSurfaceX, rowY + 9, { align: 'right' });
+        doc.text(`${fmtMoney(q.unitPriceHT)}/m²`, colUnitX, rowY + 9, { align: 'right' });
+        doc.setFont('helvetica', 'bold');
+        doc.text(fmtMoney(rawSubtotal), colTotalRight - 3, rowY + 9, { align: 'right' });
+
+        y = rowY + rowH + 6;
         if (q.minimumApplied) {
           doc.setFont('helvetica', 'italic');
-          doc.setFontSize(9);
-          doc.setTextColor(90, 96, 105);
-          doc.text(`Forfait minimum d'intervention appliqué : ${fmtMoney(pricing.config.minimumOrderHT)}.`, marginX, y, { maxWidth: pageWidth - marginX * 2 });
-          y += 8;
+          doc.setFontSize(8);
+          doc.setTextColor(...PDF_GRAY);
+          doc.text(`Un forfait minimum de commande de ${fmtMoney(q.totalHT)} HT s'applique à cette prestation.`, marginX, y, { maxWidth: contentW });
+          y += 7;
         }
 
-        y += 8;
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(9);
-        doc.setTextColor(120, 126, 134);
-        doc.text(`Devis valable 30 jours, jusqu'au ${dateFmt.format(new Date(q.validUntil))}. Estimation établie sur la surface déclarée — montant confirmé après validation technique du site.`, marginX, y, { maxWidth: pageWidth - marginX * 2 });
-
-        y += 22;
-        doc.setDrawColor(220, 222, 227);
-        doc.line(marginX, y, marginX + 60, y);
-        y += 6;
+        /* ---- Totals summary (right-aligned) ---- */
+        const sumLabelX = pageWidth - marginX - 55;
+        y += 4;
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(60, 64, 70);
-        doc.text('Responsable : Chloé', marginX, y);
-        y += 5;
-        doc.setFontSize(9);
-        doc.setTextColor(120, 126, 134);
-        doc.text('Exadrone Enterprise', marginX, y);
+        doc.setFontSize(9.5);
+        doc.setTextColor(...PDF_GRAY);
+        doc.text('Total HT', sumLabelX, y);
+        doc.setTextColor(...PDF_DARK);
+        doc.text(fmtMoney(q.totalHT), colTotalRight, y, { align: 'right' });
+        y += 6;
+        doc.setTextColor(...PDF_GRAY);
+        doc.text('TVA (20 %)', sumLabelX, y);
+        doc.setTextColor(...PDF_DARK);
+        doc.text(fmtMoney(q.vat), colTotalRight, y, { align: 'right' });
+        y += 3;
+        doc.setDrawColor(...PDF_BORDER);
+        doc.line(sumLabelX, y, colTotalRight, y);
+        y += 7;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(...PDF_BLUE);
+        doc.text('Total TTC', sumLabelX, y);
+        doc.text(fmtMoney(q.totalTTC), colTotalRight, y, { align: 'right' });
+
+        /* ---- Payment terms (blue box, left) / signature (right) ---- */
+        const boxY = y + 12;
+        const boxH = 30;
+        const boxW = contentW * 0.56;
+        doc.setFillColor(...PDF_BLUE);
+        doc.rect(marginX, boxY, boxW, boxH, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text('CONDITIONS DE PAIEMENT', marginX + 5, boxY + 8);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text('Acompte de 30 % à la commande, solde facturé', marginX + 5, boxY + 15, { maxWidth: boxW - 10 });
+        doc.text("après exécution de la prestation.", marginX + 5, boxY + 20);
+        doc.text('CGV : exadrone-enterprise.com/cgv.html', marginX + 5, boxY + 26);
+
+        const sigX = marginX + boxW + 12;
+        const sigW = contentW - boxW - 12;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(...PDF_GRAY);
+        doc.text('BON POUR ACCORD', sigX, boxY + 8);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.text('Date, signature et cachet', sigX, boxY + 15, { maxWidth: sigW });
+        doc.setDrawColor(...PDF_BORDER);
+        doc.line(sigX, boxY + boxH - 2, sigX + sigW, boxY + boxH - 2);
+
+        /* ---- Footer legal strip ---- */
+        const pageH = doc.internal.pageSize.getHeight();
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(...PDF_GRAY);
+        doc.text(
+          'Exadrone Enterprise — Nordine Berkane, entrepreneur individuel — SIREN 878 531 607 — TVA FR73 878 531 607 — 31 rue du Saint-Gothard, 75014 Paris',
+          pageWidth / 2, pageH - 12, { align: 'center', maxWidth: contentW }
+        );
 
         doc.save(`Devis_Exadrone_${q.number}.pdf`);
       } catch (err) {
