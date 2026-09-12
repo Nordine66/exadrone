@@ -389,6 +389,94 @@ document.addEventListener('DOMContentLoaded', () => {
       emblaApi.on('init', updateSliderUI);
       emblaApi.on('pointerDown', dismissHint);
 
+      /* ---- 3D coverflow tween ----
+         Ported from Embla's own official "tween" recipe (scrollProgress +
+         scrollSnapList + slideLooper.loopPoints for a seamless value
+         across the loop boundary — internalEngine() is Embla's documented
+         escape hatch for exactly this kind of per-slide effect). Runs on
+         every 'scroll' event, which Embla fires continuously during a
+         drag and during the settle animation, so the tilt follows the
+         finger 1:1 in real time exactly like the old scroll-scrubbed
+         version did — just driven by Embla's position instead of the
+         page's. Skipped entirely under reduced motion (see styles.css —
+         that query flattens the stage and hard-hides every non-selected
+         slide instead). */
+      if (!heroReducedMotion) {
+        const COVERFLOW_ANGLE = 46; // deg
+        const COVERFLOW_DEPTH = 92; // px pushed back per step
+        const COVERFLOW_SCALE_STEP = 0.15;
+        const total = heroSlides.length;
+
+        const tweenCoverflow = () => {
+          const engine = emblaApi.internalEngine();
+          const scrollProgress = emblaApi.scrollProgress();
+          // Slide width == viewport width by construction (one full slide
+          // per view, see styles.css --slide-w) — read live so a resize
+          // (or the short-viewport clamp() tiers) is always honored.
+          const slideWidthPx = heroSliderViewport.getBoundingClientRect().width;
+
+          emblaApi.scrollSnapList().forEach((scrollSnap, snapIndex) => {
+            let diffToTarget = scrollSnap - scrollProgress;
+
+            engine.slideLooper.loopPoints.forEach((loopItem) => {
+              const target = loopItem.target();
+              if (snapIndex === loopItem.index && target !== 0) {
+                const sign = Math.sign(target);
+                if (sign === -1) diffToTarget = scrollSnap - (1 + scrollProgress);
+                if (sign === 1) diffToTarget = scrollSnap + (1 - scrollProgress);
+              }
+            });
+
+            // scrollSnapList steps by 1/total between adjacent slides —
+            // multiplying by total converts "progress units" into "slide
+            // units" (the same offset = i - pos the old coverflow used).
+            // Embla's own diffToTarget is the "long way around" distance
+            // (always 0..total-1, same sign for every later slide) — for
+            // a symmetric coverflow the slides on the far side of the
+            // loop need to read as being just behind on the OTHER side
+            // instead, so this folds anything past half the loop back to
+            // a negative, shorter distance the same way a clock face
+            // reads "11" as "-1 hour", not "+11". rawOffset (before the
+            // fold) is kept to work out how far this slide's own natural
+            // flex position is from where it needs to *look* like it is —
+            // Embla only repositions its own loop clones lazily once
+            // scrolling actually approaches them, so at rest (or freshly
+            // loaded) a wrapped neighbour like the last slide sitting
+            // "just behind" the first one hasn't been shifted there yet;
+            // translateX below does that relocation directly instead of
+            // depending on Embla's own lazy shift, so both neighbours are
+            // visible on both sides immediately, not just after a drag.
+            let offset = diffToTarget * total;
+            const rawOffset = offset;
+            if (offset > total / 2) offset -= total;
+            else if (offset < -total / 2) offset += total;
+            const wrapShiftPx = (offset - rawOffset) * slideWidthPx;
+
+            const absOffset = Math.abs(offset);
+            const sign = offset === 0 ? 0 : Math.sign(offset);
+            const rotateY = -sign * COVERFLOW_ANGLE * Math.min(absOffset, 1);
+            const depthOffset = Math.min(absOffset, 2.2);
+            const translateZ = -depthOffset * COVERFLOW_DEPTH;
+            const scale = Math.max(0.6, 1 - depthOffset * COVERFLOW_SCALE_STEP);
+            let opacity;
+            if (absOffset <= 1) opacity = 1 - absOffset * 0.5;
+            else if (absOffset <= 2) opacity = 0.5 - (absOffset - 1) * 0.36;
+            else opacity = Math.max(0, 0.14 - (absOffset - 2) * 0.14);
+
+            const slide = heroSlides[snapIndex];
+            if (!slide) return;
+            slide.style.transform = `translateX(${wrapShiftPx.toFixed(1)}px) translateZ(${translateZ.toFixed(1)}px) rotateY(${rotateY.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+            slide.style.opacity = opacity.toFixed(3);
+            slide.style.zIndex = String(Math.round(100 - absOffset * 10));
+            slide.classList.toggle('is-selected', absOffset < 0.06);
+          });
+        };
+
+        emblaApi.on('scroll', tweenCoverflow);
+        emblaApi.on('reInit', tweenCoverflow);
+        tweenCoverflow();
+      }
+
       if (heroPrevBtn) heroPrevBtn.addEventListener('click', () => { dismissHint(); emblaApi.scrollPrev(); });
       if (heroNextBtn) heroNextBtn.addEventListener('click', () => { dismissHint(); emblaApi.scrollNext(); });
       heroPaginationSegs.forEach((seg, i) => {

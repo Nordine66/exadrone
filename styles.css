@@ -853,20 +853,33 @@ a, button, input, select, textarea { touch-action: manipulation; }
 .cine-title .accent { color: #0067CC; }
 
 /* ============================================================
-   HERO SWIPE SLIDER — replaces the old scroll-scrubbed 3D coverflow.
+   HERO SWIPE SLIDER — 3D coverflow look, swipe-driven interaction.
    Same 5 cards, same order, same liquid-glass look (background gradient,
-   inset highlight, specular sweep, contrast pad, label/rule/desc) as the
-   coverflow's .exa-cylinder__face did — only the interaction changed:
-   Embla (already loaded sitewide for the trust strip, see script.js
-   "Trust strip auto-scroll") drives a flat horizontal slide-and-snap
-   track instead of a per-frame 3D transform keyed to scroll progress
-   (see script.js "Hero swipe slider"). No second ScrollTrigger/pin —
-   this hero was never GSAP-driven to begin with.
+   inset highlight, specular sweep, contrast pad, label/rule/desc) AND
+   the same 3D coverflow presentation as the original scroll-scrubbed
+   version (neighbours tilt in via rotateY, recede via translateZ, fade
+   and shrink with distance) — only the driver changed: Embla (already
+   loaded sitewide for the trust strip, see script.js "Trust strip
+   auto-scroll") handles the drag/swipe/snap/loop mechanics, and
+   script.js ("Hero swipe slider") reads Embla's live scroll position
+   every frame (via emblaApi.on('scroll', ...), the same continuous
+   value Embla itself uses to position the track) to apply the
+   rotateY/translateZ/scale/opacity coverflow styling per slide — no
+   second ScrollTrigger/pin, this hero was never GSAP-driven to begin
+   with, and nothing here is tied to PAGE scroll any more.
    Geometry: --slide-w/--slide-h size one slide identically to how the
-   old --cyl-card-w/--cyl-card-h sized one coverflow face; .exa-hero-slider
-   itself gets the same margin:auto centering .exa-cylinder-stage relied
-   on, so the whole cluster (slider, hint, pagination, price hook, CTA)
-   still centers in whatever vertical space .cine-title-block's
+   old --cyl-card-w/--cyl-card-h sized one coverflow face. Embla's own
+   flex layout (slide flex-basis = --slide-w) provides the horizontal
+   spacing between neighbours "for free" — script.js only ever adds
+   rotateY/translateZ/scale/opacity on top, never translateX, so it
+   never fights Embla's own translate3d on the container. Overflow is
+   visible on the viewport (peeking neighbours are the whole point) —
+   .cine-stage's own overflow:hidden further up the tree still clips
+   anything that would otherwise spill past the hero's own edges, same
+   as it already does for the video. .exa-hero-slider itself gets the
+   same margin:auto centering .exa-cylinder-stage relied on, so the
+   whole cluster (slider, hint, pagination, price hook, CTA) still
+   centers in whatever vertical space .cine-title-block's
    padding-top/padding-bottom leave open.
    ============================================================ */
 .exa-hero-slider {
@@ -880,14 +893,15 @@ a, button, input, select, textarea { touch-action: manipulation; }
   width: 100%;
   max-width: 720px;
   pointer-events: auto;
+  perspective: 1400px;
+  perspective-origin: 50% 50%;
 }
 .exa-hero-slider__viewport {
   position: relative;
   width: var(--slide-w);
   height: 100%;
   margin: 0 auto;
-  overflow: hidden;
-  border-radius: 22px;
+  overflow: visible;
   /* Vertical gestures are NEVER captured here — a vertical swipe/scroll
      always falls through to native page scroll. Embla itself already
      sets an equivalent touch-action internally for an x-axis carousel,
@@ -899,13 +913,14 @@ a, button, input, select, textarea { touch-action: manipulation; }
 .exa-hero-slider__container {
   display: flex;
   height: 100%;
+  transform-style: preserve-3d;
   /* Embla writes `transform: translate3d(...)` on this element per drag
-     frame / on settle — nothing else here should ever set transform. */
+     frame / on settle — nothing here ever overrides that; the coverflow
+     styling below is applied per-slide instead, additively. */
 }
 .exa-hero-slider__slide {
   position: relative;
-  flex: 0 0 100%;
-  min-width: 0;
+  flex: 0 0 var(--slide-w);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -914,6 +929,8 @@ a, button, input, select, textarea { touch-action: manipulation; }
   overflow: hidden;
   border-radius: 22px;
   border: 1px solid rgba(255, 255, 255, 0.18);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
   /* Tier B — static glass surface on every slide (including the selected
      one, underneath tier A's backdrop-filter below). The inset top
      highlight sells "physical panel" — do not drop it. */
@@ -1017,6 +1034,17 @@ a, button, input, select, textarea { touch-action: manipulation; }
   .exa-hero-slider__slide.is-entering .exa-hero-slider__label,
   .exa-hero-slider__slide.is-entering .exa-hero-slider__rule,
   .exa-hero-slider__slide.is-entering .exa-hero-slider__desc { opacity: 1; transform: none; }
+}
+/* Reduced motion: script.js skips the continuous coverflow tween
+   entirely under this query (no rotateY/translateZ tied to a 3D
+   transform is "motion" either way it's computed) — this is the exact
+   fallback the original scroll-scrubbed coverflow used too: flatten the
+   stage and only ever show the selected card, everything else fully
+   hidden rather than partially visible at an off-axis angle. */
+@media (prefers-reduced-motion: reduce) {
+  .exa-hero-slider { perspective: none; }
+  .exa-hero-slider__slide { transition: opacity 0.4s var(--ease); }
+  .exa-hero-slider__slide:not(.is-selected) { opacity: 0 !important; }
 }
 
 /* ---------- Desktop arrow buttons ----------
