@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nettoyage de Panneaux Photovoltaïques par Drone — Centrales & Ombrières | Exadrone Enterprise</title>
+<meta name="description" content="Nettoyage par drone haute pression de centrales solaires au sol, ombrières et toitures industrielles — eau osmosée, zéro risque de casse, gain de rendement de 5 à 15 %. Devis instantané.">
+<link rel="canonical" href="https://exadrone-enterprise.com/solaire.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Exadrone Enterprise">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Nettoyage de Panneaux Photovoltaïques par Drone — Centrales & Ombrières | Exadrone Enterprise">
+<meta property="og:description" content="Nettoyage par drone haute pression de centrales solaires au sol, ombrières et toitures industrielles — eau osmosée, zéro risque de casse, gain de rendement de 5 à 15 %.">
+<meta property="og:url" content="https://exadrone-enterprise.com/solaire.html">
+<meta property="og:image" content="https://exadrone-enterprise.com/images/og-cover.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Nettoyage de Panneaux Photovoltaïques par Drone — Centrales & Ombrières | Exadrone Enterprise">
+<meta name="twitter:image" content="https://exadrone-enterprise.com/images/og-cover.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css?v=20260727">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Nettoyage par drone de centrales photovoltaïques, ombrières et toitures industrielles",
+  "description": "Exadrone Enterprise nettoie les centrales solaires au sol, ombrières et toitures industrielles par drone haute pression — maintenance préventive du rendement, sans échafaudage ni risque pour les cellules.",
+  "provider": { "@type": "ProfessionalService", "name": "Exadrone Enterprise", "@id": "https://exadrone-enterprise.com/#business" },
+  "areaServed": { "@type": "Country", "name": "France" },
+  "url": "https://exadrone-enterprise.com/solaire.html"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://exadrone-enterprise.com/" },
+    { "@type": "ListItem", "position": 2, "name": "Nettoyage de panneaux photovoltaïques par drone", "item": "https://exadrone-enterprise.com/solaire.html" }
+  ]
+}
+</script>
+<!-- Google tag (gtag.js) — Google Ads conversion tracking. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-767047996"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'AW-767047996');
+</script>
+</head>
+<body>
+
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="grain"></div>
+<canvas class="ambient-canvas" id="ambientCanvas" aria-hidden="true"></canvas>
+<div class="ambient-hotspots" aria-hidden="true"></div>
+
+<header class="site-nav" id="siteNav">
+  <div class="nav-inner">
+    <a href="index.html#top" class="nav-mark" aria-label="Accueil Exadrone Enterprise">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+        <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+        <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+      </svg>
+      <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+    </a>
+
+    <nav class="nav-links" id="navLinks">
+      <a href="index.html#capabilities" data-cursor="link">Capacités</a>
+      <a href="index.html#process" data-cursor="link">Processus</a>
+      <a href="index.html#fleet" data-cursor="link">Drone</a>
+      <a href="index.html#reliability" data-cursor="link">Fiabilité</a>
+      <a href="index.html#secteurs" data-cursor="link">Secteurs</a>
+      <a href="/blog/" data-cursor="link">Blog</a>
+      <a href="#estimate" class="nav-cta" data-cursor="link">Devis instantané</a>
+    </nav>
+
+    <button class="nav-toggle" id="navToggle" aria-label="Afficher le menu" aria-expanded="false">
+      <span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <!-- HERO — same .cine-hero/.cine-title-block/.exa-hero__video technique as
+       the homepage hero (looping background video, independent of scroll,
+       paused off-screen via script.js's existing #exaHeroVideo/.cine-hero
+       IntersectionObserver — reused as-is, no page-specific JS needed for
+       that part). Footage: the drone4k frame sequence used by the homepage's
+       "Conçu pour l'altitude" section (images/hero-frames/drone4k — a drone
+       spraying a ground-mounted solar array), rendered to a seamless
+       forward+reverse loop (assets/video/solaire-hero.*) since a static hero
+       needs an autoplaying loop, not a scroll-scrubbed sequence. No hero
+       swipe slider here — a single, photovoltaic-only message. -->
+  <section class="cine-hero">
+    <div class="cine-stage">
+      <!-- Two copies of the same clip: a blurred, scaled-up one fills the
+           frame as ambient colour, the sharp one sits on top at
+           object-fit:contain so the whole shot is always visible — see
+           styles.css ".pv-hero-video-blur/.pv-hero-video-fg" for why (the
+           source is portrait; cropping it like the homepage hero cut the
+           drone itself out of frame). Only the foreground copy carries
+           id="exaHeroVideo" — script.js's existing hero-video
+           IntersectionObserver (pause off-screen, respect
+           prefers-reduced-motion) already targets that id, reused as-is. -->
+      <div class="exa-hero__video-wrap">
+        <video class="exa-hero__video pv-hero-video-blur" autoplay muted loop playsinline preload="metadata" aria-hidden="true" tabindex="-1">
+          <source src="/assets/video/solaire-hero.webm" type="video/webm">
+          <source src="/assets/video/solaire-hero.mp4" type="video/mp4">
+        </video>
+        <video class="exa-hero__video pv-hero-video-fg" id="exaHeroVideo" autoplay muted loop playsinline preload="metadata" poster="/assets/video/solaire-hero-poster.jpg" aria-hidden="true" tabindex="-1">
+          <source src="/assets/video/solaire-hero.webm" type="video/webm">
+          <source src="/assets/video/solaire-hero.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="cine-vignette" aria-hidden="true"></div>
+
+      <!-- Same HUD chrome as the homepage's .cine-hero (#cineHud): grid
+           overlay, corner brackets, REC + pulsing dot + live timecode,
+           spec readout, vertical brand mark. #hudTimecode/#hudSectionLabel
+           etc. are picked up automatically by script.js's existing guarded
+           hero-HUD code (see "Hero HUD + swipe slider") — no page-specific
+           JS needed. No scrub bar here: that one's tied to the homepage's
+           5-service swipe slider, which this single-message hero doesn't
+           have. -->
+      <div class="cine-hud" aria-hidden="true">
+        <div class="hud-grid"></div>
+        <span class="hud-corner hud-corner-tl"></span>
+        <span class="hud-corner hud-corner-tr"></span>
+        <span class="hud-corner hud-corner-bl"></span>
+        <span class="hud-corner hud-corner-br"></span>
+        <div class="hud-rec">
+          <span class="hud-rec-dot"></span>
+          <span class="hud-rec-label">REC</span>
+          <span class="hud-timecode" id="hudTimecode">00:00:00:00</span>
+        </div>
+        <div class="hud-specs">4K · 30 FPS · F2.8 · 1/50</div>
+        <div class="hud-vertical hud-vertical-right">Exadrone // Photovoltaïque</div>
+      </div>
+
+      <div class="cine-title-block">
+        <p class="eyebrow reveal" data-reveal>Photovoltaïque &amp; Ombrières B2B</p>
+        <h1 class="cine-title pv-hero-title reveal" data-reveal data-delay="1">Optimisez le rendement de vos centrales solaires.</h1>
+        <p class="pv-hero-sub reveal" data-reveal data-delay="2">Nettoyage par drone ultra-précis. Zéro risque de casse, zéro arrêt de production.</p>
+        <div class="exa-hero-price reveal reveal-blur-up" data-reveal data-delay="2">
+          <p class="exa-hero-price__eyebrow">Gain de rendement mesuré</p>
+          <p class="exa-hero-price__line">
+            <span class="exa-hero-price__prefix">Jusqu'à</span>
+            <span class="exa-hero-price__value">+15&nbsp;%</span>
+            <span class="exa-hero-price__unit">de rendement annuel</span>
+          </p>
+        </div>
+        <div class="pv-hero-actions reveal" data-reveal data-delay="3">
+          <a href="#estimate" class="exa-hero-cta" data-cursor="link"><span class="exa-hero-cta__label">Demander une étude technique</span></a>
+          <a href="/blog/nettoyage-panneaux-solaires-par-drone.html" class="pv-hero-link" data-cursor="link">Voir la méthode →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="landing-main">
+    <div class="landing-inner">
+
+      <!-- ARGUMENTS TECHNIQUES — plain, fully-visible .usecase-grid by
+           default (identical markup/behavior to the sibling B2B pages).
+           script.js's initPvStack() (inline below) progressively enhances
+           this into a pinned, diagonally-stacked scroll reveal on wide
+           screens with no prefers-reduced-motion — see styles.css
+           ".pv-stack.is-pinned-scroll" for the fanned layout and the
+           comment above it for why the fallback needs no JS at all. -->
+      <div class="pv-stack" id="pvStack">
+        <div class="pv-bg" id="pvBg" aria-hidden="true"></div>
+        <div class="pv-stack-pin" id="pvStackPin">
+          <div class="landing-body">
+<h2 id="pvStackTitle"><span class="pv-word">Clarté</span> <span class="pv-word">sur</span> <span class="pv-word">chaque</span> <span class="pv-word">panneau</span></h2>
+          </div>
+
+          <div class="usecase-grid">
+          <div class="usecase-card pv-card">
+            <span class="pv-card__pill">{ Technologie embarquée }</span>
+            <div>
+              <h3>Technologie embarquée</h3>
+              <p>Drone Aerotic Spray SR opérant à une pression de <strong>140 bars</strong>. Vol en boucle fermée avec correction de trajectoire anti-collision, pour un passage régulier sur chaque rangée de modules.</p>
+            </div>
+            <span class="pv-card__num">01</span>
+          </div>
+          <div class="usecase-card pv-card">
+            <span class="pv-card__pill">{ Qualité de nettoyage }</span>
+            <div>
+              <h3>Qualité de nettoyage sans compromis</h3>
+              <p>Pulvérisation d'eau osmosée/déminéralisée : aucune trace de calcaire, aucune micro-rayure sur les panneaux. Un gain de productivité mesuré de <strong>5 à 15&nbsp;%</strong>.</p>
+            </div>
+            <span class="pv-card__num">02</span>
+          </div>
+          <div class="usecase-card pv-card">
+            <span class="pv-card__pill">{ Sécurité totale }</span>
+            <div>
+              <h3>Sécurité totale</h3>
+              <p>Zéro technicien sur les panneaux, aucun risque de chute de hauteur. Pas d'échafaudage ni de nacelle à installer sur votre site d'exploitation.</p>
+            </div>
+            <span class="pv-card__num">03</span>
+          </div>
+          <div class="usecase-card pv-card">
+            <span class="pv-card__pill">{ Conformité réglementaire }</span>
+            <div>
+              <h3>Conformité réglementaire</h3>
+              <ul class="landing-checklist">
+                <li>Opérations sous scénario européen <strong>STS-01</strong></li>
+                <li>Télépilote certifié <strong>DGAC</strong></li>
+                <li>Produits de nettoyage validés <strong>Certibiocide</strong></li>
+              </ul>
+            </div>
+            <span class="pv-card__num">04</span>
+          </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="landing-body">
+<h2>Nettoyage de centrale solaire, en conditions réelles</h2>
+      </div>
+
+      <div class="solar-gallery">
+        <div class="action-card glow-surface reveal" data-reveal>
+          <picture>
+            <source type="image/webp" srcset="images/action/action-photovoltaique.webp">
+            <img src="images/action/action-photovoltaique.jpg" alt="Drone Exadrone Enterprise en intervention sur une centrale de panneaux photovoltaïques" loading="lazy" decoding="async">
+          </picture>
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Intervention sur centrale au sol</h3>
+          </div>
+        </div>
+        <div class="action-card glow-surface reveal" data-reveal data-delay="1">
+          <picture>
+            <source type="image/webp" srcset="images/blog/cover-panneaux-solaires.webp">
+            <img src="images/blog/cover-panneaux-solaires.jpg" alt="Rangées de panneaux solaires entretenues par Exadrone Enterprise" loading="lazy" decoding="async">
+          </picture>
+          <span class="action-card-scrim" aria-hidden="true"></span>
+          <div class="action-card-body">
+            <h3 class="action-card-title">Rendement restauré, sans arrêt de production</h3>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- DEVIS INSTANTANÉ — the exact widget from index.html's #estimate
+       (script.js "Instant quote flow"), scoped to the solar service only
+       via data-only-service="solaire": no "Prestation" panel/step, the
+       flow starts straight at "Surface" with pricing.config's solaire
+       service (3,20 € HT/m²) pre-selected. Same real backend (api/quote.js),
+       same PDF download, same Google Ads conversion fire in script.js's
+       renderResult() — nothing solar-specific needed there since it's
+       already generic. -->
+  <section class="section estimate-section" id="estimate" data-only-service="solaire">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-reveal>Devis instantané</p>
+      <h2 class="section-title reveal" data-reveal data-delay="1">Votre devis solaire en 30 secondes.</h2>
+    </div>
+    <p class="section-lead reveal" data-reveal data-delay="2">
+      Indiquez la surface de votre installation, recevez votre devis détaillé par e-mail.
+    </p>
+
+    <div class="estimate-card devis-card reveal" data-reveal data-delay="1">
+      <ol class="devis-steps" id="devisSteps" aria-label="Étapes du devis">
+        <li class="devis-step is-active" data-step="2">
+          <button type="button" class="devis-step__btn" data-goto="2" disabled>
+            <span class="devis-step__num">1</span>
+            <span class="devis-step__label">Surface</span>
+          </button>
+        </li>
+        <li class="devis-step" data-step="3">
+          <button type="button" class="devis-step__btn" data-goto="3" disabled>
+            <span class="devis-step__num">2</span>
+            <span class="devis-step__label">Coordonnées</span>
+          </button>
+        </li>
+      </ol>
+
+      <div class="devis-panel" data-panel="2">
+        <label for="devisSurface" class="devis-label">Surface à traiter</label>
+        <div class="devis-surface-input">
+          <input type="text" id="devisSurface" inputmode="decimal" placeholder="0" aria-describedby="devisSurfaceRate">
+          <span class="devis-surface-unit">m²</span>
+        </div>
+        <div class="devis-chips" role="group" aria-label="Surfaces courantes">
+          <button type="button" class="devis-chip" data-value="500">500 m²</button>
+          <button type="button" class="devis-chip" data-value="1000">1 000 m²</button>
+          <button type="button" class="devis-chip" data-value="2500">2 500 m²</button>
+          <button type="button" class="devis-chip" data-value="5000">5 000 m²</button>
+        </div>
+        <p class="devis-applied-rate" id="devisSurfaceRate">
+          <span id="devisSurfaceService"></span> — Tarif appliqué : <strong id="devisSurfaceUnitPrice"></strong>
+        </p>
+        <p class="devis-helper">Surface approximative ? Pas de souci, elle sera vérifiée avant l'intervention.</p>
+        <div class="devis-panel-actions">
+          <button type="button" class="btn btn-primary" id="devisSurfaceContinue" disabled>Continuer →</button>
+        </div>
+      </div>
+
+      <div class="devis-panel" data-panel="3" hidden>
+        <div class="devis-quote-preview" id="devisQuotePreview"></div>
+
+        <form class="devis-form" id="devisForm" novalidate>
+          <p class="devis-form-intro">Encore une étape — la plus rapide : dites-nous où vous joindre et votre devis est à vous. 🎉</p>
+
+          <div class="devis-field">
+            <label for="devisName">Nom et prénom <span class="devis-optional">(optionnel)</span></label>
+            <input type="text" id="devisName" name="name" autocomplete="name">
+          </div>
+          <div class="devis-field">
+            <label for="devisCompany">Société / Collectivité <span class="devis-optional">(optionnel)</span></label>
+            <input type="text" id="devisCompany" name="company" autocomplete="organization">
+          </div>
+          <div class="devis-field-row">
+            <div class="devis-field">
+              <label for="devisEmail">E-mail</label>
+              <input type="email" id="devisEmail" name="email" autocomplete="email">
+            </div>
+            <div class="devis-field">
+              <label for="devisPhone">Téléphone</label>
+              <input type="tel" id="devisPhone" name="phone" autocomplete="tel">
+            </div>
+          </div>
+          <p class="devis-helper">Un seul des deux suffit — e-mail ou téléphone. 📩 Avec un e-mail, votre devis arrive en quelques secondes.</p>
+          <div class="devis-field">
+            <label for="devisPostal">Code postal du site d'intervention <span class="devis-optional">(optionnel)</span></label>
+            <input type="text" id="devisPostal" name="postalCode" inputmode="numeric" autocomplete="postal-code">
+          </div>
+          <label class="devis-consent">
+            <input type="checkbox" id="devisConsent" name="consent" required>
+            <span>J'accepte que mes données soient utilisées pour traiter ma demande de devis. <a href="/politique-de-confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a></span>
+          </label>
+
+          <div class="devis-honeypot" aria-hidden="true">
+            <label for="devisWebsite">Ne pas remplir ce champ</label>
+            <input type="text" id="devisWebsite" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <input type="hidden" id="devisRenderedAt" name="renderedAt">
+
+          <p class="devis-error" id="devisFormError" role="alert" aria-live="assertive" hidden></p>
+
+          <div class="devis-panel-actions">
+            <button type="button" class="devis-btn-secondary" data-back="2">← Retour</button>
+            <button type="submit" class="btn btn-primary" id="devisSubmitBtn">Recevoir mon devis gratuit</button>
+          </div>
+          <p class="devis-form-trust">🔒 Vos données restent confidentielles · Sans engagement · Zéro spam</p>
+        </form>
+
+        <div class="devis-result" id="devisResult" hidden></div>
+      </div>
+    </div>
+
+    <ul class="estimate-reassurance">
+      <li>Sans engagement</li>
+      <li>Estimation transparente</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="nav-mark static">
+        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+          <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+          <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        </svg>
+        <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+      </span>
+      <p>Systèmes de Nettoyage Aérien de Précision</p>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Explorer</span>
+      <div class="footer-links">
+        <a href="index.html#capabilities">Capacités</a>
+        <a href="index.html#process">Processus</a>
+        <a href="index.html#fleet">Drone</a>
+        <a href="index.html#reliability">Fiabilité</a>
+        <a href="/blog/">Blog</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Secteurs B2B</span>
+      <div class="footer-links">
+        <a href="/collectivites-territoriales.html">Collectivités &amp; mairies</a>
+        <a href="/entreprises-btp.html">Entreprises du BTP</a>
+        <a href="/renovation-facade.html">Rénovation de façade</a>
+        <a href="/marches-publics.html">Marchés publics</a>
+        <a href="/solaire.html">Photovoltaïque &amp; ombrières</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Légal</span>
+      <div class="footer-links">
+        <a href="mentions-legales.html">Mentions légales</a>
+        <a href="cgv.html">CGV</a>
+        <a href="politique-de-confidentialite.html">Confidentialité</a>
+        <a href="politique-de-cookies.html">Cookies</a>
+        <button type="button" class="footer-link-btn" id="cookiePrefsBtn">Préférences cookies</button>
+      </div>
+    </div>
+
+    <div class="footer-meta">
+      <span>contact@exadrone-enterprise.com</span>
+      <span>© 2026 Exadrone Enterprise. Tous droits réservés.</span>
+    </div>
+  </div>
+</footer>
+
+<div class="cookie-banner" id="cookieBanner" role="dialog" aria-live="polite" aria-label="Gestion des cookies">
+  <div class="cookie-banner-inner">
+    <p>
+      Nous utilisons des cookies strictement nécessaires au fonctionnement du site et, si vous l'acceptez,
+      des cookies de mesure d'audience pour améliorer votre expérience.
+      <a href="politique-de-cookies.html">En savoir plus</a>.
+    </p>
+    <div class="cookie-banner-actions">
+      <button type="button" class="btn btn-ghost btn-small" id="cookieReject">Refuser</button>
+      <button type="button" class="btn btn-ghost btn-small" id="cookieCustomize">Personnaliser</button>
+      <button type="button" class="btn btn-primary btn-small" id="cookieAccept">Accepter tout</button>
+    </div>
+  </div>
+</div>
+
+<a class="whatsapp-fab" href="https://wa.me/33671312706" target="_blank" rel="noopener" aria-label="Discuter avec Exadrone Enterprise sur WhatsApp">
+  <span class="whatsapp-fab-tooltip">WhatsApp</span>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.6 6.32A7.85 7.85 0 0 0 12.05 4C7.7 4 4.15 7.53 4.15 11.87c0 1.4.37 2.74 1.07 3.92L4 20l4.32-1.13a7.9 7.9 0 0 0 3.73.94h.01c4.34 0 7.88-3.53 7.88-7.87a7.8 7.8 0 0 0-2.34-5.62Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9.2 9.04c.1-.23.27-.23.43-.23h.37c.12 0 .27 0 .39.3.14.34.47 1.18.51 1.27.04.09.07.2 0 .31-.31.6-.66.86-.66.86s-.13.15-.02.36c.42.78 1.55 2 2.93 2.43.22.07.34.05.46-.08.13-.13.5-.59.64-.79.13-.2.27-.17.45-.1.18.07 1.15.55 1.35.65.2.1.33.15.38.23.05.09.05.5-.13.99-.18.49-1.04.96-1.45 1.02-.37.06-.83.08-1.34-.08a8.4 8.4 0 0 1-3.71-2.57c-1.4-1.5-1.95-2.85-2-3.07-.04-.21-.18-.7.13-1.3.2-.39.4-.55.55-.7Z" fill="currentColor"/>
+  </svg>
+</a>
+
+<!-- GSAP + ScrollTrigger — powers the stacked-card scroll reveal below
+     (initPvStack). Same CDN build/version as the homepage's action-track
+     pin so the two never disagree if a visitor has both cached. -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+<!-- Shared pricing source of truth — required by the devis widget below. -->
+<script src="/lib/pricing.js" defer></script>
+<script src="script.js?v=20260727" defer></script>
+
+<script>
+// Stacked-card scroll reveal for the 4 "arguments techniques" cards —
+// page-specific (not reused elsewhere), so it lives here rather than in
+// script.js, same convention as this page's own devis panel numbering.
+// Progressive enhancement only: the .usecase-grid above is a complete,
+// fully visible layout on its own; this just fans the same 4 cards
+// diagonally and reveals them one at a time as the section pins, on wide
+// screens with no prefers-reduced-motion. See styles.css
+// ".pv-stack.is-pinned-scroll" for the fanned positions this drives.
+(function initPvStack() {
+  const wrap = document.getElementById('pvStack');
+  const pin = document.getElementById('pvStackPin');
+  const bg = document.getElementById('pvBg');
+  if (!wrap || !pin) return;
+  const cards = Array.from(wrap.querySelectorAll('.pv-card'));
+  if (cards.length < 2) return;
+  const titleWords = Array.from(document.querySelectorAll('#pvStackTitle .pv-word'));
+
+  function setup() {
+    if (!window.gsap || !window.ScrollTrigger) return;
+    gsap.registerPlugin(ScrollTrigger);
+    ScrollTrigger.matchMedia({
+      '(min-width: 900px) and (prefers-reduced-motion: no-preference)': function () {
+        wrap.classList.add('is-pinned-scroll');
+        // Each incoming card fades in fast (duration 0.2, while still
+        // offset below) then slides the rest of the way up already fully
+        // opaque (duration 0.8) — doing both over the same duration
+        // produced a muddy double-exposure where the semi-transparent
+        // card overlapped the previous one's text while still fading in.
+        gsap.set(cards.slice(1), { autoAlpha: 0, y: 130 });
+        gsap.set(cards[0], { autoAlpha: 1, y: 0 });
+        // .pv-bg is fixed + scale(1.15) in this mode (see styles.css
+        // ".pv-stack.is-pinned-scroll .pv-bg") — the 15% overflow is the
+        // travel room the yPercent pan below moves through.
+        if (bg) gsap.set(bg, { opacity: 0, yPercent: -6 });
+        // Title words start muted and brighten one at a time as the very
+        // first thing that happens once pinned — resolved into full focus
+        // well before the cards start stacking, same beat as the
+        // reference: text colour scrubs in with scroll, not a one-shot
+        // fade. Same translucent-white glass tones as the default CSS
+        // treatment (styles.css "#pvStackTitle"), just driven by scroll
+        // instead of the shine loop. Set only here (never in CSS) so the
+        // fallback page — mobile, reduced motion, GSAP failing to load —
+        // always shows the heading fully legible, never stuck half-muted.
+        if (titleWords.length) gsap.set(titleWords, { color: 'rgba(255, 255, 255, 0.22)' });
+
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: wrap,
+            start: 'top 90px',
+            end: () => '+=' + window.innerHeight * (cards.length - 1),
+            scrub: 0.6,
+            pin: pin,
+            anticipatePin: 1,
+            invalidateOnRefresh: true,
+            onEnter: () => bg && gsap.to(bg, { opacity: 1, duration: 0.4, overwrite: 'auto' }),
+            onEnterBack: () => bg && gsap.to(bg, { opacity: 1, duration: 0.4, overwrite: 'auto' }),
+            onLeave: () => bg && gsap.to(bg, { opacity: 0, duration: 0.4, overwrite: 'auto' }),
+            onLeaveBack: () => bg && gsap.to(bg, { opacity: 0, duration: 0.4, overwrite: 'auto' }),
+            onUpdate: (self) => { if (bg) gsap.set(bg, { yPercent: -6 + self.progress * 12 }); },
+          },
+        });
+        // Words resolve to full colour one at a time, front-loaded onto a
+        // small slice of the scrub range (short duration each, no gaps)
+        // so the title is fully legible well before the first card starts
+        // sliding in — GSAP auto-fits every tween's duration into the
+        // ScrollTrigger's scroll distance regardless of how many there
+        // are, so this doesn't need its own separate trigger.
+        titleWords.forEach((word) => {
+          tl.to(word, { color: 'rgba(255, 255, 255, 0.85)', duration: 0.12, ease: 'none' });
+        });
+        cards.slice(1).forEach((card) => {
+          tl.to(card, { autoAlpha: 1, duration: 0.2, ease: 'none' })
+            .to(card, { y: 0, duration: 0.8, ease: 'none' }, '<');
+        });
+
+        return () => {
+          tl.scrollTrigger && tl.scrollTrigger.kill();
+          tl.kill();
+          gsap.set(cards, { clearProps: 'all' });
+          if (bg) gsap.set(bg, { clearProps: 'all' });
+          if (titleWords.length) gsap.set(titleWords, { clearProps: 'all' });
+          wrap.classList.remove('is-pinned-scroll');
+        };
+      },
+    });
+  }
+
+  // Non-deferred inline script: runs immediately at parse time, before the
+  // deferred GSAP/ScrollTrigger tags above have executed (deferred scripts
+  // run in order right before DOMContentLoaded, not at the point they're
+  // encountered) — so window.gsap isn't there yet unless we wait for it.
+  if (document.readyState !== 'loading') setup();
+  else document.addEventListener('DOMContentLoaded', setup);
+})();
+</script>
+</body>
+</html>

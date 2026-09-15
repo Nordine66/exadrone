@@ -1094,6 +1094,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const pricing = window.ExadronePricing;
     if (!section || !pricing) return;
 
+    // A page can scope this whole widget to one prestation (e.g. solaire.html's
+    // solar-only devis) via data-only-service="<pricing service id>" on
+    // #estimate — skips the "Prestation" panel/step entirely and pre-selects
+    // that service. Absent (the homepage default), behavior is unchanged.
+    const onlyServiceId = section.dataset.onlyService || null;
+
     const stepsList = document.getElementById('devisSteps');
     const panels = Array.from(section.querySelectorAll('.devis-panel'));
     const servicesWrap = document.getElementById('devisServices');
@@ -1107,7 +1113,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderedAtInput = document.getElementById('devisRenderedAt');
     const submitBtn = document.getElementById('devisSubmitBtn');
     const resultEl = document.getElementById('devisResult');
-    if (!stepsList || !servicesWrap || !surfaceInput || !form || !resultEl) return;
+    if (!stepsList || !surfaceInput || !form || !resultEl) return;
+    if (!onlyServiceId && !servicesWrap) return;
 
     const fmtEur = (n) => pricing.formatCurrency(n);
     const fmtRate = (n) => `${n.toFixed(2).replace('.', ',')} €`;
@@ -1116,19 +1123,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const state = { step: 1, serviceId: null, surface: null, contact: { name: '', company: '', email: '', phone: '', postalCode: '' } };
 
-    /* ---- Step 1: service cards, generated from lib/pricing.js ---- */
-    const cheapest = pricing.getCheapestService();
-    servicesWrap.innerHTML = pricing.config.services.map((s) => `
-      <button type="button" class="devis-service" role="radio" aria-checked="false" data-service="${s.id}">
-        ${s.id === cheapest.id ? '<span class="devis-service__badge">Meilleur prix</span>' : ''}
-        <span class="devis-service__label">${escapeHtml(s.label)}</span>
-        <span class="devis-service__detail">${escapeHtml(s.detail)}</span>
-        <span class="devis-service__price"><strong>${fmtRate(s.priceHT)}</strong> HT/m²</span>
-      </button>
-    `).join('');
-    servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
-      btn.addEventListener('click', () => selectService(btn.dataset.service));
-    });
+    /* ---- Step 1: service cards, generated from lib/pricing.js — skipped
+       entirely when the section scopes to a single service. ---- */
+    if (servicesWrap) {
+      const cheapest = pricing.getCheapestService();
+      servicesWrap.innerHTML = pricing.config.services.map((s) => `
+        <button type="button" class="devis-service" role="radio" aria-checked="false" data-service="${s.id}">
+          ${s.id === cheapest.id ? '<span class="devis-service__badge">Meilleur prix</span>' : ''}
+          <span class="devis-service__label">${escapeHtml(s.label)}</span>
+          <span class="devis-service__detail">${escapeHtml(s.detail)}</span>
+          <span class="devis-service__price"><strong>${fmtRate(s.priceHT)}</strong> HT/m²</span>
+        </button>
+      `).join('');
+      servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
+        btn.addEventListener('click', () => selectService(btn.dataset.service));
+      });
+    }
 
     function selectService(id) {
       state.serviceId = id;
@@ -1369,7 +1379,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetFlow() {
-      state.step = 1; state.serviceId = null; state.surface = null; state.contact = { name: '', company: '', email: '', phone: '', postalCode: '' };
+      state.step = 1; state.serviceId = onlyServiceId; state.surface = null; state.contact = { name: '', company: '', email: '', phone: '', postalCode: '' };
       surfaceInput.value = '';
       surfaceContinueBtn.disabled = true;
       form.reset();
@@ -1378,11 +1388,13 @@ document.addEventListener('DOMContentLoaded', () => {
       setFormError(null);
       resultEl.hidden = true;
       resultEl.innerHTML = '';
-      servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
-        btn.classList.remove('is-selected');
-        btn.setAttribute('aria-checked', 'false');
-      });
-      goToStep(1);
+      if (servicesWrap) {
+        servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
+          btn.classList.remove('is-selected');
+          btn.setAttribute('aria-checked', 'false');
+        });
+      }
+      goToStep(onlyServiceId ? 2 : 1);
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -1632,7 +1644,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    goToStep(1);
+    if (onlyServiceId) { state.serviceId = onlyServiceId; goToStep(2); }
+    else { goToStep(1); }
   })();
 
   /* ---------- Fiabilité accordions ----------
