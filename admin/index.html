@@ -536,7 +536,7 @@ function renderAgentStats(a) {
   const s = a.stats || {}
   if (a.slug === 'victoria') return `<span><strong>${s.leadsToday ?? 0}</strong> leads aujourd'hui</span><span><strong>${s.hotToday ?? 0}</strong> 🔥 chauds</span><span><strong>${s.chatsTotal ?? 0}</strong> conversations</span>`
   if (a.slug === 'marco') return `<span><strong>${s.articlesTotal ?? 0}</strong> articles</span><span><strong>${s.topicsPending ?? 0}</strong> sujets en attente</span>`
-  if (a.slug === 'chloe') return `<span><strong>${s.sentToday ?? 0}</strong>/${a.config?.daily_limit ?? '—'} envoyés aujourd'hui</span><span><strong>${s.prospectsPending ?? 0}</strong> en attente</span><span><strong>${s.repliesTotal ?? 0}</strong> réponses</span><span><strong>${s.unsubscribesTotal ?? 0}</strong> désinscrits</span>`
+  if (a.slug === 'chloe') return `<span><strong>${s.sentToday ?? 0}</strong>/${a.config?.daily_limit ?? '—'} envoyés aujourd'hui <a href="#" onclick="editDailyLimit('${a.slug}',${a.config?.daily_limit ?? 25});return false;" title="Modifier la limite quotidienne">✏️</a></span><span><strong>${s.prospectsPending ?? 0}</strong> en attente</span><span><strong>${s.repliesTotal ?? 0}</strong> réponses</span><span><strong>${s.unsubscribesTotal ?? 0}</strong> désinscrits</span>`
   if (a.slug === 'hugo') return `<span><strong>${s.sentToday ?? 0}</strong> relances aujourd'hui</span><span><strong>${s.awaitingFollowup1 ?? 0}</strong> attente relance 1</span><span><strong>${s.awaitingFollowup2 ?? 0}</strong> attente relance 2</span>`
   return ''
 }
@@ -544,6 +544,14 @@ function renderAgentStats(a) {
 function toggleAgentStatus(slug, currentStatus) {
   const next = currentStatus === 'active' ? 'paused' : 'active'
   API('/api/admin/agents', { method: 'PATCH', body: JSON.stringify({ target: 'agent', slug, status: next }) }).then(() => loadAgents())
+}
+
+function editDailyLimit(slug, current) {
+  const input = prompt('Nombre d\'emails max par jour :', current)
+  if (input === null) return
+  const value = parseInt(input, 10)
+  if (!Number.isFinite(value) || value <= 0) return alert('Valeur invalide')
+  API('/api/admin/agents', { method: 'PATCH', body: JSON.stringify({ target: 'agent', slug, config: { daily_limit: value } }) }).then(() => loadAgents())
 }
 
 document.getElementById('pause-all-btn').addEventListener('click', () => {

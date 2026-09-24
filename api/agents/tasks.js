@@ -321,6 +321,39 @@ SUBJECT:[objet]
 ---
 [corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
 
+// Used only for prospects tagged solaire/photovoltaïque (see isSolarProspect) — falls back
+// to CHLOE_EMAIL_SYSTEM_PROMPT for everyone else so Chloé reverts to the generic pitch
+// automatically once a solar-tagged batch is exhausted, no manual switch-back needed.
+const CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR = `Tu es Chloé, chargée de développement commercial chez Exadrone Enterprise, spécialiste du nettoyage de panneaux solaires photovoltaïques par drone pour les collectivités territoriales, entreprises du BTP, syndics et exploitants de centrales.
+
+Rédige un email de prospection B2B à froid, court (120 à 160 mots), personnalisé à partir des informations fournies sur le prospect. Niveau d'un copywriter B2B senior : accroche forte dès la première phrase, argumentaire chiffré et concret, zéro remplissage.
+
+Angle imposé — nettoyage de panneaux solaires :
+- Un encrassement (poussière, pollen, fientes, résidus) peut faire perdre 15 à 25% de production électrique, invisible à l'œil nu depuis le sol
+- Nettoyage par drone : aucune circulation sur les panneaux (donc zéro risque de micro-fissure ou de perte de garantie fabricant), pas d'échafaudage ni de nacelle, intervention rapide sans arrêt de production
+- Le nettoyage se rentabilise via le surplus de production récupéré, particulièrement avant l'hiver ou après une période sèche/pollinique
+- Un seul appel à l'action clair : proposer un diagnostic de perte de rendement ou un devis gratuit
+
+Règles :
+- Objet court et concret (pas de clickbait), mentionnant explicitement les panneaux solaires/photovoltaïques
+- Une accroche personnalisée liée à l'entreprise/secteur du prospect si l'information est disponible
+- Jamais de promesse de prix précis ni de pourcentage de gain garanti dans l'email
+- Signature : "Chloé — Exadrone Enterprise"
+- Réponds exclusivement en français
+
+Format de sortie STRICT :
+SUBJECT:[objet]
+---
+[corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
+
+// A prospect is "solar" if its industry, CSV batch name, or website mentions
+// solaire/photovoltaïque — lets Nordine steer the pitch just by naming the CSV batch
+// or filling the industry column on import, no extra field or manual toggle required.
+function isSolarProspect(prospect) {
+  const haystack = `${prospect.industry || ''} ${prospect.csv_batch || ''} ${prospect.website || ''}`.toLowerCase()
+  return /solair|photovolta/.test(haystack)
+}
+
 function startOfTodayIso() {
   return new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z'
 }
@@ -404,7 +437,7 @@ async function handleSendBatch(req, res, supabase) {
   if (settings.paused_all) return res.status(200).json({ sent: 0, reason: 'Tous les agents sont en pause' })
   if (agent?.status === 'paused') return res.status(200).json({ sent: 0, reason: 'Chloé est en pause' })
 
-  const dailyLimit = agent?.config?.daily_limit ?? 25
+  const dailyLimit = agent?.config?.daily_limit ?? 50
   const todayStart = startOfTodayIso()
   const { count: sentToday } = await supabase
     .from('outreach_emails').select('id', { count: 'exact', head: true })
@@ -437,7 +470,7 @@ async function handleSendBatch(req, res, supabase) {
       const draft = await anthropic.messages.create({
         model: 'claude-sonnet-4-5',
         max_tokens: 500,
-        system: CHLOE_EMAIL_SYSTEM_PROMPT,
+        system: isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR : CHLOE_EMAIL_SYSTEM_PROMPT,
         messages: [{
           role: 'user',
           content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}`

@@ -14,7 +14,7 @@ create table if not exists agents (
 insert into agents (slug, name, role, config) values
   ('victoria', 'Victoria', 'Chat commercial — visiteurs du site', '{}'::jsonb),
   ('marco', 'Marco', 'Rédaction blog SEO', '{}'::jsonb),
-  ('chloe', 'Chloé', 'Prospection B2B à froid', '{"daily_limit": 25}'::jsonb),
+  ('chloe', 'Chloé', 'Prospection B2B à froid', '{"daily_limit": 50}'::jsonb),
   ('hugo', 'Hugo', 'Relances automatiques', '{"followup_delay_days": 4}'::jsonb)
 on conflict (slug) do nothing;
 
