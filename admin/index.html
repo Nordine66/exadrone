@@ -446,6 +446,16 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
             <div class="csv-import-status" id="csv-import-status"></div>
           </div>
 
+          <div class="csv-upload-card">
+            <h2 class="csv-upload-title">🎯 Orienter le lot en attente</h2>
+            <p class="csv-hint">Change le secteur de tous les prospects « En attente » (pas encore contactés) — utile si le CSV importé ne précisait pas de secteur. Mets « Photovoltaïque » pour que Chloé bascule sur l'argumentaire panneaux solaires au prochain envoi.</p>
+            <div class="csv-actions">
+              <input type="text" id="retag-input" class="auth-input" style="max-width:280px;margin-bottom:0" placeholder="Photovoltaïque">
+              <button class="btn-primary btn-sm" id="retag-btn">Appliquer aux prospects en attente</button>
+            </div>
+            <div class="csv-import-status" id="retag-status"></div>
+          </div>
+
           <div class="table-wrap">
             <div class="table-head">
               <span class="table-head-title">Tous les prospects</span>
@@ -928,6 +938,22 @@ document.getElementById('send-batch-btn').addEventListener('click', () => {
     statusEl.textContent = data.reason ? data.reason : `✓ ${data.sent} emails envoyés (${data.failed || 0} échecs, ${data.skippedUnsubscribed || 0} désinscrits ignorés).`
     loadProspects()
     loadAgents()
+  }).catch(() => { statusEl.textContent = 'Erreur réseau.' })
+})
+
+document.getElementById('retag-btn').addEventListener('click', () => {
+  const input = document.getElementById('retag-input')
+  const statusEl = document.getElementById('retag-status')
+  const tag = input.value.trim()
+  if (!tag) { statusEl.textContent = 'Entrez un secteur (ex. Photovoltaïque).'; return }
+  if (!confirm(`Remplacer le secteur de TOUS les prospects "En attente" par "${tag}" ?`)) return
+  statusEl.textContent = 'Application en cours…'
+  API('/api/admin/prospects', { method: 'PATCH', body: JSON.stringify({ industryTag: tag }) }).then(data => {
+    if (data.error) { statusEl.textContent = 'Erreur : ' + data.error; return }
+    statusEl.textContent = `✓ ${data.updated} prospect(s) en attente mis à jour.`
+    input.value = ''
+    tabCache.prospects = 0
+    loadProspects()
   }).catch(() => { statusEl.textContent = 'Erreur réseau.' })
 })
 

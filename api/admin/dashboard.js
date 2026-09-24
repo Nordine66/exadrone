@@ -223,6 +223,7 @@ async function handleAgentsPatch(req, res, supabase) {
 
 // ── prospects ─────────────────────────────────────────────────────────────────
 async function handleProspects(req, res, supabase) {
+  if (req.method === 'PATCH') return handleProspectsPatch(req, res, supabase)
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
 
@@ -240,4 +241,26 @@ async function handleProspects(req, res, supabase) {
   if (error) return res.status(500).json({ error: error.message })
 
   return res.status(200).json({ prospects: data || [], total: count || 0 })
+}
+
+// Bulk-retags every prospect still awaiting first contact with a chosen
+// industry label (e.g. "Photovoltaïque") — this is how Nordine steers Chloé's
+// next batch onto a specific pitch (see isSolarProspect in api/agents/tasks.js)
+// for prospects that were imported without that column filled in.
+async function handleProspectsPatch(req, res, supabase) {
+  if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
+
+  const { industryTag } = req.body || {}
+  if (!industryTag || typeof industryTag !== 'string' || !industryTag.trim()) {
+    return res.status(400).json({ error: 'industryTag requis' })
+  }
+
+  const { data, error } = await supabase
+    .from('prospects')
+    .update({ industry: industryTag.trim() })
+    .eq('status', 'pending')
+    .select('id')
+
+  if (error) return res.status(500).json({ error: error.message })
+  return res.status(200).json({ updated: data?.length || 0 })
 }

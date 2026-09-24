@@ -458,6 +458,9 @@ async function handleSendBatch(req, res, supabase) {
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const results = { sent: 0, failed: 0, skippedUnsubscribed: 0 }
+  // Bcc Nordine on the first real send of each batch so he sees a live example
+  // of what Chloé is sending without slowing down or duplicating the rest.
+  let bccPending = !!process.env.NOTIFICATION_EMAIL
 
   for (const prospect of prospects) {
     if (unsubscribedSet.has(prospect.email)) {
@@ -490,8 +493,10 @@ async function handleSendBatch(req, res, supabase) {
         subject,
         html: fullHtml,
         replyTo: REPLY_TO,
-        headers: { 'Message-ID': emailMessageId }
+        headers: { 'Message-ID': emailMessageId },
+        bcc: bccPending ? process.env.NOTIFICATION_EMAIL : undefined
       })
+      bccPending = false
 
       await supabase.from('outreach_emails').insert({
         prospect_id: prospect.id,
