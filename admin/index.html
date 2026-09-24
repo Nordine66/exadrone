@@ -13,82 +13,140 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;
-      --border:rgba(255,255,255,.08);--text:#e2e8f0;--muted:#8b949e;
-      --blue:#1f6feb;--green:#34d399;--orange:#fb923c;--red:#f87171;--slate:#94a3b8;
+      --bg:#0a0d13;--surface:#12161f;--surface2:#181e2a;--surface3:#1f2635;
+      --border:rgba(255,255,255,.07);--border-strong:rgba(255,255,255,.15);
+      --text:#eef1f6;--muted:#8b96a8;--muted2:#5c6779;
+      --blue:#3b82f6;--sky:#38bdf8;--green:#34d399;--orange:#fb923c;--red:#f87171;--slate:#94a3b8;--violet:#8b5cf6;--pink:#ec4899;
       --font:'Plus Jakarta Sans',-apple-system,sans-serif;
       --font-body:'DM Sans',-apple-system,sans-serif;
+      --font-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+      --radius-sm:8px;--radius:12px;--radius-lg:16px;--radius-xl:20px;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+      --shadow-md:0 10px 28px -10px rgba(0,0,0,.55);
+      --shadow-lg:0 24px 56px -20px rgba(0,0,0,.65);
     }
-    body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh}
+    html{background:var(--bg)}
+    body{
+      background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;position:relative;
+    }
+    body::before{
+      content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+      background:
+        radial-gradient(1100px 560px at 12% -8%, rgba(59,130,246,.09), transparent 60%),
+        radial-gradient(900px 520px at 105% 0%, rgba(139,92,246,.07), transparent 60%),
+        radial-gradient(circle at 1px 1px, rgba(255,255,255,.035) 1px, transparent 0);
+      background-size:auto,auto,22px 22px;
+    }
     a{color:var(--blue);text-decoration:none}
     a:hover{text-decoration:underline}
+    ::selection{background:rgba(59,130,246,.35)}
+    ::-webkit-scrollbar{width:9px;height:9px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:99px}
+    ::-webkit-scrollbar-thumb:hover{background:var(--border-strong)}
+
+    .eyebrow{font-family:var(--font-mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2)}
 
     /* Auth gate */
-    #auth-gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100}
-    .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:360px;text-align:center}
-    .auth-card h1{font-family:var(--font);font-size:1.4rem;margin-bottom:8px}
-    .auth-card p{color:var(--muted);font-size:.875rem;margin-bottom:24px}
-    .auth-input{width:100%;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.9rem;outline:none;transition:border-color .2s;margin-bottom:12px}
-    .auth-input:focus{border-color:rgba(31,111,235,.5)}
-    .btn-primary{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-family:var(--font);font-weight:600;font-size:.875rem;cursor:pointer;transition:opacity .2s}
-    .btn-primary:hover{opacity:.85}
-    .btn-primary:disabled{opacity:.5;cursor:not-allowed}
-    .btn-sm{padding:7px 14px;font-size:.78rem;border-radius:8px}
-    .auth-error{color:var(--red);font-size:.82rem;margin-top:8px}
+    #auth-gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100;overflow:hidden}
+    #auth-gate::before{content:'';position:absolute;width:640px;height:640px;background:radial-gradient(circle,rgba(59,130,246,.16),transparent 70%);top:-220px;left:50%;transform:translateX(-50%);pointer-events:none}
+    .auth-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:44px 40px;width:380px;text-align:center;box-shadow:var(--shadow-lg)}
+    .auth-logo{width:52px;height:52px;border-radius:15px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;box-shadow:0 10px 26px -8px rgba(59,130,246,.55)}
+    .auth-card h1{font-family:var(--font);font-size:1.35rem;margin-bottom:6px;font-weight:800}
+    .auth-card p{color:var(--muted);font-size:.85rem;margin-bottom:26px}
+    .auth-input{width:100%;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.9rem;outline:none;transition:border-color .2s,box-shadow .2s;margin-bottom:12px;font-family:var(--font-body)}
+    .auth-input:focus{border-color:rgba(59,130,246,.55);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+    .btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;border-radius:10px;font-family:var(--font);font-weight:700;font-size:.85rem;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 6px 18px -8px rgba(59,130,246,.6)}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 22px -8px rgba(59,130,246,.7)}
+    .btn-primary:active{transform:translateY(0)}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+    .btn-sm{padding:8px 14px;font-size:.78rem;border-radius:8px}
+    .auth-error{color:var(--red);font-size:.82rem;margin-top:10px}
 
-    /* Layout */
+    /* App shell */
     #app{display:none}
-    .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-    .topbar-brand{font-family:var(--font);font-weight:700;font-size:1rem;display:flex;align-items:center;gap:10px}
-    .topbar-brand span{color:var(--muted);font-weight:400}
-    .topbar-actions{display:flex;align-items:center;gap:12px}
-    .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:.72rem;font-weight:600;letter-spacing:.04em}
+    .app-shell{display:flex;min-height:100vh;position:relative;z-index:1}
+
+    /* Sidebar */
+    .sidebar{width:246px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;z-index:20}
+    .sidebar-brand{display:flex;align-items:center;gap:11px;padding:4px 8px 22px}
+    .logo-mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 6px 16px -6px rgba(59,130,246,.55)}
+    .logo-mark svg{width:18px;height:18px;color:#fff}
+    .sidebar-brand-text{font-family:var(--font);font-weight:800;font-size:.92rem;line-height:1.1}
+    .sidebar-brand-text span{display:block;font-family:var(--font-mono);font-weight:400;font-size:.62rem;color:var(--muted2);letter-spacing:.08em;margin-top:2px;text-transform:uppercase}
+    .sidebar-section-label{padding:0 12px;margin:4px 0 8px;font-family:var(--font-mono);font-size:.64rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2)}
+    .sidebar-nav{display:flex;flex-direction:column;gap:2px}
+    .nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid transparent;background:none;color:var(--muted);font-family:var(--font-body);font-size:.86rem;font-weight:500;cursor:pointer;transition:background .15s,color .15s,border-color .15s;text-align:left}
+    .nav-item svg{width:17px;height:17px;flex-shrink:0;opacity:.75;transition:opacity .15s}
+    .nav-item:hover{background:var(--surface2);color:var(--text)}
+    .nav-item.active{background:linear-gradient(135deg,rgba(59,130,246,.16),rgba(139,92,246,.08));color:#fff;border-color:rgba(59,130,246,.3)}
+    .nav-item.active svg{opacity:1;color:#60a5fa}
+    .sidebar-footer{margin-top:auto;padding-top:16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:2px}
+    .sidebar-footer a{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;color:var(--muted);font-size:.82rem;transition:background .15s,color .15s}
+    .sidebar-footer a:hover{background:var(--surface2);color:var(--text);text-decoration:none}
+    .sidebar-footer svg{width:15px;height:15px;opacity:.7}
+
+    /* Content column */
+    .content-col{flex:1;min-width:0}
+    .topbar{padding:18px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,13,19,.78);backdrop-filter:blur(14px);z-index:10;gap:16px;flex-wrap:wrap}
+    .topbar-title{font-family:var(--font);font-size:1.28rem;font-weight:800;letter-spacing:-.01em}
+    .topbar-subtitle{font-size:.8rem;color:var(--muted);margin-top:3px}
+    .topbar-actions{display:flex;align-items:center;gap:10px}
+    .icon-link{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted)}
+    .icon-link:hover{color:var(--text)}
+    .icon-link svg{width:14px;height:14px}
+    .main{padding:28px 32px 60px;max-width:1360px}
+
+    .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:.68rem;font-weight:600;letter-spacing:.03em;font-family:var(--font-mono)}
     .badge-hot{background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.25)}
     .badge-warm{background:rgba(251,146,60,.12);color:var(--orange);border:1px solid rgba(251,146,60,.25)}
     .badge-cold{background:rgba(148,163,184,.08);color:var(--slate);border:1px solid rgba(148,163,184,.18)}
     .badge-new{background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2)}
-    .main{padding:32px;max-width:1400px;margin:0 auto}
-    .page-title{font-family:var(--font);font-size:1.5rem;font-weight:700;margin-bottom:24px}
 
-    /* Tabs */
-    .tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:28px;width:fit-content;flex-wrap:wrap}
-    .tab{padding:8px 18px;border-radius:8px;border:none;background:none;color:var(--muted);font-family:var(--font-body);font-size:.875rem;cursor:pointer;transition:all .2s}
-    .tab.active{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+    /* Legacy tab bar (kept for compatibility, hidden — nav now lives in sidebar) */
+    .tabs{display:none}
     .tab-content{display:none}
-    .tab-content.active{display:block}
+    .tab-content.active{display:block;animation:fade-in .25s ease}
+    @keyframes fade-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
     /* Stat cards */
-    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px}
-    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px}
-    .stat-card-label{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
-    .stat-card-value{font-family:var(--font);font-size:2rem;font-weight:700;line-height:1}
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:28px}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px;transition:border-color .15s,transform .15s}
+    .stat-card:hover{border-color:var(--border-strong);transform:translateY(-1px)}
+    .stat-card-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;background:var(--surface2);color:var(--muted)}
+    .stat-card-icon svg{width:16px;height:16px}
+    .stat-card-label{font-family:var(--font-mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+    .stat-card-value{font-family:var(--font);font-size:2rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
     .stat-card-sub{font-size:.78rem;color:var(--muted);margin-top:6px}
 
     /* Table */
-    .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
     .table-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+    .table-head-title{font-family:var(--font);font-weight:700;font-size:.92rem}
     .table-filters{display:flex;gap:8px;flex-wrap:wrap}
-    .filter-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted);font-size:.78rem;cursor:pointer;transition:all .2s}
+    .filter-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted);font-size:.76rem;font-family:var(--font-mono);cursor:pointer;transition:all .15s}
+    .filter-btn:hover{border-color:var(--border-strong);color:var(--text)}
     .filter-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+    .table-scroll{max-height:min(620px,72vh);overflow-y:auto}
     table{width:100%;border-collapse:collapse}
-    th{padding:12px 16px;text-align:left;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);background:var(--surface2)}
+    th{padding:12px 16px;text-align:left;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--surface2);font-family:var(--font-mono);font-weight:500;position:sticky;top:0;z-index:1}
     td{padding:14px 16px;font-size:.85rem;border-bottom:1px solid var(--border);vertical-align:top}
     tr:last-child td{border-bottom:none}
-    tr:hover td{background:rgba(255,255,255,.02)}
+    tr:hover td{background:rgba(255,255,255,.025)}
     .td-company{font-weight:600;color:var(--text)}
     .td-muted{color:var(--muted);font-size:.8rem}
-    .td-date{color:var(--muted);font-size:.78rem;white-space:nowrap}
-    .row-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--muted);font-size:.75rem;cursor:pointer;transition:all .2s}
+    .td-date{color:var(--muted);font-size:.76rem;white-space:nowrap;font-family:var(--font-mono)}
+    .row-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:5px 11px;color:var(--muted);font-size:.74rem;cursor:pointer;transition:all .15s;font-family:var(--font-mono)}
     .row-btn:hover{border-color:var(--blue);color:var(--blue)}
 
     /* Modal */
-    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(5px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
     .modal-overlay.open{opacity:1;pointer-events:auto}
-    .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:min(640px,calc(100vw - 32px));max-height:80vh;overflow-y:auto;transform:scale(.95) translateY(12px);transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+    .modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);width:min(640px,calc(100vw - 32px));max-height:80vh;overflow-y:auto;transform:scale(.95) translateY(12px);transition:transform .25s cubic-bezier(.34,1.56,.64,1);box-shadow:var(--shadow-lg)}
     .modal-overlay.open .modal{transform:scale(1) translateY(0)}
     .modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1}
     .modal-title{font-family:var(--font);font-weight:700;font-size:1.05rem}
@@ -96,23 +154,24 @@
     .modal-close:hover{color:var(--text)}
     .modal-body{padding:24px}
     .lead-field{margin-bottom:14px}
-    .lead-field-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+    .lead-field-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;font-family:var(--font-mono)}
     .lead-field-value{font-size:.9rem}
     .conv-msg{margin-bottom:12px;padding:12px 14px;border-radius:10px;font-size:.85rem;line-height:1.55}
-    .conv-msg.user{background:rgba(31,111,235,.12);border:1px solid rgba(31,111,235,.2)}
+    .conv-msg.user{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2)}
     .conv-msg.assistant{background:var(--surface2);border:1px solid var(--border)}
-    .conv-role{font-size:.72rem;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;opacity:.6}
+    .conv-role{font-size:.68rem;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;opacity:.65;font-family:var(--font-mono)}
 
     /* Blog sections */
     .article-list{display:grid;gap:12px}
-    .article-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .article-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;transition:border-color .15s}
+    .article-card:hover{border-color:var(--border-strong)}
     .article-card-info{flex:1}
-    .article-title{font-weight:600;font-size:.9rem;margin-bottom:4px}
-    .article-meta{font-size:.75rem;color:var(--muted)}
-    .topic-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px}
-    .topic-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0}
+    .article-title{font-weight:700;font-size:.9rem;margin-bottom:4px;font-family:var(--font)}
+    .article-meta{font-size:.74rem;color:var(--muted);font-family:var(--font-mono)}
+    .topic-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;gap:12px}
+    .topic-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
     .topic-text{font-size:.875rem;flex:1}
-    .topic-kw{font-size:.75rem;color:var(--muted)}
+    .topic-kw{font-size:.72rem;color:var(--muted);font-family:var(--font-mono);margin-top:2px}
     .empty-state{text-align:center;padding:48px;color:var(--muted);font-size:.875rem}
 
     /* Loading */
@@ -121,19 +180,19 @@
     .loading-row td{text-align:center;padding:40px;color:var(--muted)}
 
     /* Generate article card */
-    .generate-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:28px}
+    .generate-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:28px}
     .generate-bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-    .topics-remaining{font-size:.82rem;color:var(--muted)}
+    .topics-remaining{font-size:.8rem;color:var(--muted);font-family:var(--font-mono)}
     .topics-remaining strong{color:var(--text)}
     .generate-status{margin-top:14px;padding:14px 16px;border-radius:10px;font-size:.875rem;line-height:1.55;display:none}
-    .generate-status.loading{background:rgba(31,111,235,.08);border:1px solid rgba(31,111,235,.2);color:var(--blue);display:flex;align-items:center;gap:10px}
+    .generate-status.loading{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:var(--sky);display:flex;align-items:center;gap:10px}
     .generate-status.success{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);color:var(--green);display:block}
     .generate-status.error{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:var(--red);display:block}
 
     /* Global controls + banners */
     .global-controls{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
-    .toggle-btn{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:var(--font-body)}
-    .toggle-btn:hover{border-color:rgba(255,255,255,.2)}
+    .toggle-btn{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font-body)}
+    .toggle-btn:hover{border-color:var(--border-strong)}
     .toggle-btn.pause-all[data-on="true"]{border-color:rgba(248,113,113,.4);color:var(--red);background:rgba(248,113,113,.08)}
     .toggle-btn.test-mode[data-on="true"]{border-color:rgba(251,146,60,.4);color:var(--orange);background:rgba(251,146,60,.08)}
     .banner{padding:11px 16px;border-radius:10px;font-size:.82rem;margin-bottom:16px;display:none;font-weight:500}
@@ -142,21 +201,32 @@
     .banner-test{background:rgba(251,146,60,.1);color:var(--orange);border:1px solid rgba(251,146,60,.25)}
 
     /* Agent cards */
-    .agents-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin-bottom:28px}
-    .agent-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px}
-    .agent-card-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-    .agent-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font);font-weight:700;font-size:1.05rem;color:#fff;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+    .agents-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:16px;margin-bottom:28px}
+    .agent-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px;position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s,border-color .18s}
+    .agent-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--agent-grad,var(--blue))}
+    .agent-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:var(--border-strong)}
+    .agent-card-top{display:flex;align-items:center;gap:13px;margin-bottom:16px}
+    .agent-avatar{width:50px;height:50px;border-radius:15px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;background:var(--agent-grad,var(--blue));box-shadow:0 8px 18px -8px rgba(0,0,0,.55);position:relative}
+    .agent-avatar svg{width:23px;height:23px}
+    .agent-avatar::after{content:'';position:absolute;bottom:-2px;right:-2px;width:13px;height:13px;border-radius:50%;border:3px solid var(--surface);background:var(--slate)}
+    .agent-avatar.active::after{background:var(--green);animation:pulse-dot 2s ease-in-out infinite}
+    .agent-avatar.paused::after{background:var(--red)}
+    @keyframes pulse-dot{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.45)}50%{box-shadow:0 0 0 5px rgba(52,211,153,0)}}
     .agent-info{flex:1;min-width:0}
-    .agent-name{font-family:var(--font);font-weight:700;font-size:1rem}
-    .agent-role{font-size:.74rem;color:var(--muted);margin-top:1px}
-    .status-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:.68rem;font-weight:600;cursor:pointer;border:1px solid transparent;flex-shrink:0;white-space:nowrap;font-family:var(--font-body)}
+    .agent-name{font-family:var(--font);font-weight:800;font-size:1.02rem}
+    .agent-role{font-size:.72rem;color:var(--muted);margin-top:2px;font-family:var(--font-mono)}
+    .status-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:.66rem;font-weight:600;cursor:pointer;border:1px solid transparent;flex-shrink:0;white-space:nowrap;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em;transition:filter .15s}
+    .status-pill:hover{filter:brightness(1.25)}
     .status-pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
     .status-pill.active{background:rgba(52,211,153,.1);color:var(--green);border-color:rgba(52,211,153,.2)}
     .status-pill.paused{background:rgba(248,113,113,.1);color:var(--red);border-color:rgba(248,113,113,.25)}
-    .agent-stats{display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:16px;font-size:.76rem;color:var(--muted);min-height:20px}
+    .agent-stats{display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:18px;font-size:.75rem;color:var(--muted);min-height:20px;font-family:var(--font-mono)}
     .agent-stats strong{color:var(--text);font-family:var(--font)}
-    .agent-chat-btn{width:100%;padding:9px;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:var(--font-body)}
-    .agent-chat-btn:hover{border-color:var(--blue);color:var(--blue)}
+    .agent-stats a{color:var(--muted2);text-decoration:none;font-size:.78rem}
+    .agent-stats a:hover{color:var(--blue)}
+    .agent-chat-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font-body)}
+    .agent-chat-btn svg{width:14px;height:14px}
+    .agent-chat-btn:hover{border-color:var(--blue);color:var(--sky);background:rgba(59,130,246,.08)}
 
     /* Chat panel */
     .chat-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:290;opacity:0;pointer-events:none;transition:opacity .3s}
@@ -164,12 +234,16 @@
     #chat-panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);background:var(--surface);border-left:1px solid var(--border);z-index:300;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:-16px 0 48px rgba(0,0,0,.4)}
     #chat-panel.open{transform:translateX(0)}
     .chat-agent-tabs{display:flex;gap:4px;padding:12px;border-bottom:1px solid var(--border);flex-shrink:0}
-    .chat-agent-tab{flex:1;padding:8px 4px;border-radius:8px;border:1px solid transparent;background:none;color:var(--muted);font-size:.68rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all .2s;font-family:var(--font-body)}
+    .chat-agent-tab{flex:1;padding:9px 4px;border-radius:10px;border:1px solid transparent;background:none;color:var(--muted);font-size:.66rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;transition:all .15s;font-family:var(--font-body)}
     .chat-agent-tab.active{background:var(--surface2);border-color:var(--border);color:var(--text)}
-    .chat-agent-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font);font-weight:700;font-size:.76rem;color:#fff}
+    .chat-agent-avatar{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff}
+    .chat-agent-avatar svg{width:13px;height:13px}
     .chat-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .chat-header-left{display:flex;align-items:center;gap:11px}
+    .chat-header-avatar{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+    .chat-header-avatar svg{width:16px;height:16px}
     .chat-header-name{font-family:var(--font);font-weight:700;font-size:.95rem}
-    .chat-header-role{font-size:.74rem;color:var(--muted)}
+    .chat-header-role{font-size:.72rem;color:var(--muted);font-family:var(--font-mono)}
     .chat-close-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:4px 8px;border-radius:6px;transition:color .2s}
     .chat-close-btn:hover{color:var(--text)}
     .chat-messages{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
@@ -178,16 +252,32 @@
     .chat-msg.assistant{align-self:flex-start;background:var(--surface2);border:1px solid var(--border);border-bottom-left-radius:4px}
     .chat-input-row{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;align-items:flex-end}
     .chat-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:.85rem;resize:none;outline:none;max-height:100px;min-height:40px;font-family:var(--font-body);line-height:1.5}
-    .chat-send-btn{background:var(--blue);border:none;color:#fff;border-radius:10px;width:40px;height:40px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .2s}
-    .chat-send-btn:disabled{opacity:.5;cursor:not-allowed}
+    .chat-input:focus{border-color:rgba(59,130,246,.5)}
+    .chat-send-btn{background:linear-gradient(135deg,#3b82f6,#6366f1);border:none;color:#fff;border-radius:10px;width:40px;height:40px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .2s,transform .15s}
+    .chat-send-btn:hover{transform:translateY(-1px)}
+    .chat-send-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 
     /* Prospects / CSV */
-    .csv-upload-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:24px}
-    .csv-textarea{width:100%;min-height:110px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-size:.78rem;font-family:'SF Mono',Menlo,monospace;resize:vertical;margin-bottom:12px}
+    .csv-upload-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:24px}
+    .csv-upload-title{font-family:var(--font);font-size:1rem;margin-bottom:10px;font-weight:700;display:flex;align-items:center;gap:8px}
+    .csv-textarea{width:100%;min-height:110px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-size:.78rem;font-family:var(--font-mono);resize:vertical;margin-bottom:12px}
+    .csv-textarea:focus{outline:none;border-color:rgba(59,130,246,.5)}
     .csv-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .csv-import-status{margin-top:12px;font-size:.82rem;color:var(--muted)}
-    .csv-hint{font-size:.75rem;color:var(--muted);margin-bottom:12px}
+    .csv-import-status{margin-top:12px;font-size:.82rem;color:var(--muted);font-family:var(--font-mono)}
+    .csv-hint{font-size:.75rem;color:var(--muted);margin-bottom:12px;line-height:1.6}
+    .csv-hint code{font-family:var(--font-mono);background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:.72rem}
     input[type="file"].file-input{font-size:.78rem;color:var(--muted)}
+
+    @media (max-width: 900px){
+      .app-shell{flex-direction:column}
+      .sidebar{width:100%;height:auto;position:sticky;flex-direction:row;align-items:center;padding:10px 14px;gap:14px}
+      .sidebar-brand{padding:0;flex-shrink:0}
+      .sidebar-nav{flex-direction:row;gap:4px;overflow-x:auto}
+      .nav-item{flex-shrink:0;padding:8px 12px}
+      .sidebar-footer{display:none}
+      .topbar{padding:16px 18px}
+      .main{padding:20px 18px 48px}
+    }
   </style>
 </head>
 <body>
@@ -195,151 +285,215 @@
 <!-- Auth Gate -->
 <div id="auth-gate">
   <div class="auth-card">
-    <div style="font-size:2rem;margin-bottom:12px">🛡️</div>
+    <div class="auth-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="7" height="10" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/><line x1="6.5" y1="11" x2="6.5" y2="7"/></svg>
+    </div>
     <h1>Accès Admin</h1>
     <p>Exadrone Enterprise — tableau de bord privé</p>
     <input type="password" id="auth-input" class="auth-input" placeholder="Clé d'administration" autocomplete="current-password">
     <br>
-    <button class="btn-primary" id="auth-submit" style="width:100%;justify-content:center">Se connecter</button>
+    <button class="btn-primary" id="auth-submit" style="width:100%">Se connecter</button>
     <div class="auth-error" id="auth-error" style="display:none">Clé incorrecte.</div>
   </div>
 </div>
 
 <!-- App -->
 <div id="app">
-  <div class="topbar">
-    <div class="topbar-brand">
-      <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="2.2" fill="currentColor"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/><circle cx="21" cy="7" r="1.5" fill="currentColor"/><circle cx="7" cy="21" r="1.5" fill="currentColor"/><circle cx="21" cy="21" r="1.5" fill="currentColor"/><line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/><line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/><line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/><line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/></svg>
-      EXADRONE <span>/ Admin</span>
-    </div>
-    <div class="topbar-actions">
-      <a href="/" style="font-size:.82rem;color:var(--muted)">← Site</a>
-      <button class="btn-primary btn-sm" id="refresh-btn">Actualiser</button>
-    </div>
-  </div>
-
-  <div class="main">
-    <div class="tabs">
-      <button class="tab active" data-tab="agents">Agents</button>
-      <button class="tab" data-tab="overview">Vue d'ensemble</button>
-      <button class="tab" data-tab="leads">Leads</button>
-      <button class="tab" data-tab="prospects">Prospects</button>
-      <button class="tab" data-tab="blog">Blog</button>
-    </div>
-
-    <!-- AGENTS TAB -->
-    <div class="tab-content active" id="tab-agents">
-      <div class="banner banner-paused" id="paused-banner">⏸ Tous les agents sont en pause — aucun envoi, aucune génération automatique n'aura lieu.</div>
-      <div class="banner banner-test" id="test-banner">🧪 Mode test actif — tous les emails sortants (Chloé, Hugo, contact) sont redirigés vers votre boîte de réception.</div>
-
-      <div class="global-controls">
-        <button class="toggle-btn pause-all" id="pause-all-btn" data-on="false">⏸ Pause tous les agents</button>
-        <button class="toggle-btn test-mode" id="test-mode-btn" data-on="true">🧪 Mode test : ON</button>
-      </div>
-
-      <div class="agents-grid" id="agents-grid"><div class="empty-state"><span class="spinner"></span></div></div>
-    </div>
-
-    <!-- OVERVIEW TAB -->
-    <div class="tab-content" id="tab-overview">
-      <div class="stat-grid" id="stat-grid">
-        <div class="stat-card"><div class="stat-card-label">Leads cette semaine</div><div class="stat-card-value" id="s-week">—</div></div>
-        <div class="stat-card"><div class="stat-card-label">Leads chauds 🔥</div><div class="stat-card-value" style="color:var(--red)" id="s-hot">—</div></div>
-        <div class="stat-card"><div class="stat-card-label">Leads tièdes 🌡️</div><div class="stat-card-value" style="color:var(--orange)" id="s-warm">—</div></div>
-        <div class="stat-card"><div class="stat-card-label">Articles publiés</div><div class="stat-card-value" style="color:var(--green)" id="s-articles">—</div></div>
-        <div class="stat-card"><div class="stat-card-label">Sujets en attente</div><div class="stat-card-value" id="s-topics">—</div></div>
-        <div class="stat-card"><div class="stat-card-label">Total leads</div><div class="stat-card-value" id="s-total">—</div></div>
-      </div>
-
-      <div style="margin-bottom:24px">
-        <h2 style="font-family:var(--font);font-size:1.1rem;margin-bottom:14px">🔥 Derniers leads chauds</h2>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Entreprise</th><th>Projet</th><th>Surface</th><th>Contact</th><th>Date</th><th></th></tr></thead>
-            <tbody id="hot-leads-body"><tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr></tbody>
-          </table>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo-mark">
+          <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="2.2" fill="currentColor"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/><circle cx="21" cy="7" r="1.5" fill="currentColor"/><circle cx="7" cy="21" r="1.5" fill="currentColor"/><circle cx="21" cy="21" r="1.5" fill="currentColor"/><line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.9"/><line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.9"/><line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.9"/><line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.9"/></svg>
         </div>
+        <div class="sidebar-brand-text">EXADRONE<span>Console admin</span></div>
       </div>
-    </div>
 
-    <!-- LEADS TAB -->
-    <div class="tab-content" id="tab-leads">
-      <div class="table-wrap">
-        <div class="table-head">
-          <span style="font-family:var(--font);font-weight:600">Tous les leads</span>
-          <div class="table-filters">
-            <button class="filter-btn active" data-score="">Tous</button>
-            <button class="filter-btn" data-score="hot">🔥 Chauds</button>
-            <button class="filter-btn" data-score="warm">🌡️ Tièdes</button>
-            <button class="filter-btn" data-score="cold">❄️ Froids</button>
-          </div>
+      <div class="sidebar-section-label">Navigation</div>
+      <nav class="sidebar-nav">
+        <button class="tab nav-item active" data-tab="agents">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 16h.01"/><path d="M16 16h.01"/></svg>
+          Agents
+        </button>
+        <button class="tab nav-item" data-tab="overview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+          Vue d'ensemble
+        </button>
+        <button class="tab nav-item" data-tab="leads">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5"/></svg>
+          Leads
+        </button>
+        <button class="tab nav-item" data-tab="prospects">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Prospects
+        </button>
+        <button class="tab nav-item" data-tab="blog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Blog
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Retour au site
+        </a>
+      </div>
+    </aside>
+
+    <div class="content-col">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title" id="topbar-title">Agents IA</div>
+          <div class="topbar-subtitle" id="topbar-subtitle">Supervisez Victoria, Marco, Chloé et Hugo</div>
         </div>
-        <table>
-          <thead><tr><th>Score</th><th>Entreprise / Nom</th><th>Projet</th><th>Surface</th><th>Email</th><th>Statut</th><th>Date</th><th></th></tr></thead>
-          <tbody id="leads-body"><tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- PROSPECTS TAB (Chloé) -->
-    <div class="tab-content" id="tab-prospects">
-      <div class="csv-upload-card">
-        <h2 style="font-family:var(--font);font-size:1rem;margin-bottom:10px">📤 Importer des prospects (Chloé)</h2>
-        <p class="csv-hint">Colonnes CSV attendues : <code>company_name, contact_name, email</code> (obligatoires), <code>industry, website</code> (facultatifs). Les emails déjà présents ou désinscrits sont ignorés automatiquement.</p>
-        <input type="file" id="csv-file-input" class="file-input" accept=".csv,text/csv">
-        <textarea class="csv-textarea" id="csv-textarea" placeholder="company_name,contact_name,email,industry,website
-Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" style="margin-top:12px"></textarea>
-        <div class="csv-actions">
-          <button class="btn-primary btn-sm" id="csv-import-btn">Importer</button>
-          <button class="btn-primary btn-sm" id="send-batch-btn" style="background:var(--green)">Envoyer le prochain lot</button>
-        </div>
-        <div class="csv-import-status" id="csv-import-status"></div>
-      </div>
-
-      <div class="table-wrap">
-        <div class="table-head">
-          <span style="font-family:var(--font);font-weight:600">Tous les prospects</span>
-          <div class="table-filters">
-            <button class="filter-btn prospect-filter-btn active" data-status="">Tous</button>
-            <button class="filter-btn prospect-filter-btn" data-status="pending">En attente</button>
-            <button class="filter-btn prospect-filter-btn" data-status="contacted">Contacté</button>
-            <button class="filter-btn prospect-filter-btn" data-status="followup1_sent">Relance 1</button>
-            <button class="filter-btn prospect-filter-btn" data-status="followup2_sent">Relance 2</button>
-            <button class="filter-btn prospect-filter-btn" data-status="replied">Répondu</button>
-            <button class="filter-btn prospect-filter-btn" data-status="unsubscribed">Désinscrit</button>
-          </div>
-        </div>
-        <table>
-          <thead><tr><th>Entreprise / Contact</th><th>Email</th><th>Secteur</th><th>Statut</th><th>Importé le</th></tr></thead>
-          <tbody id="prospects-body"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- BLOG TAB -->
-    <div class="tab-content" id="tab-blog">
-
-      <!-- Generate article -->
-      <div class="generate-card">
-        <div class="generate-bar">
-          <button class="btn-primary" id="generate-btn">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-            Générer un nouvel article
+        <div class="topbar-actions">
+          <button class="btn-primary btn-sm" id="refresh-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+            Actualiser
           </button>
-          <span class="topics-remaining" id="topics-remaining-label">
-            <span class="spinner" style="width:13px;height:13px;border-width:1.5px"></span>
-          </span>
         </div>
-        <div class="generate-status" id="generate-status"></div>
       </div>
 
-      <div style="margin-bottom:28px">
-        <h2 style="font-family:var(--font);font-size:1.1rem;margin-bottom:14px">📝 Articles publiés</h2>
-        <div class="article-list" id="articles-list"><div class="empty-state"><span class="spinner"></span></div></div>
-      </div>
-      <div>
-        <h2 style="font-family:var(--font);font-size:1.1rem;margin-bottom:14px">📋 Sujets en attente</h2>
-        <div class="article-list" id="topics-list"><div class="empty-state"><span class="spinner"></span></div></div>
+      <div class="main">
+        <!-- AGENTS TAB -->
+        <div class="tab-content active" id="tab-agents">
+          <div class="banner banner-paused" id="paused-banner">⏸ Tous les agents sont en pause — aucun envoi, aucune génération automatique n'aura lieu.</div>
+          <div class="banner banner-test" id="test-banner">🧪 Mode test actif — tous les emails sortants (Chloé, Hugo, contact) sont redirigés vers votre boîte de réception.</div>
+
+          <div class="global-controls">
+            <button class="toggle-btn pause-all" id="pause-all-btn" data-on="false">⏸ Pause tous les agents</button>
+            <button class="toggle-btn test-mode" id="test-mode-btn" data-on="true">🧪 Mode test : ON</button>
+          </div>
+
+          <div class="agents-grid" id="agents-grid"><div class="empty-state"><span class="spinner"></span></div></div>
+        </div>
+
+        <!-- OVERVIEW TAB -->
+        <div class="tab-content" id="tab-overview">
+          <div class="stat-grid" id="stat-grid">
+            <div class="stat-card">
+              <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+              <div class="stat-card-label">Leads cette semaine</div><div class="stat-card-value" id="s-week">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon" style="color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5"/></svg></div>
+              <div class="stat-card-label">Leads chauds</div><div class="stat-card-value" style="color:var(--red)" id="s-hot">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon" style="color:var(--orange)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div>
+              <div class="stat-card-label">Leads tièdes</div><div class="stat-card-value" style="color:var(--orange)" id="s-warm">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon" style="color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+              <div class="stat-card-label">Articles publiés</div><div class="stat-card-value" style="color:var(--green)" id="s-articles">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+              <div class="stat-card-label">Sujets en attente</div><div class="stat-card-value" id="s-topics">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
+              <div class="stat-card-label">Total leads</div><div class="stat-card-value" id="s-total">—</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:24px">
+            <h2 style="font-family:var(--font);font-size:1.05rem;margin-bottom:14px;font-weight:700">🔥 Derniers leads chauds</h2>
+            <div class="table-wrap">
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>Entreprise</th><th>Projet</th><th>Surface</th><th>Contact</th><th>Date</th><th></th></tr></thead>
+                  <tbody id="hot-leads-body"><tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LEADS TAB -->
+        <div class="tab-content" id="tab-leads">
+          <div class="table-wrap">
+            <div class="table-head">
+              <span class="table-head-title">Tous les leads</span>
+              <div class="table-filters">
+                <button class="filter-btn active" data-score="">Tous</button>
+                <button class="filter-btn" data-score="hot">🔥 Chauds</button>
+                <button class="filter-btn" data-score="warm">🌡️ Tièdes</button>
+                <button class="filter-btn" data-score="cold">❄️ Froids</button>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Score</th><th>Entreprise / Nom</th><th>Projet</th><th>Surface</th><th>Email</th><th>Statut</th><th>Date</th><th></th></tr></thead>
+                <tbody id="leads-body"><tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROSPECTS TAB (Chloé) -->
+        <div class="tab-content" id="tab-prospects">
+          <div class="csv-upload-card">
+            <h2 class="csv-upload-title">📤 Importer des prospects (Chloé)</h2>
+            <p class="csv-hint">Colonnes CSV attendues : <code>company_name, contact_name, email</code> (obligatoires), <code>industry, website</code> (facultatifs). Les emails déjà présents ou désinscrits sont ignorés automatiquement. Astuce : mentionnez « solaire » ou « photovoltaïque » dans <code>industry</code> pour que Chloé utilise l'argumentaire panneaux solaires sur ce lot.</p>
+            <input type="file" id="csv-file-input" class="file-input" accept=".csv,text/csv">
+            <textarea class="csv-textarea" id="csv-textarea" placeholder="company_name,contact_name,email,industry,website
+Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" style="margin-top:12px"></textarea>
+            <div class="csv-actions">
+              <button class="btn-primary btn-sm" id="csv-import-btn">Importer</button>
+              <button class="btn-primary btn-sm" id="send-batch-btn" style="background:linear-gradient(135deg,#10b981,#34d399);box-shadow:0 6px 18px -8px rgba(16,185,129,.6)">Envoyer le prochain lot</button>
+            </div>
+            <div class="csv-import-status" id="csv-import-status"></div>
+          </div>
+
+          <div class="table-wrap">
+            <div class="table-head">
+              <span class="table-head-title">Tous les prospects</span>
+              <div class="table-filters">
+                <button class="filter-btn prospect-filter-btn active" data-status="">Tous</button>
+                <button class="filter-btn prospect-filter-btn" data-status="pending">En attente</button>
+                <button class="filter-btn prospect-filter-btn" data-status="contacted">Contacté</button>
+                <button class="filter-btn prospect-filter-btn" data-status="followup1_sent">Relance 1</button>
+                <button class="filter-btn prospect-filter-btn" data-status="followup2_sent">Relance 2</button>
+                <button class="filter-btn prospect-filter-btn" data-status="replied">Répondu</button>
+                <button class="filter-btn prospect-filter-btn" data-status="unsubscribed">Désinscrit</button>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Entreprise / Contact</th><th>Email</th><th>Secteur</th><th>Statut</th><th>Importé le</th></tr></thead>
+                <tbody id="prospects-body"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOG TAB -->
+        <div class="tab-content" id="tab-blog">
+
+          <!-- Generate article -->
+          <div class="generate-card">
+            <div class="generate-bar">
+              <button class="btn-primary" id="generate-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                Générer un nouvel article
+              </button>
+              <span class="topics-remaining" id="topics-remaining-label">
+                <span class="spinner" style="width:13px;height:13px;border-width:1.5px"></span>
+              </span>
+            </div>
+            <div class="generate-status" id="generate-status"></div>
+          </div>
+
+          <div style="margin-bottom:28px">
+            <h2 style="font-family:var(--font);font-size:1.05rem;margin-bottom:14px;font-weight:700">📝 Articles publiés</h2>
+            <div class="article-list" id="articles-list"><div class="empty-state"><span class="spinner"></span></div></div>
+          </div>
+          <div>
+            <h2 style="font-family:var(--font);font-size:1.05rem;margin-bottom:14px;font-weight:700">📋 Sujets en attente</h2>
+            <div class="article-list" id="topics-list"><div class="empty-state"><span class="spinner"></span></div></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -360,15 +514,18 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
 <div class="chat-overlay" id="chat-overlay"></div>
 <div id="chat-panel">
   <div class="chat-agent-tabs">
-    <button class="chat-agent-tab" data-slug="victoria"><span class="chat-agent-avatar" style="background:#1f6feb">🔍</span>Victoria</button>
-    <button class="chat-agent-tab" data-slug="marco"><span class="chat-agent-avatar" style="background:#a855f7">✍️</span>Marco</button>
-    <button class="chat-agent-tab" data-slug="chloe"><span class="chat-agent-avatar" style="background:#ec4899">✉️</span>Chloé</button>
-    <button class="chat-agent-tab" data-slug="hugo"><span class="chat-agent-avatar" style="background:#34d399">🔄</span>Hugo</button>
+    <button class="chat-agent-tab" data-slug="victoria"><span class="chat-agent-avatar" style="background:linear-gradient(135deg,#2563eb,#38bdf8)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>Victoria</button>
+    <button class="chat-agent-tab" data-slug="marco"><span class="chat-agent-avatar" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>Marco</button>
+    <button class="chat-agent-tab" data-slug="chloe"><span class="chat-agent-avatar" style="background:linear-gradient(135deg,#ec4899,#fb7185)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg></span>Chloé</button>
+    <button class="chat-agent-tab" data-slug="hugo"><span class="chat-agent-avatar" style="background:linear-gradient(135deg,#10b981,#34d399)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></span>Hugo</button>
   </div>
   <div class="chat-header">
-    <div>
-      <div class="chat-header-name" id="chat-header-name">—</div>
-      <div class="chat-header-role" id="chat-header-role">—</div>
+    <div class="chat-header-left">
+      <span class="chat-header-avatar" id="chat-header-avatar"></span>
+      <div>
+        <div class="chat-header-name" id="chat-header-name">—</div>
+        <div class="chat-header-role" id="chat-header-role">—</div>
+      </div>
     </div>
     <button class="chat-close-btn" id="chat-close">✕</button>
   </div>
@@ -416,16 +573,33 @@ if (cachedToken) tryAuth(cachedToken)
 authBtn.addEventListener('click', () => { authErr.style.display = 'none'; tryAuth(authInput.value.trim()) })
 authInput.addEventListener('keydown', e => { if (e.key === 'Enter') authBtn.click() })
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
+// ── Tabs / navigation ───────────────────────────────────────────────────────
+const TAB_META = {
+  agents: { title: 'Agents IA', subtitle: 'Supervisez Victoria, Marco, Chloé et Hugo' },
+  overview: { title: "Vue d'ensemble", subtitle: 'Activité commerciale récente' },
+  leads: { title: 'Leads', subtitle: 'Toutes les demandes de devis reçues sur le site' },
+  prospects: { title: 'Prospects', subtitle: 'Campagnes de prospection à froid de Chloé' },
+  blog: { title: 'Blog', subtitle: 'Articles SEO rédigés par Marco' }
+}
+const tabCache = {}
+function isFresh(key, ttl = 20000) { return tabCache[key] && Date.now() - tabCache[key] < ttl }
+function markFresh(key) { tabCache[key] = Date.now() }
+
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab,.tab-content').forEach(el => el.classList.remove('active'))
     tab.classList.add('active')
-    document.getElementById('tab-' + tab.dataset.tab).classList.add('active')
-    if (tab.dataset.tab === 'agents') loadAgents()
-    if (tab.dataset.tab === 'leads') loadLeads()
-    if (tab.dataset.tab === 'prospects') loadProspects()
-    if (tab.dataset.tab === 'blog') loadBlog()
+    const name = tab.dataset.tab
+    document.getElementById('tab-' + name).classList.add('active')
+    const meta = TAB_META[name]
+    if (meta) {
+      document.getElementById('topbar-title').textContent = meta.title
+      document.getElementById('topbar-subtitle').textContent = meta.subtitle
+    }
+    if (name === 'agents' && !isFresh('agents')) loadAgents()
+    if (name === 'leads' && !isFresh('leads')) loadLeads()
+    if (name === 'prospects' && !isFresh('prospects')) loadProspects()
+    if (name === 'blog' && !isFresh('blog')) loadBlog()
   })
 })
 
@@ -471,6 +645,7 @@ function loadLeads() {
   const url = '/api/admin/leads?limit=100&offset=0' + (currentScoreFilter ? '&score=' + currentScoreFilter : '')
   document.getElementById('leads-body').innerHTML = '<tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr>'
   API(url).then(data => {
+    markFresh('leads')
     const leads = data.leads || []
     if (!leads.length) { document.getElementById('leads-body').innerHTML = '<tr><td colspan="8" class="empty-state">Aucun lead trouvé.</td></tr>'; return }
     document.getElementById('leads-body').innerHTML = leads.map(l => `
@@ -488,14 +663,25 @@ function loadLeads() {
 }
 
 // ── Agents ────────────────────────────────────────────────────────────────────
-const AGENT_COLORS = { victoria: '#1f6feb', marco: '#a855f7', chloe: '#ec4899', hugo: '#34d399' }
-const AGENT_EMOJIS = { victoria: '🔍', marco: '✍️', chloe: '✉️', hugo: '🔄' }
+const AGENT_GRADIENTS = {
+  victoria: 'linear-gradient(135deg,#2563eb,#38bdf8)',
+  marco: 'linear-gradient(135deg,#8b5cf6,#6366f1)',
+  chloe: 'linear-gradient(135deg,#ec4899,#fb7185)',
+  hugo: 'linear-gradient(135deg,#10b981,#34d399)'
+}
+const AGENT_ICONS = {
+  victoria: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
+  marco: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  chloe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>',
+  hugo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>'
+}
 let agentsData = []
 let globalSettings = { paused_all: false, test_mode: true }
 
 function loadAgents() {
   API('/api/admin/agents').then(data => {
     if (data.error) return
+    markFresh('agents')
     agentsData = data.agents || []
     globalSettings = data.settings || globalSettings
     renderGlobalControls()
@@ -518,17 +704,20 @@ function renderAgentCards() {
   const el = document.getElementById('agents-grid')
   if (!agentsData.length) { el.innerHTML = '<div class="empty-state">Aucun agent trouvé — vérifiez que la migration Supabase a été exécutée.</div>'; return }
   el.innerHTML = agentsData.map(a => `
-    <div class="agent-card">
+    <div class="agent-card" style="--agent-grad:${AGENT_GRADIENTS[a.slug] || 'var(--blue)'}">
       <div class="agent-card-top">
-        <div class="agent-avatar" style="background:${AGENT_COLORS[a.slug] || '#64748b'}">${AGENT_EMOJIS[a.slug] || esc(a.name[0])}</div>
+        <div class="agent-avatar ${a.status}">${AGENT_ICONS[a.slug] || esc(a.name[0])}</div>
         <div class="agent-info">
           <div class="agent-name">${esc(a.name)}</div>
           <div class="agent-role">${esc(a.role)}</div>
         </div>
-        <span class="status-pill ${a.status}" onclick="toggleAgentStatus('${a.slug}','${a.status}')" title="Cliquer pour ${a.status === 'active' ? 'mettre en pause' : 'réactiver'}">${a.status === 'active' ? 'Actif' : 'En pause'}</span>
+        <span class="status-pill ${a.status}" onclick="toggleAgentStatus('${a.slug}','${a.status}')" title="Cliquer pour ${a.status === 'active' ? 'mettre en pause' : 'réactiver'}">${a.status === 'active' ? 'Actif' : 'Pause'}</span>
       </div>
       <div class="agent-stats">${renderAgentStats(a)}</div>
-      <button class="agent-chat-btn" onclick="openChat('${a.slug}')">💬 Discuter avec ${esc(a.name)}</button>
+      <button class="agent-chat-btn" onclick="openChat('${a.slug}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Discuter avec ${esc(a.name)}
+      </button>
     </div>`).join('')
 }
 
@@ -581,6 +770,9 @@ function openChat(slug) {
   const meta = AGENT_META[slug]
   document.getElementById('chat-header-name').textContent = meta.name
   document.getElementById('chat-header-role').textContent = meta.role
+  const avatar = document.getElementById('chat-header-avatar')
+  avatar.style.background = AGENT_GRADIENTS[slug] || 'var(--blue)'
+  avatar.innerHTML = AGENT_ICONS[slug] || ''
   loadChatHistory(slug)
 }
 
@@ -677,6 +869,7 @@ function loadProspects() {
   const url = '/api/admin/prospects?limit=100' + (currentProspectFilter ? '&status=' + currentProspectFilter : '')
   document.getElementById('prospects-body').innerHTML = '<tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr>'
   API(url).then(data => {
+    markFresh('prospects')
     const list = data.prospects || []
     if (!list.length) { document.getElementById('prospects-body').innerHTML = '<tr><td colspan="5" class="empty-state">Aucun prospect trouvé.</td></tr>'; return }
     document.getElementById('prospects-body').innerHTML = list.map(p => `
@@ -745,6 +938,7 @@ function loadBlog() {
     : API('/api/admin/stats').then(data => { window.__statsData = data; return data })
 
   fetchStats.then(data => {
+    markFresh('blog')
     renderArticles(data.articles || [])
     renderTopics(data.pendingTopics || [])
     updateTopicsRemainingLabel(data.pendingTopics?.length ?? null)
@@ -788,6 +982,7 @@ generateBtn.addEventListener('click', async () => {
       )
       // Refresh blog lists + topics count
       window.__statsData = null
+      tabCache.blog = 0
       loadBlog()
     }
   } catch (e) {
@@ -861,6 +1056,7 @@ function openLead(id) {
 
 // ── Refresh ───────────────────────────────────────────────────────────────────
 document.getElementById('refresh-btn').addEventListener('click', () => {
+  tabCache.leads = 0; tabCache.prospects = 0; tabCache.blog = 0; tabCache.agents = 0
   API('/api/admin/stats').then(data => { populateStats(data); if (document.getElementById('tab-leads').classList.contains('active')) loadLeads() })
   loadAgents()
   if (document.getElementById('tab-prospects').classList.contains('active')) loadProspects()
