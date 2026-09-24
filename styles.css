@@ -3561,14 +3561,36 @@ body:has(#cookieBanner.is-visible) .whatsapp-fab { bottom: 104px; }
    ============================================================ */
 .legal-main { padding: clamp(140px, 18vw, 200px) clamp(24px, 6vw, 64px) 100px; }
 .legal-inner { max-width: 760px; margin: 0 auto; }
+.legal-icon {
+  width: 46px; height: 46px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--slate-glass); border: 1px solid var(--line); color: var(--signal);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 12px 24px -16px rgba(0,0,0,0.35);
+  margin-bottom: 22px;
+}
 .legal-inner .eyebrow { margin-bottom: 14px; }
-.legal-title { font-family: var(--font-display); font-weight: 600; font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.01em; margin-bottom: 8px; }
-.legal-updated { font-family: var(--font-mono); font-size: 0.78rem; color: var(--steel-dark); letter-spacing: 0.04em; }
-.legal-body { margin-top: 48px; }
+.legal-title { font-family: var(--font-display); font-weight: 600; font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.01em; margin-bottom: 12px; }
+.legal-updated {
+  font-family: var(--font-mono); font-size: 0.74rem; color: var(--steel-dark); letter-spacing: 0.06em;
+  display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px;
+  background: var(--slate-glass-strong); border: 1px solid var(--line);
+}
+.legal-body {
+  margin-top: 40px;
+  background: var(--slate-glass);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: clamp(28px, 4vw, 48px) clamp(24px, 4.5vw, 52px);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 20px 40px -24px rgba(0,0,0,0.35);
+}
 .legal-body h2 {
   font-family: var(--font-display); font-weight: 600; font-size: 1.3rem;
-  margin-top: 44px; margin-bottom: 14px; color: var(--paper);
-  padding-top: 24px; border-top: 1px solid var(--line-dark);
+  margin-top: 40px; margin-bottom: 14px; color: var(--paper);
+  padding-top: 28px; border-top: 1px solid var(--line-dark);
+}
+.legal-body h2::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--cro-blue); margin-right: 10px; vertical-align: middle;
 }
 .legal-body h2:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 .legal-body p { color: var(--steel); font-size: 1rem; line-height: 1.8; margin-bottom: 14px; }
@@ -3576,9 +3598,12 @@ body:has(#cookieBanner.is-visible) .whatsapp-fab { bottom: 104px; }
 .legal-body li { color: var(--steel); font-size: 0.96rem; line-height: 1.6; padding-left: 20px; position: relative; }
 .legal-body li::before { content: "—"; position: absolute; left: 0; color: var(--steel-dark); }
 .legal-body strong { color: var(--paper); font-weight: 600; }
-.legal-body a { color: var(--paper); text-decoration: underline; text-decoration-color: var(--line-strong); }
+.legal-body a { color: var(--paper); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 2px; }
 .legal-body a:hover { color: var(--signal); }
 .legal-placeholder { color: var(--signal); }
+@media (max-width: 640px) {
+  .legal-body { border-radius: 18px; }
+}
 .legal-table {
   width: 100%;
   /* fixed layout forces columns to share the available width instead of
@@ -3620,6 +3645,11 @@ body:has(#cookieBanner.is-visible) .whatsapp-fab { bottom: 104px; }
   flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   background: var(--slate-glass); border: 1px solid var(--line); color: var(--signal);
+  transition: border-color .2s var(--ease), transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.contact-channel:has(a):hover .contact-channel-icon {
+  border-color: rgba(31,111,235,0.35); transform: translateY(-2px);
+  box-shadow: 0 8px 18px -10px rgba(31,111,235,0.4);
 }
 .contact-channel h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 2px; }
 .contact-channel p, .contact-channel a { font-size: 0.9rem; color: var(--steel); }
