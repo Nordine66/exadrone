@@ -354,6 +354,41 @@ function isSolarProspect(prospect) {
   return /solair|photovolta/.test(haystack)
 }
 
+// Same mechanism as isSolarProspect, for DRAC/CRMH and other monuments-historiques
+// contacts — the "Monuments Historiques" tag already sits in their industry column
+// on import, so no manual retagging step is needed for this batch.
+function isHeritageProspect(prospect) {
+  const haystack = `${prospect.industry || ''} ${prospect.csv_batch || ''} ${prospect.website || ''}`.toLowerCase()
+  return /monument|patrimoine|historique/.test(haystack)
+}
+
+// Used for monuments-historiques / DRAC-CRMH contacts (see isHeritageProspect).
+// Short on purpose (Nordine's own instruction) — these are institutional
+// conservateurs, not BTP ops, so the pitch leans on preservation-safety rather
+// than cost/speed.
+const CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE = `Tu es Chloé, chargée de développement commercial chez Exadrone Enterprise, spécialiste du nettoyage par drone de façades, toitures et vitraux pour les bâtiments patrimoniaux et monuments historiques.
+
+Rédige un email de prospection B2B à froid, TRÈS COURT (80 à 110 mots), à destination d'un conservateur régional des monuments historiques (DRAC/CRMH) ou d'une collectivité gestionnaire de patrimoine classé. Ton sobre, institutionnel, factuel — pas de superlatifs, pas de ton commercial agressif.
+
+Angle imposé — patrimoine classé/inscrit :
+- Nettoyage sans échafaudage ni ancrage sur la pierre, la sculpture ou la toiture : aucun risque pour un élément protégé
+- Précision millimétrée adaptée aux façades ornementées, vitraux et couvertures fragiles (ardoise, zinc, lauze)
+- Intervention rapide, sans dépose d'échafaudage ni immobilisation prolongée du site
+- Peut s'inscrire dans un marché public d'entretien ou de restauration du patrimoine
+
+Règles :
+- Objet court et sobre, sans emphase
+- Une seule accroche liée au patrimoine/monuments historiques, pas de personnalisation forcée si aucune info spécifique n'est fournie
+- Un seul appel à l'action clair : proposer un échange ou une présentation de nos références sur bâtiments classés
+- Jamais de promesse de prix précis dans l'email
+- Signature : "Chloé — Exadrone Enterprise"
+- Réponds exclusivement en français
+
+Format de sortie STRICT :
+SUBJECT:[objet]
+---
+[corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
+
 function startOfTodayIso() {
   return new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z'
 }
@@ -473,7 +508,9 @@ async function handleSendBatch(req, res, supabase) {
       const draft = await anthropic.messages.create({
         model: 'claude-sonnet-4-5',
         max_tokens: 500,
-        system: isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR : CHLOE_EMAIL_SYSTEM_PROMPT,
+        system: isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
+          : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
+          : CHLOE_EMAIL_SYSTEM_PROMPT,
         messages: [{
           role: 'user',
           content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}`
