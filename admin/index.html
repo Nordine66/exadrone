@@ -277,6 +277,7 @@
       .sidebar-footer{display:none}
       .topbar{padding:16px 18px}
       .main{padding:20px 18px 48px}
+      .analytics-grid-2{grid-template-columns:1fr !important}
     }
   </style>
 </head>
@@ -329,6 +330,14 @@
         <button class="tab nav-item" data-tab="blog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           Blog
+        </button>
+        <button class="tab nav-item" data-tab="emails">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" style="display:none"/><path d="M22 6c0-1.1-.9-2-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h16a2 2 0 0 0 2-2V6Z"/><path d="m22 6-10 7L2 6"/></svg>
+          Emails envoyés
+        </button>
+        <button class="tab nav-item" data-tab="analytics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Visiteurs du site
         </button>
       </nav>
 
@@ -435,7 +444,7 @@
         <div class="tab-content" id="tab-prospects">
           <div class="csv-upload-card">
             <h2 class="csv-upload-title">📤 Importer des prospects (Chloé)</h2>
-            <p class="csv-hint">Colonnes CSV attendues : <code>company_name, contact_name, email</code> (obligatoires), <code>industry, website</code> (facultatifs). Les emails déjà présents ou désinscrits sont ignorés automatiquement. Astuce : mentionnez « solaire » ou « photovoltaïque » dans <code>industry</code> pour que Chloé utilise l'argumentaire panneaux solaires sur ce lot.</p>
+            <p class="csv-hint">Colonnes CSV attendues : <code>company_name, contact_name, email</code> (obligatoires), <code>industry, website</code> (facultatifs). Les emails déjà présents ou désinscrits sont ignorés automatiquement. Astuce : mentionnez « solaire »/« photovoltaïque », « monuments historiques » ou « collectivité, mairie » dans <code>industry</code> pour que Chloé utilise l'argumentaire correspondant sur ce lot.</p>
             <input type="file" id="csv-file-input" class="file-input" accept=".csv,text/csv">
             <textarea class="csv-textarea" id="csv-textarea" placeholder="company_name,contact_name,email,industry,website
 Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" style="margin-top:12px"></textarea>
@@ -448,9 +457,14 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
 
           <div class="csv-upload-card">
             <h2 class="csv-upload-title">🎯 Orienter le lot en attente</h2>
-            <p class="csv-hint">Change le secteur de tous les prospects « En attente » (pas encore contactés) — utile si le CSV importé ne précisait pas de secteur. Mets « Photovoltaïque » pour que Chloé bascule sur l'argumentaire panneaux solaires au prochain envoi.</p>
+            <p class="csv-hint">Change le secteur de tous les prospects « En attente » (pas encore contactés) — utile si le CSV importé ne précisait pas de secteur. Utilisez les boutons ci-dessous pour éviter toute faute de frappe dans le libellé, ou saisissez un secteur personnalisé.</p>
+            <div class="csv-actions" style="flex-wrap:wrap;margin-bottom:10px">
+              <button type="button" class="filter-btn retag-quick-btn" data-tag="Collectivité, mairie">🏛️ Collectivité, mairie</button>
+              <button type="button" class="filter-btn retag-quick-btn" data-tag="Photovoltaïque">☀️ Photovoltaïque</button>
+              <button type="button" class="filter-btn retag-quick-btn" data-tag="Monuments historiques">🏰 Monuments historiques</button>
+            </div>
             <div class="csv-actions">
-              <input type="text" id="retag-input" class="auth-input" style="max-width:280px;margin-bottom:0" placeholder="Photovoltaïque">
+              <input type="text" id="retag-input" class="auth-input" style="max-width:280px;margin-bottom:0" placeholder="Collectivité, mairie">
               <button class="btn-primary btn-sm" id="retag-btn">Appliquer aux prospects en attente</button>
             </div>
             <div class="csv-import-status" id="retag-status"></div>
@@ -502,6 +516,92 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
           <div>
             <h2 style="font-family:var(--font);font-size:1.05rem;margin-bottom:14px;font-weight:700">📋 Sujets en attente</h2>
             <div class="article-list" id="topics-list"><div class="empty-state"><span class="spinner"></span></div></div>
+          </div>
+        </div>
+
+        <!-- EMAILS TAB (Chloé + Hugo) -->
+        <div class="tab-content" id="tab-emails">
+          <div class="table-wrap">
+            <div class="table-head">
+              <span class="table-head-title">Tous les emails envoyés</span>
+              <div class="table-filters">
+                <button class="filter-btn email-filter-btn active" data-agent="">Tous</button>
+                <button class="filter-btn email-filter-btn" data-agent="chloe">Chloé (prospection)</button>
+                <button class="filter-btn email-filter-btn" data-agent="hugo">Hugo (relances)</button>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Destinataire</th><th>Secteur</th><th>Agent</th><th>Étape</th><th>Objet</th><th>Statut</th><th>Envoyé le</th><th></th></tr></thead>
+                <tbody id="emails-body"><tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ANALYTICS TAB (site visitors) -->
+        <div class="tab-content" id="tab-analytics">
+          <div class="stat-grid" id="analytics-stat-grid">
+            <div class="stat-card">
+              <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></div>
+              <div class="stat-card-label">Pages vues aujourd'hui</div><div class="stat-card-value" id="a-today">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon" style="color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
+              <div class="stat-card-label">Pages vues (7 jours)</div><div class="stat-card-value" style="color:var(--green)" id="a-views7">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+              <div class="stat-card-label">Visiteurs uniques (7 jours)</div><div class="stat-card-value" id="a-visitors7">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+              <div class="stat-card-label">Sessions (7 jours)</div><div class="stat-card-value" id="a-sessions7">—</div>
+            </div>
+          </div>
+
+          <p class="csv-hint" id="analytics-empty-hint" style="display:none;margin-bottom:20px">Aucune donnée de visite pour le moment — la mesure d'audience ne s'active que pour les visiteurs ayant accepté les cookies analytiques, et seulement depuis la mise en place de cette fonctionnalité.</p>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px" class="analytics-grid-2">
+            <div>
+              <h2 style="font-family:var(--font);font-size:1.05rem;margin-bottom:14px;font-weight:700">📄 Pages les plus vues (7 jours)</h2>
+              <div class="table-wrap">
+                <div class="table-scroll">
+                  <table>
+                    <thead><tr><th>Page</th><th>Vues</th></tr></thead>
+                    <tbody id="top-pages-body"><tr class="loading-row"><td colspan="2"><span class="spinner"></span></td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h2 style="font-family:var(--font);font-size:1.05rem;margin-bottom:14px;font-weight:700">🔗 Provenance du trafic (7 jours)</h2>
+              <div class="table-wrap">
+                <div class="table-scroll">
+                  <table>
+                    <thead><tr><th>Source</th><th>Vues</th></tr></thead>
+                    <tbody id="top-referrers-body"><tr class="loading-row"><td colspan="2"><span class="spinner"></span></td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:24px">
+            <h2 style="font-family:var(--font);font-size:1.05rem;margin-bottom:14px;font-weight:700">📱 Appareils (30 jours)</h2>
+            <div class="table-filters" id="devices-badges" style="gap:10px"></div>
+          </div>
+
+          <div>
+            <h2 style="font-family:var(--font);font-size:1.05rem;margin-bottom:14px;font-weight:700">🕓 Activité récente</h2>
+            <div class="table-wrap">
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>Page</th><th>Provenance</th><th>Appareil</th><th>Pays</th><th>Heure</th></tr></thead>
+                  <tbody id="recent-visits-body"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -589,7 +689,9 @@ const TAB_META = {
   overview: { title: "Vue d'ensemble", subtitle: 'Activité commerciale récente' },
   leads: { title: 'Leads', subtitle: 'Toutes les demandes de devis reçues sur le site' },
   prospects: { title: 'Prospects', subtitle: 'Campagnes de prospection à froid de Chloé' },
-  blog: { title: 'Blog', subtitle: 'Articles SEO rédigés par Marco' }
+  blog: { title: 'Blog', subtitle: 'Articles SEO rédigés par Marco' },
+  emails: { title: 'Emails envoyés', subtitle: 'Historique complet des envois de Chloé et Hugo' },
+  analytics: { title: 'Visiteurs du site', subtitle: "Qui visite le site et ce qu'il consulte (mesure d'audience interne)" }
 }
 const tabCache = {}
 function isFresh(key, ttl = 20000) { return tabCache[key] && Date.now() - tabCache[key] < ttl }
@@ -610,6 +712,8 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (name === 'leads' && !isFresh('leads')) loadLeads()
     if (name === 'prospects' && !isFresh('prospects')) loadProspects()
     if (name === 'blog' && !isFresh('blog')) loadBlog()
+    if (name === 'emails' && !isFresh('emails')) loadEmails()
+    if (name === 'analytics' && !isFresh('analytics')) loadAnalytics()
   })
 })
 
@@ -907,6 +1011,103 @@ document.querySelectorAll('.prospect-filter-btn').forEach(btn => {
   })
 })
 
+// ── Emails envoyés (Chloé + Hugo) ────────────────────────────────────────────────
+let currentEmailFilter = ''
+const AGENT_LABELS = { chloe: 'Chloé', hugo: 'Hugo' }
+const EMAIL_STATUS_LABELS = { sent: 'Envoyé', bounced: 'Erreur (bounce)', failed: 'Échec' }
+
+function loadEmails() {
+  const url = '/api/admin/emails?limit=100' + (currentEmailFilter ? '&agent=' + currentEmailFilter : '')
+  document.getElementById('emails-body').innerHTML = '<tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr>'
+  API(url).then(data => {
+    markFresh('emails')
+    const list = data.emails || []
+    if (!list.length) { document.getElementById('emails-body').innerHTML = '<tr><td colspan="8" class="empty-state">Aucun email envoyé pour le moment.</td></tr>'; return }
+    window.__emailsData = {}
+    document.getElementById('emails-body').innerHTML = list.map(e => {
+      window.__emailsData[e.id] = e
+      const p = e.prospects || {}
+      const step = e.sequence_step === 0 ? 'Premier envoi' : 'Relance ' + e.sequence_step
+      return `
+      <tr>
+        <td><div class="td-company">${esc(p.company_name || '—')}</div><div class="td-muted">${esc(p.email || '')}</div></td>
+        <td>${esc(p.industry || '—')}</td>
+        <td><span class="badge badge-new">${esc(AGENT_LABELS[e.agent_slug] || e.agent_slug)}</span></td>
+        <td>${esc(step)}</td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.subject || '—')}</td>
+        <td><span class="badge badge-new">${esc(EMAIL_STATUS_LABELS[e.status] || e.status)}</span></td>
+        <td class="td-date">${fmtDate(e.sent_at)}</td>
+        <td><button class="row-btn" onclick="openEmail('${e.id}')">Voir</button></td>
+      </tr>`
+    }).join('')
+  })
+}
+
+function openEmail(id) {
+  const e = window.__emailsData?.[id]
+  if (!e) return
+  const p = e.prospects || {}
+  document.getElementById('modal-title').textContent = e.subject || 'Email'
+  document.getElementById('modal-body').innerHTML = `
+    <p class="td-muted" style="margin-bottom:14px">
+      À : ${esc(p.company_name || '')} — ${esc(p.email || '')}<br>
+      Agent : ${esc(AGENT_LABELS[e.agent_slug] || e.agent_slug)} · ${fmtDate(e.sent_at)}
+    </p>
+    <div style="border:1px solid var(--border);border-radius:10px;padding:16px;background:var(--surface2)">${e.body_html || '<em>Corps indisponible.</em>'}</div>`
+  document.getElementById('lead-modal').classList.add('open')
+}
+
+document.querySelectorAll('.email-filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.email-filter-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    currentEmailFilter = btn.dataset.agent
+    loadEmails()
+  })
+})
+
+// ── Visiteurs du site (mesure d'audience interne) ────────────────────────────────
+function loadAnalytics() {
+  API('/api/admin/analytics').then(data => {
+    if (data.error) return
+    markFresh('analytics')
+    document.getElementById('a-today').textContent = data.pageviewsToday ?? '—'
+    document.getElementById('a-views7').textContent = data.pageviews7d ?? '—'
+    document.getElementById('a-visitors7').textContent = data.uniqueVisitors7d ?? '—'
+    document.getElementById('a-sessions7').textContent = data.sessions7d ?? '—'
+
+    document.getElementById('analytics-empty-hint').style.display = data.pageviews30d ? 'none' : 'block'
+
+    const renderCountTable = (elId, rows, emptyLabel) => {
+      const el = document.getElementById(elId)
+      if (!rows.length) { el.innerHTML = `<tr><td colspan="2" class="empty-state">${emptyLabel}</td></tr>`; return }
+      el.innerHTML = rows.map(([label, count]) => `<tr><td>${esc(label)}</td><td>${count}</td></tr>`).join('')
+    }
+    renderCountTable('top-pages-body', data.topPages7d || [], 'Aucune page vue cette semaine.')
+    renderCountTable('top-referrers-body', data.topReferrers7d || [], 'Aucune donnée.')
+
+    const devices = data.devices30d || []
+    const deviceIcons = { mobile: '📱', tablet: '📱', desktop: '💻' }
+    const deviceLabels = { mobile: 'Mobile', tablet: 'Tablette', desktop: 'Ordinateur' }
+    document.getElementById('devices-badges').innerHTML = devices.length
+      ? devices.map(([type, count]) => `<span class="filter-btn" style="cursor:default">${deviceIcons[type] || '❔'} ${deviceLabels[type] || type} : ${count}</span>`).join('')
+      : '<span class="td-muted">Aucune donnée.</span>'
+
+    const referrerHost = (ref) => { if (!ref) return 'Accès direct'; try { return new URL(ref).hostname.replace(/^www\./, '') } catch { return ref } }
+    const recent = data.recent || []
+    document.getElementById('recent-visits-body').innerHTML = recent.length
+      ? recent.map(r => `
+        <tr>
+          <td>${esc(r.path)}</td>
+          <td>${esc(referrerHost(r.referrer))}</td>
+          <td>${esc(r.device_type || '—')}</td>
+          <td>${esc(r.country || '—')}</td>
+          <td class="td-date">${fmtDate(r.created_at)}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="5" class="empty-state">Aucune visite pour le moment.</td></tr>'
+  })
+}
+
 document.getElementById('csv-file-input').addEventListener('change', e => {
   const file = e.target.files[0]
   if (!file) return
@@ -941,11 +1142,15 @@ document.getElementById('send-batch-btn').addEventListener('click', () => {
   }).catch(() => { statusEl.textContent = 'Erreur réseau.' })
 })
 
+document.querySelectorAll('.retag-quick-btn').forEach(btn => {
+  btn.addEventListener('click', () => { document.getElementById('retag-input').value = btn.dataset.tag })
+})
+
 document.getElementById('retag-btn').addEventListener('click', () => {
   const input = document.getElementById('retag-input')
   const statusEl = document.getElementById('retag-status')
   const tag = input.value.trim()
-  if (!tag) { statusEl.textContent = 'Entrez un secteur (ex. Photovoltaïque).'; return }
+  if (!tag) { statusEl.textContent = 'Entrez un secteur (ex. Collectivité, mairie).'; return }
   if (!confirm(`Remplacer le secteur de TOUS les prospects "En attente" par "${tag}" ?`)) return
   statusEl.textContent = 'Application en cours…'
   API('/api/admin/prospects', { method: 'PATCH', body: JSON.stringify({ industryTag: tag }) }).then(data => {

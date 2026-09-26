@@ -18,7 +18,9 @@ module.exports = async (req, res) => {
     case 'leads': return handleLeads(req, res, supabase)
     case 'agents': return handleAgents(req, res, supabase)
     case 'prospects': return handleProspects(req, res, supabase)
-    default: return res.status(400).json({ error: 'resource requis : stats, leads, agents ou prospects' })
+    case 'emails': return handleEmails(req, res, supabase)
+    case 'analytics': return handleAnalytics(req, res, supabase)
+    default: return res.status(400).json({ error: 'resource requis : stats, leads, agents, prospects, emails ou analytics' })
   }
 }
 
@@ -263,4 +265,77 @@ async function handleProspectsPatch(req, res, supabase) {
 
   if (error) return res.status(500).json({ error: error.message })
   return res.status(200).json({ updated: data?.length || 0 })
+}
+
+// ── emails (every message Chloé/Hugo have actually sent) ───────────────────────
+async function handleEmails(req, res, supabase) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
+
+  const { agent, status, limit = '50', offset = '0' } = req.query || {}
+
+  let query = supabase
+    .from('outreach_emails')
+    .select('id, subject, body_html, agent_slug, sequence_step, status, sent_at, prospects(company_name, contact_name, email, industry)', { count: 'exact' })
+    .order('sent_at', { ascending: false })
+    .range(Number(offset), Number(offset) + Number(limit) - 1)
+
+  if (agent) query = query.eq('agent_slug', agent)
+  if (status) query = query.eq('status', status)
+
+  const { data, error, count } = await query
+  if (error) return res.status(500).json({ error: error.message })
+
+  return res.status(200).json({ emails: data || [], total: count || 0 })
+}
+
+// ── analytics (self-hosted, consent-gated site visits — see api/track.js) ──────
+function isoDaysAgo(days) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+}
+
+async function handleAnalytics(req, res, supabase) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
+
+  const todayStart = startOfTodayIso()
+  const since30d = isoDaysAgo(30)
+  const since7d = isoDaysAgo(7)
+
+  const [
+    { count: viewsToday, error: e1 },
+    { data: views30d, error: e2 },
+    { data: recent, error: e3 }
+  ] = await Promise.all([
+    supabase.from('page_views').select('id', { count: 'exact', head: true }).gte('created_at', todayStart),
+    supabase.from('page_views').select('path, referrer, visitor_id, session_id, device_type, country, created_at').gte('created_at', since30d),
+    supabase.from('page_views').select('path, referrer, device_type, country, created_at').order('created_at', { ascending: false }).limit(30)
+  ])
+  if (e1 || e2 || e3) return res.status(500).json({ error: (e1 || e2 || e3).message })
+
+  const rows7d = (views30d || []).filter(r => r.created_at >= since7d)
+
+  const countBy = (rows, key) => {
+    const counts = {}
+    rows.forEach(r => { const k = r[key] || '—'; counts[k] = (counts[k] || 0) + 1 })
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])
+  }
+  const uniqueBy = (rows, key) => new Set(rows.map(r => r[key]).filter(Boolean)).size
+
+  const referrerLabel = (r) => {
+    if (!r.referrer) return 'Accès direct'
+    try { return new URL(r.referrer).hostname.replace(/^www\./, '') } catch { return r.referrer }
+  }
+
+  return res.status(200).json({
+    pageviewsToday: viewsToday || 0,
+    pageviews7d: rows7d.length,
+    pageviews30d: (views30d || []).length,
+    uniqueVisitors7d: uniqueBy(rows7d, 'visitor_id'),
+    sessions7d: uniqueBy(rows7d, 'session_id'),
+    topPages7d: countBy(rows7d, 'path').slice(0, 8),
+    topReferrers7d: countBy(rows7d.map(r => ({ ...r, referrer: referrerLabel(r) })), 'referrer').slice(0, 8),
+    devices30d: countBy(views30d || [], 'device_type'),
+    recent: recent || []
+  })
 }

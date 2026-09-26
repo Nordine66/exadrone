@@ -49,6 +49,14 @@
       "destination": "/api/admin/dashboard?resource=prospects"
     },
     {
+      "source": "/api/admin/emails",
+      "destination": "/api/admin/dashboard?resource=emails"
+    },
+    {
+      "source": "/api/admin/analytics",
+      "destination": "/api/admin/dashboard?resource=analytics"
+    },
+    {
       "source": "/api/agents/blog-writer",
       "destination": "/api/agents/tasks?agent=blog-writer"
     },

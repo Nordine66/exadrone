@@ -69,14 +69,9 @@
   ]
 }
 </script>
-<!-- Google tag (gtag.js) — Google Ads conversion tracking. -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=AW-767047996"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'AW-767047996');
-</script>
+<!-- Google Ads conversion tag: no longer loaded here unconditionally — it now loads
+     from script.js only after cookie consent is given (see loadGoogleAds()), so it
+     never runs before the visitor has accepted the "analytics" category. -->
 </head>
 <body>
 
@@ -1154,7 +1149,7 @@
      runs them in this same order once parsing finishes. script.js already
      wraps everything in a DOMContentLoaded listener, so execution timing
      relative to the rest of the page is unchanged. -->
-<script src="script.js?v=20260733" defer></script>
+<script src="script.js?v=20260927" defer></script>
 <!-- Chat widget: loaded after page is interactive, zero impact on LCP/FID -->
 <script>
   window.addEventListener('load', function() {

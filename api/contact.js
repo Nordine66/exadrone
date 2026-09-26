@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { company, email, name, phone, organizationType, buildingType, message } = req.body || {}
+  const { company, email, name, phone, organizationType, buildingType, message, source } = req.body || {}
 
   if (!company || !email || !name || !organizationType || !buildingType) {
     return res.status(400).json({ error: 'Champs requis manquants.' })
@@ -31,7 +31,7 @@ module.exports = async (req, res) => {
     project_type: String(buildingType).trim(),
     organization_type: String(organizationType).trim(),
     message: message ? String(message).trim() : null,
-    source: 'contact_form',
+    source: source ? String(source).trim() : 'contact_form',
     score: 'warm',
     status: 'new'
   })

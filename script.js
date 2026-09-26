@@ -1674,16 +1674,40 @@ document.addEventListener('DOMContentLoaded', () => {
     banner?.classList.remove('is-visible');
   };
 
+  /* ---------- Google Ads conversion tag (loaded only after consent) ----------
+     Previously loaded unconditionally from <head> on index.html/solaire.html —
+     that deposited a Google tracker before any consent decision, which the CNIL-style
+     banner below is supposed to prevent. Now injected here instead, only once the
+     visitor has accepted the "analytics" cookie category, so it never runs before
+     consent. The conversion event in the quote flow already checks `window.gtag`
+     exists before firing, so it silently no-ops until this has run. */
+  const GADS_ID = 'AW-767047996';
+  function loadGoogleAds() {
+    if (window.gtag || document.getElementById('gads-tag')) return;
+    const tag = document.createElement('script');
+    tag.id = 'gads-tag';
+    tag.async = true;
+    tag.src = `https://www.googletagmanager.com/gtag/js?id=${GADS_ID}`;
+    document.head.appendChild(tag);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag('js', new Date());
+    window.gtag('config', GADS_ID);
+  }
+
   if (banner) {
     const acceptBtn = document.getElementById('cookieAccept');
     const rejectBtn = document.getElementById('cookieReject');
     const customizeBtn = document.getElementById('cookieCustomize');
+    const existingConsent = readConsent();
 
-    if (!readConsent()) {
+    if (!existingConsent) {
       requestAnimationFrame(() => banner.classList.add('is-visible'));
+    } else if (existingConsent.analytics) {
+      loadGoogleAds();
     }
 
-    acceptBtn?.addEventListener('click', () => writeConsent({ essential: true, analytics: true }));
+    acceptBtn?.addEventListener('click', () => { writeConsent({ essential: true, analytics: true }); loadGoogleAds(); trackPageview(); });
     rejectBtn?.addEventListener('click', () => writeConsent({ essential: true, analytics: false }));
     customizeBtn?.addEventListener('click', () => {
       window.location.href = 'politique-de-cookies.html';
@@ -1692,6 +1716,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
   prefsBtn?.addEventListener('click', () => banner?.classList.add('is-visible'));
   document.getElementById('reopenBannerBtn')?.addEventListener('click', () => banner?.classList.add('is-visible'));
+
+  /* ---------- Visitor analytics (self-hosted, first-party, consent-gated) ----------
+     Only ever sends a pageview once "analytics" consent is granted (see readConsent()
+     above) — nothing is sent to any third party, data stays in our own Supabase
+     (see api/track.js and the "Visiteurs" tab of the admin dashboard). */
+  function trackPageview() {
+    if (window.location.pathname.startsWith('/admin')) return;
+    const consent = readConsent();
+    if (!consent?.analytics) return;
+
+    let visitorId;
+    try {
+      visitorId = localStorage.getItem('exadrone_visitor_id');
+      if (!visitorId) { visitorId = crypto.randomUUID(); localStorage.setItem('exadrone_visitor_id', visitorId); }
+    } catch { visitorId = null; }
+
+    let sessionId;
+    try {
+      sessionId = sessionStorage.getItem('exadrone_visitor_session');
+      if (!sessionId) { sessionId = crypto.randomUUID(); sessionStorage.setItem('exadrone_visitor_session', sessionId); }
+    } catch { sessionId = null; }
+
+    const payload = JSON.stringify({
+      path: window.location.pathname,
+      referrer: document.referrer || null,
+      visitorId,
+      sessionId
+    });
+
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/track', new Blob([payload], { type: 'application/json' }));
+    } else {
+      fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
+    }
+  }
+  trackPageview();
 
   /* ---------- Contact page: prefill from instant-estimate handoff ---------- */
   const prefillNote = document.getElementById('prefillNote');

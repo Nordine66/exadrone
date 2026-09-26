@@ -315,6 +315,7 @@ Règles :
 - Jamais de promesse de prix précis dans l'email
 - Signature : "Chloé — Exadrone Enterprise"
 - Réponds exclusivement en français
+- Relis-toi : aucune faute d'orthographe, de grammaire ou d'accent tolérée avant de conclure
 
 Format de sortie STRICT :
 SUBJECT:[objet]
@@ -340,6 +341,7 @@ Règles :
 - Jamais de promesse de prix précis ni de pourcentage de gain garanti dans l'email
 - Signature : "Chloé — Exadrone Enterprise"
 - Réponds exclusivement en français
+- Relis-toi : aucune faute d'orthographe, de grammaire ou d'accent tolérée avant de conclure
 
 Format de sortie STRICT :
 SUBJECT:[objet]
@@ -383,6 +385,45 @@ Règles :
 - Jamais de promesse de prix précis dans l'email
 - Signature : "Chloé — Exadrone Enterprise"
 - Réponds exclusivement en français
+- Relis-toi : aucune faute d'orthographe, de grammaire ou d'accent tolérée avant de conclure
+
+Format de sortie STRICT :
+SUBJECT:[objet]
+---
+[corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
+
+// Same mechanism as isSolarProspect/isHeritageProspect, for the "Collectivité, mairie"
+// batch (town halls and their public buildings specifically, as opposed to the
+// broader "collectivités territoriales" already covered by the generic pitch) —
+// the "Collectivité, mairie" tag sits in the industry column on import or via the
+// pending-batch retag tool, so no manual switch is needed for this batch either.
+function isMairieProspect(prospect) {
+  const haystack = `${prospect.industry || ''} ${prospect.csv_batch || ''} ${prospect.website || ''}`.toLowerCase()
+  return /mairie|collectivit|commune|hôtel de ville|hotel de ville|intercommunalit/.test(haystack)
+}
+
+// Used for the "Collectivité, mairie" batch (see isMairieProspect). Angle leans on
+// bâtiments communaux (mairie, école, gymnase, salle des fêtes), sécurité des agents
+// municipaux et cadre des marchés publics — plus institutionnel que le pitch BTP
+// générique, moins pointu que celui des monuments historiques.
+const CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE = `Tu es Chloé, chargée de développement commercial chez Exadrone Enterprise, spécialiste du nettoyage par drone de façades, toitures et bardages pour les mairies et collectivités territoriales (bâtiments communaux : mairie, école, gymnase, salle des fêtes, médiathèque).
+
+Rédige un email de prospection B2B à froid, court (120 à 160 mots), personnalisé à partir des informations fournies sur le prospect. Ton institutionnel, respectueux du service public, factuel — pas de superlatifs, pas de ton commercial agressif.
+
+Angle imposé — bâtiments communaux :
+- Aucun agent municipal ne travaille en hauteur : le drone supprime l'échafaudage, la nacelle et le risque d'accident du travail sur les interventions d'entretien
+- Intervention rapide, sans fermeture prolongée du bâtiment ni gêne pour les usagers (école, mairie, salle des fêtes)
+- Peut s'inscrire dans un marché public d'entretien ou être commandé en gré à gré en dessous du seuil de mise en concurrence
+- Entretien préventif avant l'hiver ou avant un événement communal, pour préserver l'image du bâtiment public
+
+Règles :
+- Objet court et sobre, sans emphase
+- Une accroche personnalisée liée à la commune/collectivité si l'information est disponible, sinon une accroche générique sur les bâtiments communaux
+- Un seul appel à l'action clair : proposer un échange de 15 minutes ou un devis gratuit
+- Jamais de promesse de prix précis dans l'email
+- Signature : "Chloé — Exadrone Enterprise"
+- Réponds exclusivement en français
+- Relis-toi : aucune faute d'orthographe, de grammaire ou d'accent tolérée avant de conclure
 
 Format de sortie STRICT :
 SUBJECT:[objet]
@@ -510,6 +551,7 @@ async function handleSendBatch(req, res, supabase) {
         max_tokens: 500,
         system: isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
           : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
+          : isMairieProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE
           : CHLOE_EMAIL_SYSTEM_PROMPT,
         messages: [{
           role: 'user',
