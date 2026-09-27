@@ -1,0 +1,40 @@
+# Exadrone Enterprise
+
+> Exadrone Enterprise est un prestataire français de nettoyage, inspection et cartographie par drone pour les collectivités territoriales, les entreprises du BTP, les sociétés de rénovation de façade et les syndics de copropriété. Intervention sur l'ensemble du territoire français, y compris dans le cadre de marchés publics.
+
+Exadrone Enterprise ne s'adresse pas aux particuliers : les prestations sont réservées aux professionnels (mairies, bailleurs sociaux, entreprises du BTP, syndics, gestionnaires de patrimoine bâti, sociétés de rénovation de façade).
+
+## Services
+
+- Nettoyage de toiture par drone (mousses, lichens, algues) — à partir de 2,90 € HT/m²
+- Nettoyage de panneaux photovoltaïques par drone (toitures et centrales solaires) — à partir de 3,20 € HT/m²
+- Nettoyage de bardage par drone (métallique, bois, composite) — à partir de 3,40 € HT/m²
+- Nettoyage de façade par drone (enduit, pierre, brique) — à partir de 3,90 € HT/m²
+- Nettoyage de vitrages en hauteur par drone — à partir de 4,50 € HT/m²
+- Cartographie et photogrammétrie de bâtiment ou de chantier par drone
+- Inspection de toiture, façade et bâtiment par drone
+- Sous-traitance drone pour entreprises de rénovation de façade
+
+Forfait minimum de commande : 390 € HT. TVA 20% en sus. Devis gratuit sous 48h, adapté à toute taille de projet. Le nettoyage par drone réduit typiquement les coûts de 30 à 50% par rapport à un échafaudage ou une nacelle, sans dépose d'installation ni interruption prolongée d'activité.
+
+## Pages clés
+
+- [Accueil](https://exadrone-enterprise.com/): présentation générale des capacités, du processus d'intervention et des secteurs couverts.
+- [Collectivités & mairies](https://exadrone-enterprise.com/collectivites-territoriales.html): nettoyage et entretien des bâtiments communaux (mairies, écoles, gymnases), cadre des marchés publics.
+- [Entreprises du BTP](https://exadrone-enterprise.com/entreprises-btp.html): cartographie et suivi de chantier par drone pour le BTP et l'industrie.
+- [Rénovation de façade](https://exadrone-enterprise.com/renovation-facade.html): partenariat de sous-traitance drone pour les entreprises de ravalement (diagnostic, nettoyage préparatoire, contrôle qualité).
+- [Marchés publics](https://exadrone-enterprise.com/marches-publics.html): comment intégrer une prestation drone dans un appel d'offres public.
+- [Photovoltaïque & ombrières](https://exadrone-enterprise.com/solaire.html): nettoyage de panneaux solaires et centrales photovoltaïques.
+- [Blog](https://exadrone-enterprise.com/blog/): guides pratiques sur le nettoyage et l'inspection par drone (comparatifs de coûts, cahiers des charges de marchés publics, cas d'usage par secteur).
+- [Contact / devis](https://exadrone-enterprise.com/contact.html): demande de devis gratuit sous 48h.
+
+## Zone d'intervention
+
+France entière.
+
+## Contact
+
+- Email : contact@exadrone-enterprise.com
+- Téléphone : 06 71 31 27 06
+- Site : https://exadrone-enterprise.com/
+- Plan du site : https://exadrone-enterprise.com/sitemap.xml

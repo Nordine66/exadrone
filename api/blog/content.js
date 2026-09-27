@@ -58,15 +58,46 @@ async function handleArticle(req, res) {
     year: 'numeric', month: 'long', day: 'numeric'
   })
 
-  const safeTitle = (article.title || '').replace(/"/g, '&quot;').replace(/</g, '&lt;')
-  const safeMeta = (article.meta_description || '').replace(/"/g, '&quot;')
+  const rawTitle = (article.title || '').trim()
+  const safeTitle = rawTitle.replace(/"/g, '&quot;').replace(/</g, '&lt;')
+  // Older/generated titles can run well past 60 chars on their own — appending the
+  // brand name unconditionally pushed some <title> tags past 100+ characters
+  // (flagged by SEO audits). Only append the brand when there's room left for it.
+  const BRAND_SUFFIX = ' | Exadrone Enterprise'
+  const pageTitle = (rawTitle.length + BRAND_SUFFIX.length <= 65 ? safeTitle + BRAND_SUFFIX : safeTitle)
+
+  // Meta description sometimes came back empty from the generation step (the model
+  // skipped the META: line) — fall back to a snippet of the article body rather than
+  // shipping an empty <meta name="description">.
+  let metaDescription = (article.meta_description || '').trim()
+  if (!metaDescription) {
+    const plainText = (article.content_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    metaDescription = plainText.slice(0, 155).replace(/\s+\S*$/, '') + '…'
+  }
+  const safeMeta = metaDescription.replace(/"/g, '&quot;')
+
+  const breadcrumbJsonLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://exadrone-enterprise.com/' },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://exadrone-enterprise.com/blog/' },
+      { '@type': 'ListItem', position: 3, name: rawTitle, item: `https://exadrone-enterprise.com/blog/${slug}` }
+    ]
+  })
+
+  // If the article body includes a "Questions fréquentes" section (h2 followed by
+  // h3/p pairs — the format Marco's prompt now requires), extract it into FAQPage
+  // structured data so it's eligible for rich results and easier for AI answer
+  // engines to lift a direct quotable answer from.
+  const faqJsonLd = buildFaqJsonLd(article.content_html || '')
 
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${safeTitle} | Exadrone Enterprise</title>
+  <title>${pageTitle}</title>
   <meta name="description" content="${safeMeta}">
   <meta property="og:title" content="${safeTitle}">
   <meta property="og:description" content="${safeMeta}">
@@ -91,6 +122,8 @@ async function handleArticle(req, res) {
     "mainEntityOfPage": {"@type": "WebPage", "@id": "https://exadrone-enterprise.com/blog/${slug}"}
   }
   </script>
+  <script type="application/ld+json">${breadcrumbJsonLd}</script>
+  ${faqJsonLd ? `<script type="application/ld+json">${faqJsonLd}</script>` : ''}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap" media="print" onload="this.media='all'">
@@ -99,6 +132,7 @@ async function handleArticle(req, res) {
     .article-wrap{padding:clamp(120px,14vw,180px) clamp(20px,6vw,64px) 100px;max-width:780px;margin:0 auto}
     .article-wrap h1{font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.2;margin-bottom:1rem;color:var(--paper,#f0ede8)}
     .article-wrap h2{font-size:clamp(1.15rem,2.5vw,1.5rem);margin:2.5rem 0 .9rem;color:var(--paper,#f0ede8)}
+    .article-wrap h3{font-size:clamp(1rem,2vw,1.2rem);margin:1.5rem 0 .6rem;color:var(--paper,#f0ede8)}
     .article-wrap p{line-height:1.78;margin-bottom:1.25rem;color:var(--muted,#a0a0a0)}
     .article-wrap ul{margin:.75rem 0 1.5rem 1.4rem}
     .article-wrap li{line-height:1.7;margin-bottom:.45rem;color:var(--muted,#a0a0a0)}
@@ -175,6 +209,37 @@ async function handleArticle(req, res) {
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
   return res.status(200).send(html)
+}
+
+// Parses "<h2>Questions fréquentes</h2><h3>Q</h3><p>A</p><h3>Q</h3><p>A</p>..."
+// out of the generated article body into FAQPage structured data. Returns null
+// when the article predates the FAQ requirement in Marco's prompt, rather than
+// emitting empty/fake structured data.
+function buildFaqJsonLd(contentHtml) {
+  const faqSectionMatch = contentHtml.match(/<h2>\s*Questions?\s+fr[ée]quentes?\s*<\/h2>([\s\S]*)$/i)
+  if (!faqSectionMatch) return null
+
+  const faqHtml = faqSectionMatch[1]
+  const qaRe = /<h3>(.*?)<\/h3>\s*<p>(.*?)<\/p>/gis
+  const stripTags = (s) => s.replace(/<[^>]+>/g, '').trim()
+  const items = []
+  let m
+  while ((m = qaRe.exec(faqHtml))) {
+    const question = stripTags(m[1])
+    const answer = stripTags(m[2])
+    if (question && answer) items.push({ question, answer })
+  }
+  if (!items.length) return null
+
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map(({ question, answer }) => ({
+      '@type': 'Question',
+      name: question,
+      acceptedAnswer: { '@type': 'Answer', text: answer }
+    }))
+  })
 }
 
 function notFoundPage() {

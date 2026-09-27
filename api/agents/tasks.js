@@ -75,33 +75,34 @@ async function handleBlogWriter(req, res) {
 
     const topic = topics[0]
 
-    const prompt = `Rédige un article de blog B2B professionnel en français de 900 à 1200 mots.
+    const prompt = `Rédige un article de blog B2B professionnel en français de 1000 à 1400 mots.
 
 Sujet : "${topic.topic}"
 Mot-clé cible : "${topic.target_keyword}"
 Audience : collectivités territoriales, entreprises BTP, maîtres d'ouvrage, syndics, sociétés de rénovation façade. Jamais des particuliers.
 
 Structure obligatoire :
-- H1 : titre percutant incluant le mot-clé (60-70 caractères)
-- Introduction 150-200 mots : problématique professionnelle + promesse
-- 3 ou 4 sections H2 avec contenu dense et concret
+- H1 : titre percutant incluant le mot-clé, 45 À 55 CARACTÈRES MAXIMUM (impératif — un H1 plus long est refusé, compte les caractères avant de répondre)
+- Introduction 150-200 mots : problématique professionnelle + promesse. Mentionne aussi, une fois et naturellement, la formulation générique du mot-clé sans qualificatif technique (ex. si le mot-clé cible est "nettoyage toiture drone", utilise aussi une fois "nettoyage de toiture" tout court) — cela capte les recherches génériques en plus des recherches spécifiques.
+- 3 ou 4 sections H2 avec contenu dense et concret. CHAQUE section H2 doit être décomposée en 2 sous-parties H3 (micro-intentions ou sous-angles concrets : ex. par type de bâtiment, par contrainte technique, par étape) — jamais un H2 seul suivi directement de paragraphes sans H3.
+- Une section H2 finale "Questions fréquentes" avec exactement 3 questions en H3, formulées comme une vraie question tapée dans un moteur de recherche ou posée à un assistant IA. Chaque réponse : un paragraphe de 2-3 phrases dont LA PREMIÈRE PHRASE répond directement et complètement à la question (style extrait de résultat de recherche / réponse d'assistant IA — auto-suffisante, sans renvoyer à "voir plus haut").
 - CTA final invitant à demander un devis gratuit
 
 Contraintes SEO :
 - Mot-clé utilisé naturellement 4 à 6 fois dans le texte
-- Sous-titres H2 descriptifs et informatifs
+- Sous-titres H2 et H3 descriptifs et informatifs, jamais génériques ("Introduction", "Avantages")
 - Paragraphes courts (3-5 lignes max)
-- Mentionner au moins 2 services Exadrone (nettoyage façade, toiture, bardage, panneaux solaires photovoltaïques, cartographie, thermographie) avec suggestion de liens internes vers les pages /renovation-facade.html et /collectivites-territoriales.html
+- Mentionner au moins 2 services Exadrone (nettoyage façade, toiture, bardage, panneaux solaires photovoltaïques, cartographie, thermographie) avec 2 liens internes vers les pages /renovation-facade.html et /collectivites-territoriales.html. IMPORTANT : rédige l'ancre de chaque lien comme une phrase contextuelle naturelle et différente à chaque article (jamais le nom littéral de la page répété à l'identique d'un article à l'autre — varie la formulation selon le contexte de la phrase).
 - Chiffres concrets : ${BLOG_PRICE_TEXT}, devis adapté à toute taille de projet, réduction 30–50% vs échafaudage
 
 Ton : expert technique, pédagogique, rassurant pour décideurs publics et privés.
 
-Format de sortie : HTML valide avec uniquement h1, h2, p, ul, li, strong, a (pas de html/head/body). Liens internes avec href="/renovation-facade.html" etc.
+Format de sortie : HTML valide avec uniquement h1, h2, h3, p, ul, li, strong, a (pas de html/head/body). Liens internes avec href="/renovation-facade.html" etc.
 
 Termine par ces 3 lignes exactes :
 SLUG:[kebab-case-max-60-chars]
-META:[meta description 130-155 caractères incluant le mot-clé]
-TITLE:[titre H1 exact]`
+META:[meta description 130-155 caractères incluant le mot-clé — jamais vide, cette ligne est obligatoire]
+TITLE:[titre H1 exact, 45-55 caractères]`
 
     let articleRaw = ''
     let attempts = 0
@@ -129,7 +130,6 @@ TITLE:[titre H1 exact]`
     const titleMatch = articleRaw.match(/^TITLE:(.+)$/m)
 
     const slug = (slugMatch?.[1] || generateSlug(topic.topic)).trim()
-    const metaDescription = (metaMatch?.[1] || '').trim().slice(0, 155)
     const title = (titleMatch?.[1] || topic.topic).trim()
 
     const contentHtml = articleRaw
@@ -137,6 +137,15 @@ TITLE:[titre H1 exact]`
       .replace(/^META:.+$/m, '')
       .replace(/^TITLE:.+$/m, '')
       .trim()
+
+    // Belt-and-suspenders: never persist an empty meta description even if the
+    // model skips the META: line — this was silently happening on ~10 of the
+    // first 13 generated articles and shipped with an empty <meta description>.
+    let metaDescription = (metaMatch?.[1] || '').trim().slice(0, 155)
+    if (!metaDescription) {
+      const plainText = contentHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+      metaDescription = plainText.slice(0, 150).replace(/\s+\S*$/, '') + '…'
+    }
 
     let article = null
     for (let attempt = 0; attempt < 2; attempt++) {

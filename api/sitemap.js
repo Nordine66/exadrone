@@ -10,6 +10,7 @@ const STATIC_URLS = [
   { loc: '/entreprises-btp.html', lastmod: '2026-06-29', changefreq: 'monthly', priority: '0.9' },
   { loc: '/renovation-facade.html', lastmod: '2026-06-29', changefreq: 'monthly', priority: '0.9' },
   { loc: '/marches-publics.html', lastmod: '2026-06-29', changefreq: 'monthly', priority: '0.9' },
+  { loc: '/solaire.html', lastmod: '2026-06-29', changefreq: 'monthly', priority: '0.9' },
   { loc: '/blog/', lastmod: TODAY, changefreq: 'weekly', priority: '0.9' },
   // Static blog articles (keep .html URLs for SEO continuity)
   { loc: '/blog/nettoyage-toiture-par-drone-avantages.html', lastmod: '2026-07-01', changefreq: 'yearly', priority: '0.7' },
