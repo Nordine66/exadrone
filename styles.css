@@ -2455,6 +2455,7 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 }
 
 .devis-panel-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 28px; }
+.devis-panel-actions--end { justify-content: flex-end; }
 .devis-btn-secondary {
   background: none;
   border: none;
@@ -2575,6 +2576,16 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 .devis-applied-rate { margin-top: 20px; font-size: 0.9rem; color: var(--steel); }
 .devis-applied-rate strong { color: var(--paper); }
 
+/* One surface field per prestation selected at step 1 (script.js renders
+   these into #devisSurfaces — see initDevisFlow's renderSurfaceLines). */
+.devis-surfaces { display: flex; flex-direction: column; gap: 30px; }
+.devis-surface-line + .devis-surface-line { padding-top: 30px; border-top: 1px solid var(--line); }
+.devis-surface-line__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.devis-surface-line__label { font-weight: 700; font-size: 1rem; color: var(--paper); }
+.devis-surface-line__rate { font-family: var(--font-mono); font-size: 0.8rem; color: var(--steel); white-space: nowrap; }
+.devis-surface-line .devis-surface-input input { font-size: clamp(1.6rem, 4vw, 2.2rem); }
+.devis-surface-line.is-invalid .devis-surface-input { border-color: #d92d20; }
+
 /* ---------- Step 3: gated quote preview ---------- */
 .devis-quote-preview {
   border: 1px solid var(--line);
@@ -2595,6 +2606,7 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 .devis-quote-row:last-of-type { border-bottom: none; }
 .devis-quote-row span:last-child { color: var(--paper); font-weight: 600; }
 .devis-quote-row--total { font-weight: 700; }
+.devis-quote-row--line span:last-child { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 400; color: var(--steel); }
 .devis-mask { filter: blur(4px); color: var(--steel-dark) !important; user-select: none; }
 .devis-quote-lock {
   margin-top: 14px;
@@ -2656,7 +2668,7 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
   font-size: 0.85rem;
   font-weight: 600;
 }
-#devisSurfaceContinue:disabled, #devisSubmitBtn:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+#devisServicesContinue:disabled, #devisSurfaceContinue:disabled, #devisSubmitBtn:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
 
 /* ---------- Unlocked quote ---------- */
 .devis-result-card {

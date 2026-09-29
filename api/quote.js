@@ -44,12 +44,16 @@ function validateContact({ email, phone, consent }) {
 // greet, give the headline total for an at-a-glance read, and point to the
 // attachment for the rest. Duplicating the full line-item table here on
 // top of the PDF would just be the same "wall of numbers" problem twice.
-function quoteEmailHtml({ name, quote, service }) {
+function quoteEmailHtml({ name, quote }) {
   const greeting = name ? `Bonjour ${escapeHtml(name)},` : 'Bonjour,'
+  const serviceNames = quote.items.map((it) => it.serviceLabel.toLowerCase()).join(', ')
+  const intro = quote.items.length > 1
+    ? `pour les prestations suivantes par drone : <strong>${escapeHtml(serviceNames)}</strong> (sans échafaudage ni nacelle)`
+    : `pour une prestation de <strong>${escapeHtml(serviceNames)}</strong> par drone (${quote.items[0].surface}&nbsp;m², sans échafaudage ni nacelle)`
   return `
 <div style="font-family:-apple-system,sans-serif;max-width:560px;color:#0f172a">
   <p>${greeting}</p>
-  <p>Merci pour votre demande — votre devis <strong>${quote.number}</strong> pour une prestation de <strong>${escapeHtml(service.label.toLowerCase())}</strong> par drone (${quote.surface}&nbsp;m², sans échafaudage ni nacelle) est en pièce jointe, au format PDF.</p>
+  <p>Merci pour votre demande — votre devis <strong>${quote.number}</strong> ${intro} est en pièce jointe, au format PDF.</p>
   <p style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;font-size:18px;font-weight:700">
     Total TTC&nbsp;: ${pricing.formatCurrency(quote.totalTTC)}
     <span style="display:block;font-size:12px;font-weight:400;color:#64748b;margin-top:4px">Devis valable jusqu'au ${new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(quote.validUntil))}</span>
@@ -68,7 +72,7 @@ module.exports = async (req, res) => {
 
   const body = req.body || {}
   const {
-    serviceId, surface, name = '', company = '', email = '', phone = '',
+    items, name = '', company = '', email = '', phone = '',
     postalCode = '', consent = false, honeypot = '', renderedAt
   } = body
 
@@ -83,7 +87,10 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok: false, error: 'invalid' })
   }
 
-  const q = pricing.calculateQuote(serviceId, surface)
+  // items: [{ serviceId, surface }, ...] — one or more prestations (façade,
+  // toiture, ...) billed as line items on the same devis, so a prospect
+  // gets one complete document instead of one per service.
+  const q = pricing.calculateMultiQuote(Array.isArray(items) ? items : [])
   if (!q.ok) return res.status(400).json({ ok: false, error: q.error })
 
   const contactError = validateContact({ email: String(email), phone: String(phone), consent: !!consent })
@@ -91,7 +98,6 @@ module.exports = async (req, res) => {
 
   const trimmedEmail = String(email).trim()
   const trimmedPhone = String(phone).trim() ? normalizePhone(phone) : ''
-  const service = pricing.getService(serviceId)
 
   const now = new Date()
   const validUntil = new Date(now.getTime() + pricing.config.quoteValidityDays * 24 * 60 * 60 * 1000)
@@ -99,9 +105,8 @@ module.exports = async (req, res) => {
     number: `EXA-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`,
     date: now.toISOString(),
     validUntil: validUntil.toISOString(),
-    serviceLabel: q.serviceLabel,
-    surface: q.surface,
-    unitPriceHT: q.unitPriceHT,
+    items: q.items,
+    subtotalHT: q.subtotalHT,
     totalHT: q.totalHT,
     vat: q.vat,
     totalTTC: q.totalTTC,
@@ -118,7 +123,6 @@ module.exports = async (req, res) => {
   try {
     pdfBuffer = await buildQuotePdf({
       quote,
-      service,
       contact: { name: String(name).trim(), company: String(company).trim(), email: trimmedEmail, phone: trimmedPhone, postalCode: trimmedPostalCode }
     })
   } catch (e) {
@@ -144,7 +148,7 @@ module.exports = async (req, res) => {
         to: trimmedEmail,
         replyTo: REPLY_TO,
         subject: `Votre devis Exadrone Enterprise — ${quote.number}`,
-        html: quoteEmailHtml({ name: String(name).trim(), quote, service }),
+        html: quoteEmailHtml({ name: String(name).trim(), quote }),
         attachments: pdfAttachment
       })
       emailSent = true
@@ -160,14 +164,15 @@ module.exports = async (req, res) => {
   // message instead rather than overloading that column.
   try {
     const supabase = getSupabase()
+    const linesSummary = quote.items.map((it) => `${it.serviceLabel} (${it.surface} m²)`).join(', ')
     await supabase.from('leads').insert({
       name: String(name).trim() || null,
       company: String(company).trim() || null,
       email: trimmedEmail || null,
       phone: trimmedPhone || null,
-      project_type: service.label,
+      project_type: quote.items.map((it) => it.serviceLabel).join(' + '),
       organization_type: null,
-      message: `Devis instantané ${quote.number} — ${quote.surface} m² — ${pricing.formatCurrency(quote.totalTTC)} TTC${trimmedPostalCode ? ` — CP ${trimmedPostalCode}` : ''}`,
+      message: `Devis instantané ${quote.number} — ${linesSummary} — ${pricing.formatCurrency(quote.totalTTC)} TTC${trimmedPostalCode ? ` — CP ${trimmedPostalCode}` : ''}`,
       source: 'devis_instantane',
       score: 'hot',
       status: 'new'
@@ -191,7 +196,8 @@ module.exports = async (req, res) => {
         html: `<div style="font-family:-apple-system,sans-serif;max-width:560px">
   <h2>Nouveau devis instantané</h2>
   <table style="border-collapse:collapse;width:100%">
-    ${[['Prestation', service.label], ['Surface', `${quote.surface} m²`], ['Total TTC', pricing.formatCurrency(quote.totalTTC)], ['Nom', name], ['Société', company], ['Email', email], ['Téléphone', trimmedPhone], ['Code postal', postalCode]]
+    <tr><td style="padding:8px;border:1px solid #e2e8f0;color:#64748b;width:140px">Prestations</td><td style="padding:8px;border:1px solid #e2e8f0">${quote.items.map((it) => `${escapeHtml(it.serviceLabel)} — ${it.surface} m²`).join('<br>')}</td></tr>
+    ${[['Total TTC', pricing.formatCurrency(quote.totalTTC)], ['Nom', name], ['Société', company], ['Email', email], ['Téléphone', trimmedPhone], ['Code postal', postalCode]]
       .map(([k, v]) => `<tr><td style="padding:8px;border:1px solid #e2e8f0;color:#64748b;width:140px">${k}</td><td style="padding:8px;border:1px solid #e2e8f0">${escapeHtml(v) || '—'}</td></tr>`).join('')}
   </table>
 </div>`,

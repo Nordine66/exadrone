@@ -259,7 +259,7 @@
        same PDF download, same Google Ads conversion fire in script.js's
        renderResult() — nothing solar-specific needed there since it's
        already generic. -->
-  <section class="section estimate-section" id="estimate" data-only-service="solaire">
+  <section class="section estimate-section" id="estimate" data-only-service="solaire" data-surface-chips="500,1000,2500,5000">
     <div class="section-head">
       <p class="eyebrow reveal" data-reveal>Devis instantané</p>
       <h2 class="section-title reveal" data-reveal data-delay="1">Votre devis solaire en 30 secondes.</h2>
@@ -285,20 +285,7 @@
       </ol>
 
       <div class="devis-panel" data-panel="2">
-        <label for="devisSurface" class="devis-label">Surface à traiter</label>
-        <div class="devis-surface-input">
-          <input type="text" id="devisSurface" inputmode="decimal" placeholder="0" aria-describedby="devisSurfaceRate">
-          <span class="devis-surface-unit">m²</span>
-        </div>
-        <div class="devis-chips" role="group" aria-label="Surfaces courantes">
-          <button type="button" class="devis-chip" data-value="500">500 m²</button>
-          <button type="button" class="devis-chip" data-value="1000">1 000 m²</button>
-          <button type="button" class="devis-chip" data-value="2500">2 500 m²</button>
-          <button type="button" class="devis-chip" data-value="5000">5 000 m²</button>
-        </div>
-        <p class="devis-applied-rate" id="devisSurfaceRate">
-          <span id="devisSurfaceService"></span> — Tarif appliqué : <strong id="devisSurfaceUnitPrice"></strong>
-        </p>
+        <div class="devis-surfaces" id="devisSurfaces"></div>
         <p class="devis-helper">Surface approximative ? Pas de souci, elle sera vérifiée avant l'intervention.</p>
         <div class="devis-panel-actions">
           <button type="button" class="btn btn-primary" id="devisSurfaceContinue" disabled>Continuer →</button>

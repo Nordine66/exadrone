@@ -1081,14 +1081,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ---------- Instant quote flow (3 steps: prestation → surface →
+  /* ---------- Instant quote flow (3 steps: prestation(s) → surfaces →
      coordonnées) ----------
      State lives in this closure, not the DOM — the masked preview in step
      3 never gets real HT/TVA/TTC numbers written into it; those only
      exist after requestQuote() resolves. requestQuote() is a single,
-     isolated call site (mocked with the shared pricing.calculateQuote()
-     for now) so swapping in the real POST /api/quote later is a one-
-     function change. */
+     isolated call site so swapping in the real POST /api/quote later is a
+     one-function change.
+     A prospect can pick several prestations (façade, toiture, ...) at
+     step 1 — each gets its own surface field at step 2 and its own line
+     in the combined devis, so one visit to this widget produces one
+     complete document instead of one devis per service. */
   (function initDevisFlow() {
     const section = document.getElementById('estimate');
     const pricing = window.ExadronePricing;
@@ -1099,13 +1102,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // #estimate — skips the "Prestation" panel/step entirely and pre-selects
     // that service. Absent (the homepage default), behavior is unchanged.
     const onlyServiceId = section.dataset.onlyService || null;
+    // Per-page override for the quick-pick surface chips in step 2 (e.g.
+    // solaire.html's larger solar installations) — "500,1000,2500,5000" —
+    // falls back to the homepage's general-purpose values.
+    const chipValues = (section.dataset.surfaceChips || '100,250,500,1000').split(',').map((v) => v.trim()).filter(Boolean);
 
     const stepsList = document.getElementById('devisSteps');
     const panels = Array.from(section.querySelectorAll('.devis-panel'));
     const servicesWrap = document.getElementById('devisServices');
-    const surfaceInput = document.getElementById('devisSurface');
-    const surfaceServiceEl = document.getElementById('devisSurfaceService');
-    const surfaceUnitPriceEl = document.getElementById('devisSurfaceUnitPrice');
+    const servicesContinueBtn = document.getElementById('devisServicesContinue');
+    const surfacesWrap = document.getElementById('devisSurfaces');
     const surfaceContinueBtn = document.getElementById('devisSurfaceContinue');
     const quotePreview = document.getElementById('devisQuotePreview');
     const form = document.getElementById('devisForm');
@@ -1113,7 +1119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderedAtInput = document.getElementById('devisRenderedAt');
     const submitBtn = document.getElementById('devisSubmitBtn');
     const resultEl = document.getElementById('devisResult');
-    if (!stepsList || !surfaceInput || !form || !resultEl) return;
+    if (!stepsList || !surfacesWrap || !form || !resultEl) return;
     if (!onlyServiceId && !servicesWrap) return;
 
     const fmtEur = (n) => pricing.formatCurrency(n);
@@ -1121,14 +1127,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const fmtSurfaceNum = (n) => new Intl.NumberFormat('fr-FR').format(n);
     const escapeHtml = (str) => String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-    const state = { step: 1, serviceId: null, surface: null, contact: { name: '', company: '', email: '', phone: '', postalCode: '' } };
+    // selectedServices: ordered ids chosen at step 1 (or the single locked
+    // id on a data-only-service page). items: [{serviceId, surface}],
+    // filled in at step 2, one entry per selected service.
+    const state = {
+      step: 1,
+      selectedServices: onlyServiceId ? [onlyServiceId] : [],
+      items: [],
+      contact: { name: '', company: '', email: '', phone: '', postalCode: '' }
+    };
 
     /* ---- Step 1: service cards, generated from lib/pricing.js — skipped
-       entirely when the section scopes to a single service. ---- */
+       entirely when the section scopes to a single service. Multi-select:
+       a prospect can tick several prestations for one combined devis. ---- */
     if (servicesWrap) {
       const cheapest = pricing.getCheapestService();
       servicesWrap.innerHTML = pricing.config.services.map((s) => `
-        <button type="button" class="devis-service" role="radio" aria-checked="false" data-service="${s.id}">
+        <button type="button" class="devis-service" role="checkbox" aria-checked="false" data-service="${s.id}">
           ${s.id === cheapest.id ? '<span class="devis-service__badge">Meilleur prix</span>' : ''}
           <span class="devis-service__label">${escapeHtml(s.label)}</span>
           <span class="devis-service__detail">${escapeHtml(s.detail)}</span>
@@ -1136,52 +1151,89 @@ document.addEventListener('DOMContentLoaded', () => {
         </button>
       `).join('');
       servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
-        btn.addEventListener('click', () => selectService(btn.dataset.service));
+        btn.addEventListener('click', () => toggleService(btn.dataset.service));
       });
     }
 
-    function selectService(id) {
-      state.serviceId = id;
+    function toggleService(id) {
+      const idx = state.selectedServices.indexOf(id);
+      if (idx === -1) state.selectedServices.push(id);
+      else state.selectedServices.splice(idx, 1);
       servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
-        const active = btn.dataset.service === id;
+        const active = state.selectedServices.includes(btn.dataset.service);
         btn.classList.toggle('is-selected', active);
         btn.setAttribute('aria-checked', String(active));
       });
-      goToStep(2);
+      if (servicesContinueBtn) servicesContinueBtn.disabled = state.selectedServices.length === 0;
     }
+    if (servicesContinueBtn) servicesContinueBtn.addEventListener('click', () => goToStep(2));
 
-    /* ---- Step 2: surface ---- */
-    function updateSurfaceRateDisplay() {
-      const service = pricing.getService(state.serviceId);
-      if (!service) return;
-      surfaceServiceEl.textContent = service.label;
-      surfaceUnitPriceEl.textContent = `${fmtRate(service.priceHT)} HT/m²`;
-    }
-    function validateSurface() {
-      const parsed = pricing.parseSurface(surfaceInput.value);
-      const valid = parsed !== null && pricing.isValidSurface(parsed);
-      surfaceContinueBtn.disabled = !valid;
-      if (valid) state.surface = parsed;
-      return valid;
-    }
-    surfaceInput.addEventListener('input', validateSurface);
-    section.querySelectorAll('.devis-chip').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        surfaceInput.value = chip.dataset.value;
-        validateSurface();
-        surfaceInput.focus();
+    /* ---- Step 2: one surface field per selected prestation ---- */
+    function renderSurfaceLines() {
+      const chipsHtml = chipValues.map((v) => `<button type="button" class="devis-chip" data-value="${v}">${fmtSurfaceNum(Number(v))}&nbsp;m²</button>`).join('');
+      surfacesWrap.innerHTML = state.selectedServices.map((id) => {
+        const s = pricing.getService(id);
+        return `
+          <div class="devis-surface-line" data-service="${id}">
+            <div class="devis-surface-line__head">
+              <span class="devis-surface-line__label">${escapeHtml(s.label)}</span>
+              <span class="devis-surface-line__rate">${fmtRate(s.priceHT)} HT/m²</span>
+            </div>
+            <div class="devis-surface-input">
+              <input type="text" inputmode="decimal" placeholder="0" data-surface-for="${id}" aria-label="Surface pour ${escapeHtml(s.label)}">
+              <span class="devis-surface-unit">m²</span>
+            </div>
+            <div class="devis-chips" role="group" aria-label="Surfaces courantes">${chipsHtml}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Re-populate from state.items so going back to step 1 and forward
+      // again (or step 2 → 3 → back to 2) doesn't lose what was typed.
+      state.items.forEach((it) => {
+        const input = surfacesWrap.querySelector(`input[data-surface-for="${it.serviceId}"]`);
+        if (input) input.value = String(it.surface).replace('.', ',');
       });
-    });
-    surfaceContinueBtn.addEventListener('click', () => { if (validateSurface()) goToStep(3); });
+
+      surfacesWrap.querySelectorAll('input[data-surface-for]').forEach((input) => {
+        input.addEventListener('input', validateSurfaces);
+      });
+      surfacesWrap.querySelectorAll('.devis-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          const input = chip.closest('.devis-surface-line').querySelector('input[data-surface-for]');
+          input.value = chip.dataset.value;
+          validateSurfaces();
+          input.focus();
+        });
+      });
+      validateSurfaces();
+    }
+    function validateSurfaces() {
+      const items = [];
+      let allValid = state.selectedServices.length > 0;
+      state.selectedServices.forEach((id) => {
+        const input = surfacesWrap.querySelector(`input[data-surface-for="${id}"]`);
+        const parsed = input ? pricing.parseSurface(input.value) : null;
+        const valid = parsed !== null && pricing.isValidSurface(parsed);
+        if (input) input.closest('.devis-surface-line').classList.toggle('is-invalid', input.value.trim() !== '' && !valid);
+        if (valid) items.push({ serviceId: id, surface: parsed });
+        else allValid = false;
+      });
+      surfaceContinueBtn.disabled = !allValid;
+      if (allValid) state.items = items;
+      return allValid;
+    }
+    surfaceContinueBtn.addEventListener('click', () => { if (validateSurfaces()) goToStep(3); });
 
     /* ---- Step 3: gated preview — labels only, amounts stay masked ---- */
     function renderMaskedPreview() {
-      const service = pricing.getService(state.serviceId);
-      if (!service || state.surface === null) return;
+      if (!state.items.length) return;
+      const lineRows = state.items.map((it) => {
+        const service = pricing.getService(it.serviceId);
+        return `<div class="devis-quote-row devis-quote-row--line"><span>${escapeHtml(service.label)}</span><span>${fmtSurfaceNum(it.surface)}&nbsp;m² × ${fmtRate(service.priceHT)}</span></div>`;
+      }).join('');
       quotePreview.innerHTML = `
-        <div class="devis-quote-row"><span>Prestation</span><span>${escapeHtml(service.label)}</span></div>
-        <div class="devis-quote-row"><span>Surface</span><span>${fmtSurfaceNum(state.surface)}&nbsp;m²</span></div>
-        <div class="devis-quote-row"><span>Prix unitaire</span><span>${fmtRate(service.priceHT)}&nbsp;HT/m²</span></div>
+        ${lineRows}
         <div class="devis-quote-row"><span>Total HT</span><span class="devis-mask">••••&nbsp;€</span></div>
         <div class="devis-quote-row"><span>TVA 20&nbsp;%</span><span class="devis-mask">••••&nbsp;€</span></div>
         <div class="devis-quote-row devis-quote-row--total"><span>Total TTC</span><span class="devis-mask">••••&nbsp;€</span></div>
@@ -1199,7 +1251,7 @@ document.addEventListener('DOMContentLoaded', () => {
         li.classList.toggle('is-done', num < n);
         li.querySelector('.devis-step__btn').disabled = num >= n;
       });
-      if (n === 2) updateSurfaceRateDisplay();
+      if (n === 2) renderSurfaceLines();
       if (n === 3) { renderedAtInput.value = String(Date.now()); renderMaskedPreview(); }
     }
     stepsList.querySelectorAll('.devis-step__btn').forEach((btn) => {
@@ -1270,8 +1322,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         const payload = {
-          serviceId: state.serviceId,
-          surface: state.surface,
+          items: state.items,
           name: data.name.trim(),
           company: data.company.trim(),
           email: data.email.trim(),
@@ -1333,14 +1384,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `✅ Devis envoyé à <strong>${escapeHtml(state.contact.email)}</strong> — pensez à vérifier vos spams.`
         : `✅ Votre devis est prêt. Un conseiller vous rappelle au <strong>${escapeHtml(state.contact.phone)}</strong> sous 24&nbsp;h ouvrées.`;
       const waText = encodeURIComponent(`Bonjour, je viens de recevoir mon devis ${q.number}.`);
+      const lineRows = q.items.map((it) => `
+            <div class="devis-result-row"><span>${escapeHtml(it.serviceLabel)} — ${fmtSurfaceNum(it.surface)}&nbsp;m² × ${fmtRate(it.unitPriceHT)}</span><strong>${fmtEur(it.subtotal)}</strong></div>`).join('');
 
       resultEl.innerHTML = `
         <div class="devis-result-card" id="devisResultCard">
           <p class="devis-result-meta">Devis n° <strong>${q.number}</strong> · ${dateFmt.format(new Date(q.date))} · valable <strong>${pricing.config.quoteValidityDays}&nbsp;jours</strong></p>
-          <div class="devis-result-rows">
-            <div class="devis-result-row"><span>Prestation</span><strong>${escapeHtml(q.serviceLabel)}</strong></div>
-            <div class="devis-result-row"><span>Surface</span><strong>${fmtSurfaceNum(q.surface)}&nbsp;m²</strong></div>
-            <div class="devis-result-row"><span>Prix unitaire</span><strong>${fmtRate(q.unitPriceHT)}&nbsp;HT/m²</strong></div>
+          <div class="devis-result-rows">${lineRows}
           </div>
           <div class="devis-result-total">
             <span>Total HT</span>
@@ -1350,7 +1400,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="devis-result-row"><span>TVA 20&nbsp;%</span><span>${fmtEur(q.vat)}</span></div>
             <div class="devis-result-row devis-result-row--ttc"><span>Total TTC</span><strong>${fmtEur(q.totalTTC)}</strong></div>
           </div>
-          ${q.minimumApplied ? `<p class="devis-result-note">Forfait minimum d'intervention appliqué : <strong>${fmtEur(pricing.config.minimumOrderHT)}</strong></p>` : ''}
+          ${q.minimumApplied ? `<p class="devis-result-note">Forfait minimum de commande appliqué : <strong>${fmtEur(pricing.config.minimumOrderHT)}</strong></p>` : ''}
           <p class="devis-result-included">Inclus : intervention par télépilote certifié, rapport photo avant/après.</p>
           <p class="devis-result-status">${statusHtml}</p>
           <div class="devis-result-actions">
@@ -1379,8 +1429,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetFlow() {
-      state.step = 1; state.serviceId = onlyServiceId; state.surface = null; state.contact = { name: '', company: '', email: '', phone: '', postalCode: '' };
-      surfaceInput.value = '';
+      state.step = 1;
+      state.selectedServices = onlyServiceId ? [onlyServiceId] : [];
+      state.items = [];
+      state.contact = { name: '', company: '', email: '', phone: '', postalCode: '' };
+      surfacesWrap.innerHTML = '';
       surfaceContinueBtn.disabled = true;
       form.reset();
       form.hidden = false;
@@ -1393,6 +1446,7 @@ document.addEventListener('DOMContentLoaded', () => {
           btn.classList.remove('is-selected');
           btn.setAttribute('aria-checked', 'false');
         });
+        if (servicesContinueBtn) servicesContinueBtn.disabled = true;
       }
       goToStep(onlyServiceId ? 2 : 1);
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1458,8 +1512,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const pdfSafe = (str) => str.replace(/[  ]/g, ' ');
         const fmtNum = (n) => pdfSafe(new Intl.NumberFormat('fr-FR').format(n));
         const fmtMoney = (n) => pdfSafe(pricing.formatCurrency(n));
-        const service = pricing.getService(state.serviceId);
-
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
         const pageWidth = doc.internal.pageSize.getWidth();
         const marginX = 20;
@@ -1521,7 +1573,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addrRow('TÉLÉPHONE', contact?.phone);
         addrRow('CODE POSTAL', contact?.postalCode);
 
-        /* ---- Line-item table ---- */
+        /* ---- Line-item table — one row per selected prestation ---- */
         const tableY = y + 6;
         const colSurfaceX = pageWidth - marginX - 90;
         const colUnitX = pageWidth - marginX - 60;
@@ -1537,38 +1589,50 @@ document.addEventListener('DOMContentLoaded', () => {
         doc.text('PRIX UNIT. HT', colUnitX, tableY + 5.5, { align: 'right' });
         doc.text('MONTANT', colTotalRight - 3, tableY + 5.5, { align: 'right' });
 
-        const rowH = 16;
-        const rowY = tableY + 8;
+        // Detail sub-line only fits — and only matters — with a single
+        // line item; several lines get a shorter row so a 5-service devis
+        // still fits on one page.
+        const showDetail = q.items.length === 1;
+        const rowH = showDetail ? 16 : 10;
+        const valueY = showDetail ? 9 : 6.5;
+        let rowY = tableY + 8;
         doc.setFillColor(...PDF_PANEL);
-        doc.rect(marginX, rowY, contentW, rowH, 'F');
+        doc.rect(marginX, rowY, contentW, rowH * q.items.length, 'F');
         doc.setDrawColor(...PDF_BORDER);
-        doc.rect(marginX, tableY, contentW, 8 + rowH);
+        doc.rect(marginX, tableY, contentW, 8 + rowH * q.items.length);
 
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.setTextColor(...PDF_DARK);
-        doc.text(service?.label || q.serviceLabel, marginX + 3, rowY + 6);
-        if (service?.detail) {
+        q.items.forEach((item, i) => {
+          const service = pricing.getService(item.serviceId);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(...PDF_DARK);
+          doc.text(item.serviceLabel, marginX + 3, rowY + 6);
+          if (showDetail && service?.detail) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(...PDF_GRAY);
+            doc.text(service.detail, marginX + 3, rowY + 11);
+          }
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8);
-          doc.setTextColor(...PDF_GRAY);
-          doc.text(service.detail, marginX + 3, rowY + 11);
-        }
-        const rawSubtotal = Math.round(q.surface * q.unitPriceHT * 100) / 100;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9.5);
-        doc.setTextColor(...PDF_DARK);
-        doc.text(`${fmtNum(q.surface)} m²`, colSurfaceX, rowY + 9, { align: 'right' });
-        doc.text(`${fmtMoney(q.unitPriceHT)}/m²`, colUnitX, rowY + 9, { align: 'right' });
-        doc.setFont('helvetica', 'bold');
-        doc.text(fmtMoney(rawSubtotal), colTotalRight - 3, rowY + 9, { align: 'right' });
+          doc.setFontSize(9.5);
+          doc.setTextColor(...PDF_DARK);
+          doc.text(`${fmtNum(item.surface)} m²`, colSurfaceX, rowY + valueY, { align: 'right' });
+          doc.text(`${fmtMoney(item.unitPriceHT)}/m²`, colUnitX, rowY + valueY, { align: 'right' });
+          doc.setFont('helvetica', 'bold');
+          doc.text(fmtMoney(item.subtotal), colTotalRight - 3, rowY + valueY, { align: 'right' });
+          if (i > 0) {
+            doc.setDrawColor(...PDF_BORDER);
+            doc.line(marginX, rowY, marginX + contentW, rowY);
+          }
+          rowY += rowH;
+        });
 
-        y = rowY + rowH + 6;
+        y = rowY + 6;
         if (q.minimumApplied) {
           doc.setFont('helvetica', 'italic');
           doc.setFontSize(8);
           doc.setTextColor(...PDF_GRAY);
-          doc.text(`Un forfait minimum de commande de ${fmtMoney(q.totalHT)} HT s'applique à cette prestation.`, marginX, y, { maxWidth: contentW });
+          doc.text(`Un forfait minimum de commande de ${fmtMoney(q.totalHT)} HT s'applique à cette commande.`, marginX, y, { maxWidth: contentW });
           y += 7;
         }
 
@@ -1644,8 +1708,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    if (onlyServiceId) { state.serviceId = onlyServiceId; goToStep(2); }
-    else { goToStep(1); }
+    if (onlyServiceId) goToStep(2);
+    else goToStep(1);
   })();
 
   /* ---------- Fiabilité accordions ----------

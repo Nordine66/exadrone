@@ -376,7 +376,7 @@
       <h2 class="section-title reveal" data-reveal data-delay="1">Votre devis en 30 secondes.</h2>
     </div>
     <p class="section-lead reveal" data-reveal data-delay="2">
-      Choisissez votre prestation, indiquez la surface, recevez votre devis détaillé par e-mail.
+      Choisissez une ou plusieurs prestations, indiquez les surfaces, recevez un devis unique et détaillé par e-mail.
     </p>
 
     <div class="estimate-card devis-card reveal" data-reveal data-delay="1">
@@ -393,7 +393,7 @@
         <li class="devis-step" data-step="2">
           <button type="button" class="devis-step__btn" data-goto="2" disabled>
             <span class="devis-step__num">2</span>
-            <span class="devis-step__label">Surface</span>
+            <span class="devis-step__label">Surfaces</span>
           </button>
         </li>
         <li class="devis-step" data-step="3">
@@ -404,29 +404,22 @@
         </li>
       </ol>
 
-      <!-- Step 1 — Prestation: 5 cards generated from lib/pricing.js by
-           script.js, never hard-coded here. -->
+      <!-- Step 1 — Prestation(s): 5 cards generated from lib/pricing.js by
+           script.js, never hard-coded here. Multi-select — a prospect can
+           tick several to get one combined devis instead of one per service. -->
       <div class="devis-panel" data-panel="1">
-        <div class="devis-services" id="devisServices" role="radiogroup" aria-label="Choisissez votre prestation"></div>
+        <div class="devis-services" id="devisServices" role="group" aria-label="Choisissez vos prestations (une ou plusieurs)"></div>
+        <p class="devis-helper">Vous pouvez sélectionner plusieurs prestations pour un devis unique.</p>
+        <div class="devis-panel-actions devis-panel-actions--end">
+          <button type="button" class="btn btn-primary" id="devisServicesContinue" disabled>Continuer →</button>
+        </div>
       </div>
 
-      <!-- Step 2 — Surface -->
+      <!-- Step 2 — Surfaces: one field per prestation selected at step 1,
+           rendered by script.js into #devisSurfaces. -->
       <div class="devis-panel" data-panel="2" hidden>
-        <label for="devisSurface" class="devis-label">Surface à traiter</label>
-        <div class="devis-surface-input">
-          <input type="text" id="devisSurface" inputmode="decimal" placeholder="0" aria-describedby="devisSurfaceRate">
-          <span class="devis-surface-unit">m²</span>
-        </div>
-        <div class="devis-chips" role="group" aria-label="Surfaces courantes">
-          <button type="button" class="devis-chip" data-value="100">100 m²</button>
-          <button type="button" class="devis-chip" data-value="250">250 m²</button>
-          <button type="button" class="devis-chip" data-value="500">500 m²</button>
-          <button type="button" class="devis-chip" data-value="1000">1 000 m²</button>
-        </div>
-        <p class="devis-applied-rate" id="devisSurfaceRate">
-          <span id="devisSurfaceService"></span> — Tarif appliqué : <strong id="devisSurfaceUnitPrice"></strong>
-        </p>
-        <p class="devis-helper">Surface approximative ? Pas de souci, elle sera vérifiée avant l'intervention.</p>
+        <div class="devis-surfaces" id="devisSurfaces"></div>
+        <p class="devis-helper">Surfaces approximatives ? Pas de souci, elles seront vérifiées avant l'intervention.</p>
         <div class="devis-panel-actions">
           <button type="button" class="devis-btn-secondary" data-back="1">← Retour</button>
           <button type="button" class="btn btn-primary" id="devisSurfaceContinue" disabled>Continuer →</button>
