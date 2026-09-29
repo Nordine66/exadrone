@@ -32,6 +32,7 @@ const MIN_ORDER_TEXT = `${pricing.config.minimumOrderHT.toFixed(2).replace('.', 
 const bigExample = pricing.calculateQuote('toiture', 200)
 const smallExample = pricing.calculateQuote('toiture', 5)
 const fmt2 = (n) => n.toFixed(2).replace('.', ',')
+const toitureRateText = `${fmt2(pricing.getService('toiture').priceHT)} €`
 
 const SYSTEM_PROMPT = `Tu t'appelles Victoria. Tu es la conseillère commerciale d'Exadrone Enterprise, spécialiste du nettoyage par drone — toiture, bardage, façade et panneaux solaires photovoltaïques — ainsi que de la photogrammétrie et thermographie de bâtiment.
 
@@ -41,7 +42,7 @@ Services et tarifs (HT, TVA 20% en sus) :
 ${PRICE_GRID_TEXT}
 - Un forfait minimum d'intervention de ${MIN_ORDER_TEXT} s'applique dès lors que le calcul (surface × tarif) tombe en dessous de ce montant, quel que soit le service
 - Toujours détailler Prix HT, TVA (20%) et Prix TTC quand tu donnes un chiffre — jamais un prix unique sans cette décomposition
-  Exemple : nettoyage de toiture sur 200 m² → 200 × 2,90 € = ${fmt2(bigExample.subtotal)} € HT, TVA (20%) = ${fmt2(bigExample.vat)} €, soit ${fmt2(bigExample.totalTTC)} € TTC
+  Exemple : nettoyage de toiture sur 200 m² → 200 × ${toitureRateText} = ${fmt2(bigExample.subtotal)} € HT, TVA (20%) = ${fmt2(bigExample.vat)} €, soit ${fmt2(bigExample.totalTTC)} € TTC
 - Le tarif définitif est confirmé après étude du site ou du bâtiment
 - Photogrammétrie, modélisation 3D, thermographie et diagnostic de bâtiment (services en développement)
 
