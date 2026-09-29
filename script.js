@@ -707,7 +707,10 @@ document.addEventListener('DOMContentLoaded', () => {
      the real cheapest per-m² rate even if the pricing config changes. */
   const heroPriceValue = document.getElementById('exaHeroPriceValue');
   if (heroPriceValue && window.ExadronePricing) {
-    const target = window.ExadronePricing.getCheapestService().priceHT;
+    // data-service="<pricing id>" (e.g. solaire.html) shows that service's
+    // rate instead of the site-wide cheapest one.
+    const pinnedService = heroPriceValue.dataset.service && window.ExadronePricing.getService(heroPriceValue.dataset.service);
+    const target = (pinnedService || window.ExadronePricing.getCheapestService()).priceHT;
     const eurFmt = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const setPriceText = (v) => { heroPriceValue.innerHTML = `${eurFmt.format(v)}&nbsp;€`; };
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1102,6 +1105,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // #estimate — skips the "Prestation" panel/step entirely and pre-selects
     // that service. Absent (the homepage default), behavior is unchanged.
     const onlyServiceId = section.dataset.onlyService || null;
+    // Softer alternative (e.g. solaire.html): keep the full "Prestation"
+    // step with every card and price, but list these ids first and tick
+    // them up-front — data-preselect-services="solaire" — so the visitor
+    // can hit "Continuer" straight away or add other prestations.
+    const preselectIds = onlyServiceId ? [] : (section.dataset.preselectServices || '')
+      .split(',').map((v) => v.trim()).filter((id) => pricing.getService(id));
     // Per-page override for the quick-pick surface chips in step 2 (e.g.
     // solaire.html's larger solar installations) — "500,1000,2500,5000" —
     // falls back to the homepage's general-purpose values.
@@ -1132,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // filled in at step 2, one entry per selected service.
     const state = {
       step: 1,
-      selectedServices: onlyServiceId ? [onlyServiceId] : [],
+      selectedServices: onlyServiceId ? [onlyServiceId] : preselectIds.slice(),
       items: [],
       contact: { name: '', company: '', email: '', phone: '', postalCode: '' }
     };
@@ -1142,9 +1151,11 @@ document.addEventListener('DOMContentLoaded', () => {
        a prospect can tick several prestations for one combined devis. ---- */
     if (servicesWrap) {
       const cheapest = pricing.getCheapestService();
-      servicesWrap.innerHTML = pricing.config.services.map((s) => `
+      const orderedServices = preselectIds.map((id) => pricing.getService(id))
+        .concat(pricing.config.services.filter((s) => !preselectIds.includes(s.id)));
+      servicesWrap.innerHTML = orderedServices.map((s) => `
         <button type="button" class="devis-service" role="checkbox" aria-checked="false" data-service="${s.id}">
-          ${s.id === cheapest.id ? '<span class="devis-service__badge">Meilleur prix</span>' : ''}
+          ${preselectIds.includes(s.id) ? '<span class="devis-service__badge">Recommandé</span>' : s.id === cheapest.id ? '<span class="devis-service__badge">Meilleur prix</span>' : ''}
           <span class="devis-service__label">${escapeHtml(s.label)}</span>
           <span class="devis-service__detail">${escapeHtml(s.detail)}</span>
           <span class="devis-service__price"><strong>${fmtRate(s.priceHT)}</strong> HT/m²</span>
@@ -1153,12 +1164,16 @@ document.addEventListener('DOMContentLoaded', () => {
       servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
         btn.addEventListener('click', () => toggleService(btn.dataset.service));
       });
+      syncServiceCards();
     }
 
     function toggleService(id) {
       const idx = state.selectedServices.indexOf(id);
       if (idx === -1) state.selectedServices.push(id);
       else state.selectedServices.splice(idx, 1);
+      syncServiceCards();
+    }
+    function syncServiceCards() {
       servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
         const active = state.selectedServices.includes(btn.dataset.service);
         btn.classList.toggle('is-selected', active);
@@ -1430,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resetFlow() {
       state.step = 1;
-      state.selectedServices = onlyServiceId ? [onlyServiceId] : [];
+      state.selectedServices = onlyServiceId ? [onlyServiceId] : preselectIds.slice();
       state.items = [];
       state.contact = { name: '', company: '', email: '', phone: '', postalCode: '' };
       surfacesWrap.innerHTML = '';
@@ -1441,13 +1456,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setFormError(null);
       resultEl.hidden = true;
       resultEl.innerHTML = '';
-      if (servicesWrap) {
-        servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
-          btn.classList.remove('is-selected');
-          btn.setAttribute('aria-checked', 'false');
-        });
-        if (servicesContinueBtn) servicesContinueBtn.disabled = true;
-      }
+      if (servicesWrap) syncServiceCards();
       goToStep(onlyServiceId ? 2 : 1);
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }

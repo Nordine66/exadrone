@@ -3,32 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nettoyage Panneaux Solaires par Drone | Exadrone</title>
-<meta name="description" content="Nettoyage par drone haute pression de centrales solaires au sol, ombrières et toitures industrielles — eau osmosée, zéro risque de casse, gain de rendement de 5 à 15 %. Devis instantané.">
-<link rel="canonical" href="https://exadrone-enterprise.com/solaire.html">
+<title>Nettoyage Panneaux Solaires par Drone dès 7,20 € HT/m² | Exadrone</title>
+<meta name="description" content="Nettoyage de panneaux photovoltaïques par drone dès 7,20 € HT/m² : centrales au sol, ombrières, toitures industrielles. Eau osmosée, zéro casse, +5 à 15 % de rendement. Devis instantané en 30 s.">
+<link rel="canonical" href="https://exadrone-enterprise.com/solaire">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Exadrone Enterprise">
 <meta property="og:locale" content="fr_FR">
 <meta property="og:title" content="Nettoyage Panneaux Solaires par Drone | Exadrone">
-<meta property="og:description" content="Nettoyage par drone haute pression de centrales solaires au sol, ombrières et toitures industrielles — eau osmosée, zéro risque de casse, gain de rendement de 5 à 15 %.">
-<meta property="og:url" content="https://exadrone-enterprise.com/solaire.html">
-<meta property="og:image" content="https://exadrone-enterprise.com/images/og-cover.jpg">
+<meta property="og:description" content="Centrales au sol, ombrières, toitures industrielles : nettoyage par drone à l'eau osmosée dès 7,20 € HT/m². Zéro casse, +5 à 15 % de rendement. Devis instantané.">
+<meta property="og:url" content="https://exadrone-enterprise.com/solaire">
+<meta property="og:image" content="https://exadrone-enterprise.com/images/blog/cover-panneaux-solaires.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="675">
+<meta property="og:image:alt" content="Rangées de panneaux solaires nettoyées par drone Exadrone Enterprise">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Nettoyage Panneaux Solaires par Drone | Exadrone">
-<meta name="twitter:image" content="https://exadrone-enterprise.com/images/og-cover.jpg">
+<meta name="twitter:description" content="Nettoyage de centrales photovoltaïques par drone dès 7,20 € HT/m². Zéro casse, +5 à 15 % de rendement. Devis en 30 s.">
+<meta name="twitter:image" content="https://exadrone-enterprise.com/images/blog/cover-panneaux-solaires.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
-<link rel="stylesheet" href="styles.css?v=20260727">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<!-- Hero poster is the LCP element on first paint — fetch it before the
+     stylesheet/video so the hero never flashes empty. -->
+<link rel="preload" as="image" href="/assets/video/solaire-hero-poster.jpg" fetchpriority="high">
+<!-- Same non-blocking font load as index.html. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap"></noscript>
+<link rel="stylesheet" href="/styles.css?v=20260733">
+<!-- Offer price mirrors lib/pricing.js (solaire.priceHT / minimumOrderHT) —
+     crawlers need it static, so update both together. -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Service",
+  "@id": "https://exadrone-enterprise.com/solaire#service",
   "name": "Nettoyage par drone de centrales photovoltaïques, ombrières et toitures industrielles",
-  "description": "Exadrone Enterprise nettoie les centrales solaires au sol, ombrières et toitures industrielles par drone haute pression — maintenance préventive du rendement, sans échafaudage ni risque pour les cellules.",
+  "serviceType": "Nettoyage de panneaux photovoltaïques par drone",
+  "description": "Exadrone Enterprise nettoie les centrales solaires au sol, ombrières et toitures industrielles par drone haute pression à l'eau osmosée — maintenance préventive du rendement, sans échafaudage ni risque pour les cellules.",
+  "image": "https://exadrone-enterprise.com/images/action/action-photovoltaique.jpg",
   "provider": { "@type": "ProfessionalService", "name": "Exadrone Enterprise", "@id": "https://exadrone-enterprise.com/#business" },
   "areaServed": { "@type": "Country", "name": "France" },
-  "url": "https://exadrone-enterprise.com/solaire.html"
+  "url": "https://exadrone-enterprise.com/solaire",
+  "offers": {
+    "@type": "Offer",
+    "url": "https://exadrone-enterprise.com/solaire#estimate",
+    "priceCurrency": "EUR",
+    "availability": "https://schema.org/InStock",
+    "priceSpecification": [
+      { "@type": "UnitPriceSpecification", "price": 7.20, "priceCurrency": "EUR", "unitCode": "MTK", "unitText": "m²", "valueAddedTaxIncluded": false },
+      { "@type": "PriceSpecification", "name": "Forfait minimum de commande", "minPrice": 390, "priceCurrency": "EUR", "valueAddedTaxIncluded": false }
+    ]
+  }
 }
 </script>
 <script type="application/ld+json">
@@ -37,7 +62,7 @@
   "@type": "BreadcrumbList",
   "itemListElement": [
     { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://exadrone-enterprise.com/" },
-    { "@type": "ListItem", "position": 2, "name": "Nettoyage de panneaux photovoltaïques par drone", "item": "https://exadrone-enterprise.com/solaire.html" }
+    { "@type": "ListItem", "position": 2, "name": "Nettoyage de panneaux photovoltaïques par drone", "item": "https://exadrone-enterprise.com/solaire" }
   ]
 }
 </script>
@@ -147,13 +172,17 @@
         <p class="eyebrow reveal" data-reveal>Photovoltaïque &amp; Ombrières B2B</p>
         <h1 class="cine-title pv-hero-title reveal" data-reveal data-delay="1">Optimisez le rendement de vos centrales solaires.</h1>
         <p class="pv-hero-sub reveal" data-reveal data-delay="2">Nettoyage par drone ultra-précis. Zéro risque de casse, zéro arrêt de production.</p>
+        <!-- Same price hook as the homepage hero — script.js counts up to
+             pricing.js's solaire rate (data-service), so this never drifts
+             from the devis below. Static fallback text for no-JS/crawlers. -->
         <div class="exa-hero-price reveal reveal-blur-up" data-reveal data-delay="2">
-          <p class="exa-hero-price__eyebrow">Gain de rendement mesuré</p>
+          <p class="exa-hero-price__eyebrow">Tarif photovoltaïque</p>
           <p class="exa-hero-price__line">
-            <span class="exa-hero-price__prefix">Jusqu'à</span>
-            <span class="exa-hero-price__value">+15&nbsp;%</span>
-            <span class="exa-hero-price__unit">de rendement annuel</span>
+            <span class="exa-hero-price__prefix">À partir de</span>
+            <span class="exa-hero-price__value" id="exaHeroPriceValue" data-service="solaire">7,20&nbsp;€</span>
+            <span class="exa-hero-price__unit">HT/m²</span>
           </p>
+          <p class="exa-hero-price__sub">Jusqu'à <strong>+15&nbsp;%</strong> de rendement annuel. Votre devis chiffré en 30 secondes, envoyé dans votre boîte mail.</p>
         </div>
         <div class="pv-hero-actions reveal" data-reveal data-delay="3">
           <a href="#estimate" class="exa-hero-cta" data-cursor="link"><span class="exa-hero-cta__label">Demander une étude technique</span></a>
@@ -229,7 +258,7 @@
         <div class="action-card glow-surface reveal" data-reveal>
           <picture>
             <source type="image/webp" srcset="images/action/action-photovoltaique.webp">
-            <img src="images/action/action-photovoltaique.jpg" alt="Drone Exadrone Enterprise en intervention sur une centrale de panneaux photovoltaïques" loading="lazy" decoding="async">
+            <img src="images/action/action-photovoltaique.jpg" alt="Drone Exadrone Enterprise en intervention sur une centrale de panneaux photovoltaïques" width="1280" height="955" loading="lazy" decoding="async">
           </picture>
           <span class="action-card-scrim" aria-hidden="true"></span>
           <div class="action-card-body">
@@ -239,7 +268,7 @@
         <div class="action-card glow-surface reveal" data-reveal data-delay="1">
           <picture>
             <source type="image/webp" srcset="images/blog/cover-panneaux-solaires.webp">
-            <img src="images/blog/cover-panneaux-solaires.jpg" alt="Rangées de panneaux solaires entretenues par Exadrone Enterprise" loading="lazy" decoding="async">
+            <img src="images/blog/cover-panneaux-solaires.jpg" alt="Rangées de panneaux solaires entretenues par Exadrone Enterprise" width="1200" height="675" loading="lazy" decoding="async">
           </picture>
           <span class="action-card-scrim" aria-hidden="true"></span>
           <div class="action-card-body">
@@ -251,47 +280,72 @@
     </div>
   </section>
 
-  <!-- DEVIS INSTANTANÉ — the exact widget from index.html's #estimate
-       (script.js "Instant quote flow"), scoped to the solar service only
-       via data-only-service="solaire": no "Prestation" panel/step, the
-       flow starts straight at "Surface" with pricing.config's solaire
-       service pre-selected. Same real backend (api/quote.js),
-       same PDF download, same Google Ads conversion fire in script.js's
-       renderResult() — nothing solar-specific needed there since it's
-       already generic. -->
-  <section class="section estimate-section" id="estimate" data-only-service="solaire" data-surface-chips="500,1000,2500,5000">
+  <!-- DEVIS INSTANTANÉ — identical markup to index.html's #estimate
+       (script.js "Instant quote flow"): same 3 steps, same 5 prestation
+       cards and per-m² prices from lib/pricing.js, same /api/quote
+       backend, PDF and Google Ads conversion. data-preselect-services
+       lists and ticks the solar card first so a visitor can continue
+       straight away, or add other prestations to the same devis. Keep
+       this block in sync with index.html. -->
+  <section class="section estimate-section" id="estimate" data-preselect-services="solaire" data-surface-chips="500,1000,2500,5000">
     <div class="section-head">
       <p class="eyebrow reveal" data-reveal>Devis instantané</p>
       <h2 class="section-title reveal" data-reveal data-delay="1">Votre devis solaire en 30 secondes.</h2>
     </div>
     <p class="section-lead reveal" data-reveal data-delay="2">
-      Indiquez la surface de votre installation, recevez votre devis détaillé par e-mail.
+      Le nettoyage photovoltaïque est déjà sélectionné. Ajoutez d'autres prestations si besoin (toiture, bardage…), indiquez les surfaces et recevez un devis unique et détaillé par e-mail.
     </p>
 
     <div class="estimate-card devis-card reveal" data-reveal data-delay="1">
+      <!-- Progress indicator — earlier steps are real navigation (click to
+           go back and change a choice), current/future steps are inert.
+           script.js ("Instant quote flow") owns all step transitions. -->
       <ol class="devis-steps" id="devisSteps" aria-label="Étapes du devis">
-        <li class="devis-step is-active" data-step="2">
-          <button type="button" class="devis-step__btn" data-goto="2" disabled>
+        <li class="devis-step is-active" data-step="1">
+          <button type="button" class="devis-step__btn" data-goto="1" disabled>
             <span class="devis-step__num">1</span>
-            <span class="devis-step__label">Surface</span>
+            <span class="devis-step__label">Prestation</span>
+          </button>
+        </li>
+        <li class="devis-step" data-step="2">
+          <button type="button" class="devis-step__btn" data-goto="2" disabled>
+            <span class="devis-step__num">2</span>
+            <span class="devis-step__label">Surfaces</span>
           </button>
         </li>
         <li class="devis-step" data-step="3">
           <button type="button" class="devis-step__btn" data-goto="3" disabled>
-            <span class="devis-step__num">2</span>
+            <span class="devis-step__num">3</span>
             <span class="devis-step__label">Coordonnées</span>
           </button>
         </li>
       </ol>
 
-      <div class="devis-panel" data-panel="2">
+      <!-- Step 1 — Prestation(s): 5 cards generated from lib/pricing.js by
+           script.js, never hard-coded here. Multi-select — a prospect can
+           tick several to get one combined devis instead of one per service. -->
+      <div class="devis-panel" data-panel="1">
+        <div class="devis-services" id="devisServices" role="group" aria-label="Choisissez vos prestations (une ou plusieurs)"></div>
+        <p class="devis-helper">Vous pouvez sélectionner plusieurs prestations pour un devis unique.</p>
+        <div class="devis-panel-actions devis-panel-actions--end">
+          <button type="button" class="btn btn-primary" id="devisServicesContinue" disabled>Continuer →</button>
+        </div>
+      </div>
+
+      <!-- Step 2 — Surfaces: one field per prestation selected at step 1,
+           rendered by script.js into #devisSurfaces. -->
+      <div class="devis-panel" data-panel="2" hidden>
         <div class="devis-surfaces" id="devisSurfaces"></div>
-        <p class="devis-helper">Surface approximative ? Pas de souci, elle sera vérifiée avant l'intervention.</p>
+        <p class="devis-helper">Surfaces approximatives ? Pas de souci, elles seront vérifiées avant l'intervention.</p>
         <div class="devis-panel-actions">
+          <button type="button" class="devis-btn-secondary" data-back="1">← Retour</button>
           <button type="button" class="btn btn-primary" id="devisSurfaceContinue" disabled>Continuer →</button>
         </div>
       </div>
 
+      <!-- Step 3 — Coordonnées: gate. The real totals are never written
+           into #devisQuotePreview — only "•••• €" placeholders — until a
+           successful requestQuote() response arrives. -->
       <div class="devis-panel" data-panel="3" hidden>
         <div class="devis-quote-preview" id="devisQuotePreview"></div>
 
@@ -326,6 +380,8 @@
             <span>J'accepte que mes données soient utilisées pour traiter ma demande de devis. <a href="/politique-de-confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a></span>
           </label>
 
+          <!-- Honeypot + render timestamp — anti-spam signals read by
+               /api/quote (see api/quote.js), not enforced client-side. -->
           <div class="devis-honeypot" aria-hidden="true">
             <label for="devisWebsite">Ne pas remplir ce champ</label>
             <input type="text" id="devisWebsite" name="website" tabindex="-1" autocomplete="off">
@@ -350,6 +406,42 @@
       <li>Estimation transparente</li>
     </ul>
   </section>
+
+  <!-- FAQ photovoltaïque — questions spécifiques aux exploitants de
+       centrales/ombrières, avec FAQPage JSON-LD (même pattern que la FAQ
+       de index.html). Prix repris de lib/pricing.js : à mettre à jour ensemble. -->
+  <section class="section" id="faq">
+    <p class="eyebrow reveal" data-reveal style="text-align:center;">Questions fréquentes</p>
+    <h2 class="section-title reveal" data-reveal data-delay="1" style="text-align:center;">Nettoyage de panneaux solaires : vos questions</h2>
+    <div class="landing-body" style="max-width:820px;margin:2.5rem auto 0;">
+      <h3>Combien coûte le nettoyage de panneaux solaires par drone ?</h3>
+      <p>Le nettoyage photovoltaïque par drone est facturé 7,20 € HT/m² de panneaux, avec un forfait minimum de commande de 390 € HT. Le prix exact dépend de la surface, de l'accessibilité et du niveau d'encrassement — <a href="#estimate">obtenez votre devis chiffré en 30 secondes</a>.</p>
+      <h3>À quelle fréquence faut-il nettoyer une centrale photovoltaïque ?</h3>
+      <p>En général une à deux fois par an. Les sites exposés aux poussières agricoles, au pollen, aux fientes d'oiseaux ou proches d'axes routiers et de zones industrielles gagnent à passer à deux nettoyages annuels, idéalement avant le pic de production du printemps.</p>
+      <h3>Quel gain de rendement peut-on attendre après un nettoyage ?</h3>
+      <p>Un panneau encrassé perd couramment 5 à 15 % de production, parfois davantage sur les installations peu inclinées. Le nettoyage restaure l'essentiel de cette perte ; le gain réel se mesure directement sur vos données de supervision avant et après l'intervention.</p>
+      <h3>Le nettoyage par drone risque-t-il d'abîmer les panneaux ?</h3>
+      <p>Non : personne ne marche sur les modules, ce qui supprime le risque de micro-fissures, et nous utilisons une eau osmosée/déminéralisée qui ne laisse ni trace de calcaire ni micro-rayure. La pression et la distance de pulvérisation sont adaptées au verre des modules.</p>
+      <h3>Faut-il arrêter la production pendant l'intervention ?</h3>
+      <p>Non, l'intervention se fait sans arrêt de production ni installation d'échafaudage ou de nacelle. Nous planifions de préférence tôt le matin ou en fin de journée pour limiter le choc thermique sur le verre.</p>
+      <h3>Intervenez-vous sur les ombrières et les toitures industrielles ?</h3>
+      <p>Oui : centrales au sol, ombrières de parking et toitures industrielles ou agricoles, partout en France. Les opérations sont menées sous scénario européen STS-01 par un télépilote certifié DGAC.</p>
+    </div>
+  </section>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Combien coûte le nettoyage de panneaux solaires par drone ?", "acceptedAnswer": { "@type": "Answer", "text": "Le nettoyage photovoltaïque par drone est facturé 7,20 € HT/m² de panneaux, avec un forfait minimum de commande de 390 € HT. Le prix exact dépend de la surface, de l'accessibilité et du niveau d'encrassement." } },
+      { "@type": "Question", "name": "À quelle fréquence faut-il nettoyer une centrale photovoltaïque ?", "acceptedAnswer": { "@type": "Answer", "text": "En général une à deux fois par an. Les sites exposés aux poussières agricoles, au pollen, aux fientes d'oiseaux ou proches d'axes routiers et de zones industrielles gagnent à passer à deux nettoyages annuels, idéalement avant le pic de production du printemps." } },
+      { "@type": "Question", "name": "Quel gain de rendement peut-on attendre après un nettoyage ?", "acceptedAnswer": { "@type": "Answer", "text": "Un panneau encrassé perd couramment 5 à 15 % de production, parfois davantage sur les installations peu inclinées. Le nettoyage restaure l'essentiel de cette perte ; le gain réel se mesure sur les données de supervision avant et après l'intervention." } },
+      { "@type": "Question", "name": "Le nettoyage par drone risque-t-il d'abîmer les panneaux ?", "acceptedAnswer": { "@type": "Answer", "text": "Non : personne ne marche sur les modules, ce qui supprime le risque de micro-fissures, et l'eau osmosée/déminéralisée ne laisse ni trace de calcaire ni micro-rayure. La pression et la distance de pulvérisation sont adaptées au verre des modules." } },
+      { "@type": "Question", "name": "Faut-il arrêter la production pendant l'intervention ?", "acceptedAnswer": { "@type": "Answer", "text": "Non, l'intervention se fait sans arrêt de production ni installation d'échafaudage ou de nacelle, de préférence tôt le matin ou en fin de journée pour limiter le choc thermique sur le verre." } },
+      { "@type": "Question", "name": "Intervenez-vous sur les ombrières et les toitures industrielles ?", "acceptedAnswer": { "@type": "Answer", "text": "Oui : centrales au sol, ombrières de parking et toitures industrielles ou agricoles, partout en France, sous scénario européen STS-01 par un télépilote certifié DGAC." } }
+    ]
+  }
+  </script>
 
 </main>
 
@@ -392,7 +484,7 @@
         <a href="/entreprises-btp.html">Entreprises du BTP</a>
         <a href="/renovation-facade.html">Rénovation de façade</a>
         <a href="/marches-publics.html">Marchés publics</a>
-        <a href="/solaire.html">Photovoltaïque &amp; ombrières</a>
+        <a href="/solaire">Photovoltaïque &amp; ombrières</a>
       </div>
     </div>
 
@@ -444,7 +536,7 @@
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
 <!-- Shared pricing source of truth — required by the devis widget below. -->
 <script src="/lib/pricing.js" defer></script>
-<script src="script.js?v=20260927" defer></script>
+<script src="/script.js?v=20260929" defer></script>
 
 <script>
 // Stacked-card scroll reveal for the 4 "arguments techniques" cards —
