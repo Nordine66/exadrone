@@ -7,7 +7,7 @@ const { isAdminAuthenticated } = require('../../lib/admin-auth')
 // rewrites in vercel.json — the frontend is unchanged.
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, PATCH, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
@@ -20,7 +20,8 @@ module.exports = async (req, res) => {
     case 'prospects': return handleProspects(req, res, supabase)
     case 'emails': return handleEmails(req, res, supabase)
     case 'analytics': return handleAnalytics(req, res, supabase)
-    default: return res.status(400).json({ error: 'resource requis : stats, leads, agents, prospects, emails ou analytics' })
+    case 'exclusions': return handleExclusions(req, res, supabase)
+    default: return res.status(400).json({ error: 'resource requis : stats, leads, agents, prospects, emails, analytics ou exclusions' })
   }
 }
 
@@ -338,4 +339,71 @@ async function handleAnalytics(req, res, supabase) {
     devices30d: countBy(views30d || [], 'device_type'),
     recent: recent || []
   })
+}
+
+// ── exclusions (manual "pas intéressé" list — stops Hugo's relances) ──────────
+// Reuses the permanent `unsubscribes` table rather than a new status: Hugo
+// (handleFollowup), Chloé's send-batch and the CSV import already skip every
+// address in it, so excluding a mairie here needs no agent or schema change.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+async function handleExclusions(req, res, supabase) {
+  if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
+
+  if (req.method === 'GET') {
+    // Whole prospect list (small: a few hundred CSV rows) so the dashboard can
+    // search it instantly and accent-insensitively on the client. Paged by
+    // 1000 because that's PostgREST's per-request row cap on Supabase.
+    const prospects = []
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from('prospects')
+        .select('id, company_name, contact_name, email, industry, status')
+        .order('company_name', { ascending: true })
+        .range(from, from + 999)
+      if (error) return res.status(500).json({ error: error.message })
+      prospects.push(...(data || []))
+      if (!data || data.length < 1000) break
+    }
+    const { data: excluded, error } = await supabase
+      .from('unsubscribes').select('email, unsubscribed_at').order('unsubscribed_at', { ascending: false })
+    if (error) return res.status(500).json({ error: error.message })
+    return res.status(200).json({ prospects, excluded: excluded || [] })
+  }
+
+  const email = String((req.body || {}).email || '').trim().toLowerCase()
+  if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Email invalide' })
+
+  if (req.method === 'POST') {
+    const { error } = await supabase.from('unsubscribes').upsert({ email }, { onConflict: 'email' })
+    if (error) return res.status(500).json({ error: error.message })
+    await supabase.from('prospects').update({ status: 'unsubscribed' }).eq('email', email)
+    return res.status(200).json({ success: true })
+  }
+
+  if (req.method === 'DELETE') {
+    const { error } = await supabase.from('unsubscribes').delete().eq('email', email)
+    if (error) return res.status(500).json({ error: error.message })
+    // Put the prospect back where the sequence left off, from what was
+    // actually sent/received — so Hugo resumes at the right relance (or
+    // stays stopped if they had replied).
+    const { data: prospect } = await supabase.from('prospects').select('id').eq('email', email).maybeSingle()
+    if (prospect) {
+      const [{ data: sent }, { count: replies }] = await Promise.all([
+        supabase.from('outreach_emails').select('sequence_step').eq('prospect_id', prospect.id).eq('status', 'sent')
+          .order('sequence_step', { ascending: false }).limit(1),
+        supabase.from('email_replies').select('id', { count: 'exact', head: true }).eq('prospect_id', prospect.id)
+      ])
+      const lastStep = sent && sent.length ? sent[0].sequence_step : -1
+      const status = replies ? 'replied'
+        : lastStep >= 2 ? 'followup2_sent'
+        : lastStep === 1 ? 'followup1_sent'
+        : lastStep === 0 ? 'contacted'
+        : 'pending'
+      await supabase.from('prospects').update({ status }).eq('id', prospect.id)
+    }
+    return res.status(200).json({ success: true })
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' })
 }

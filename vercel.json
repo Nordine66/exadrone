@@ -64,6 +64,10 @@
       "destination": "/api/admin/dashboard?resource=analytics"
     },
     {
+      "source": "/api/admin/exclusions",
+      "destination": "/api/admin/dashboard?resource=exclusions"
+    },
+    {
       "source": "/api/agents/blog-writer",
       "destination": "/api/agents/tasks?agent=blog-writer"
     },
