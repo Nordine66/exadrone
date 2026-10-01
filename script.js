@@ -759,6 +759,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const droneShowcase = document.querySelector('.drone-showcase');
   if (droneCanvas && droneShowcase) {
     const DRONE_TOTAL_FRAMES = 150;
+    // Phones get a 506×608 WebP set and only every other frame (the
+    // nearest-loaded fallback in drawDroneFrame fills the gaps): ~2 MB
+    // instead of the ~9 MB full-res JPEG sequence — that sequence was most
+    // of the homepage's page weight in the SEO audit. Desktop keeps all
+    // 150 full-res frames, as WebP.
+    const droneIsSmall = window.matchMedia('(max-width: 768px)').matches;
+    const DRONE_FRAME_DIR = droneIsSmall ? 'drone4k-sm' : 'drone4k-webp';
+    const DRONE_FRAME_STEP = droneIsSmall ? 2 : 1;
     const droneCtx = droneCanvas.getContext('2d');
     const droneImages = [];
     let droneLastDrawn = -1;
@@ -842,6 +850,10 @@ document.addEventListener('DOMContentLoaded', () => {
       droneRanges = next;
     }
     for (let i = 0; i < DRONE_TOTAL_FRAMES; i++) droneEnqueue(i);
+    // Last frame stays in so the end of the scrub is exact.
+    const droneFilteredOrder = droneLoadOrder.filter((i) => i % DRONE_FRAME_STEP === 0 || i === DRONE_TOTAL_FRAMES - 1);
+    droneLoadOrder.length = 0;
+    droneLoadOrder.push(...droneFilteredOrder);
 
     const DRONE_LOAD_CONCURRENCY = 5;
     let droneLoadCursor = 0;
@@ -851,7 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const img = droneImages[i];
       img.addEventListener('load', () => { drawDroneFrame(droneLastProgressFrame(), false); startNextDroneLoad(); }, { once: true });
       img.addEventListener('error', () => startNextDroneLoad(), { once: true });
-      img.src = `/images/hero-frames/drone4k/drone4k_${String(i + 1).padStart(4, '0')}.jpg`;
+      img.src = `/images/hero-frames/${DRONE_FRAME_DIR}/drone4k_${String(i + 1).padStart(4, '0')}.webp`;
     };
     // Resolves to whatever frame the current scroll progress points at, so
     // a frame that finishes loading late still gets painted immediately if

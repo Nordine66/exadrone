@@ -7,6 +7,7 @@ const { isAgentBlocked } = require('../../lib/settings')
 const { sendManagedEmail } = require('../../lib/resend-send')
 const { outreachFooterHtml, chloeSignatureHtml } = require('../../lib/email-footer')
 const pricing = require('../../lib/pricing')
+const { SERVICE_PAGES } = require('../../lib/service-pages')
 
 const FROM_ADDRESS = 'chloe@exadrone-enterprise.com'
 // chloe@ isn't connected to an inbox anyone actually reads (no MX/inbound
@@ -18,6 +19,12 @@ const REPLY_TO = 'contact@exadrone-enterprise.com'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // Kept in sync with lib/pricing.js so blog prompts never quote a stale tarif.
+// Marco's list of linkable service pages — same source as the article
+// template's own service link (lib/service-pages.js).
+const SERVICE_PAGES_PROMPT = SERVICE_PAGES
+  .map(page => `  - ${page.path} : ${page.anchor} (sujets : ${page.keywords.slice(0, 5).join(', ')})`)
+  .join('\n')
+
 const BLOG_PRICE_TEXT = (() => {
   const cheapest = pricing.getCheapestService()
   const fmt = (n) => n.toFixed(2).replace('.', ',')
@@ -92,12 +99,14 @@ Contraintes SEO :
 - Mot-clé utilisé naturellement 4 à 6 fois dans le texte
 - Sous-titres H2 et H3 descriptifs et informatifs, jamais génériques ("Introduction", "Avantages")
 - Paragraphes courts (3-5 lignes max)
-- Mentionner au moins 2 services Exadrone (nettoyage façade, toiture, bardage, panneaux solaires photovoltaïques, cartographie, thermographie) avec 2 liens internes vers les pages /renovation-facade.html et /collectivites-territoriales.html. IMPORTANT : rédige l'ancre de chaque lien comme une phrase contextuelle naturelle et différente à chaque article (jamais le nom littéral de la page répété à l'identique d'un article à l'autre — varie la formulation selon le contexte de la phrase).
+- Mentionner au moins 2 services Exadrone et placer, DANS LE CORPS du texte, 2 liens internes vers les pages de service qui correspondent le mieux au sujet, choisies dans cette liste :
+${SERVICE_PAGES_PROMPT}
+  IMPORTANT : l'ancre de chaque lien nomme la prestation (ex. « nettoyage de toiture et démoussage », « prix du nettoyage de façade ») dans une phrase naturelle — jamais « en savoir plus », « cliquez ici » ni le nom de la page répété à l'identique d'un article à l'autre.
 - Chiffres concrets : ${BLOG_PRICE_TEXT}, devis adapté à toute taille de projet, réduction 30–50% vs échafaudage
 
 Ton : expert technique, pédagogique, rassurant pour décideurs publics et privés.
 
-Format de sortie : HTML valide avec uniquement h1, h2, h3, p, ul, li, strong, a (pas de html/head/body). Liens internes avec href="/renovation-facade.html" etc.
+Format de sortie : HTML valide avec uniquement h1, h2, h3, p, ul, li, strong, a (pas de html/head/body). Liens internes avec le chemin exact de la liste ci-dessus (ex. href="/nettoyage-toiture").
 
 Termine par ces 3 lignes exactes :
 SLUG:[kebab-case-max-60-chars]

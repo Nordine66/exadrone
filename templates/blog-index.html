@@ -114,7 +114,7 @@
   <section class="blog-main">
     <div class="blog-inner">
       <p class="eyebrow reveal" data-reveal>Blog</p>
-      <h1 class="blog-title reveal" data-reveal data-delay="1">Nettoyage, inspection et cartographie par drone</h1>
+      <h1 class="blog-title">Nettoyage, inspection et cartographie par drone</h1>
       <p class="blog-intro reveal" data-reveal data-delay="2">
         Guides pratiques pour les collectivités, les entreprises du BTP et les sociétés de rénovation de façade :
         nettoyage de toiture et de façade par drone, bardage, cartographie, photogrammétrie de chantier, inspection
@@ -484,6 +484,9 @@
           <span class="blog-card-link">Lire l'article →</span>
         </div>
       </a>
+      <!-- MARCO_ARTICLES — api/blog/content.js (resource=index) injects every
+           published article not already listed above, server-side, so new
+           articles are crawlable links the moment Marco publishes them. -->
       </div>
     </div>
   </section>
@@ -522,8 +525,10 @@
     </div>
 
     <div class="footer-col">
-      <span class="footer-col-title">Secteurs B2B</span>
+      <span class="footer-col-title">Prestations &amp; secteurs</span>
       <div class="footer-links">
+        <a href="/nettoyage-toiture">Nettoyage de toiture</a>
+        <a href="/nettoyage-facade">Nettoyage de façade</a>
         <a href="/collectivites-territoriales.html">Collectivités &amp; mairies</a>
         <a href="/entreprises-btp.html">Entreprises du BTP</a>
         <a href="/renovation-facade.html">Rénovation de façade</a>
@@ -573,7 +578,7 @@
   </svg>
 </a>
 
-<script src="/script.js?v=20260927" defer></script>
+<script src="/script.js?v=20261002" defer></script>
 <script>
 (function () {
   // Fetch Supabase-generated articles and merge with static cards, sorted newest first
