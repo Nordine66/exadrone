@@ -1,5 +1,10 @@
+const Anthropic = require('@anthropic-ai/sdk')
 const { getSupabase } = require('../../lib/supabase')
 const { isAdminAuthenticated } = require('../../lib/admin-auth')
+const { logActivity } = require('../../lib/activity')
+const { EMAIL_RE, excludeEmail, includeEmail } = require('../../lib/exclusions')
+const { findDuplicates } = require('../../lib/agent-tools')
+const DEVIS_EXAMPLE = require('../../lib/devis-example')
 
 // Consolidates agents/leads/prospects/stats into one function to stay under
 // Vercel Hobby's 12-serverless-function limit. Original URLs (/api/admin/agents,
@@ -21,7 +26,9 @@ module.exports = async (req, res) => {
     case 'emails': return handleEmails(req, res, supabase)
     case 'analytics': return handleAnalytics(req, res, supabase)
     case 'exclusions': return handleExclusions(req, res, supabase)
-    default: return res.status(400).json({ error: 'resource requis : stats, leads, agents, prospects, emails, analytics ou exclusions' })
+    case 'duplicates': return handleDuplicates(req, res, supabase)
+    case 'quotes': return handleQuotes(req, res, supabase)
+    default: return res.status(400).json({ error: 'resource requis : stats, leads, agents, prospects, emails, analytics, exclusions, duplicates ou quotes' })
   }
 }
 
@@ -206,8 +213,18 @@ async function handleAgentsPatch(req, res, supabase) {
     if (config) update.config = config
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Aucune modification fournie' })
     update.updated_at = new Date().toISOString()
+    // A config PATCH from the dashboard only carries the edited key (e.g.
+    // daily_limit) — merge it so it never wipes the agent's saved instructions.
+    if (config) {
+      const { data: current } = await supabase.from('agents').select('config').eq('slug', slug).single()
+      update.config = { ...(current?.config || {}), ...config }
+    }
     const { error } = await supabase.from('agents').update(update).eq('slug', slug)
     if (error) return res.status(500).json({ error: error.message })
+    await logActivity(supabase, {
+      agent: slug, kind: 'admin_action',
+      summary: `Nordine (dashboard) : ${status ? (status === 'paused' ? `${slug} mis(e) en pause` : `${slug} réactivé(e)`) : ''}${status && config ? ' · ' : ''}${config ? `réglage modifié ${JSON.stringify(config)}` : ''}`
+    })
     return res.status(200).json({ success: true })
   }
 
@@ -218,6 +235,10 @@ async function handleAgentsPatch(req, res, supabase) {
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Aucune modification fournie' })
     const { error } = await supabase.from('settings').update(update).eq('id', true)
     if (error) return res.status(500).json({ error: error.message })
+    await logActivity(supabase, {
+      kind: 'admin_action',
+      summary: `Nordine (dashboard) : ${typeof paused_all === 'boolean' ? (paused_all ? 'tous les agents mis en pause' : 'tous les agents réactivés') : ''}${typeof test_mode === 'boolean' ? `mode test ${test_mode ? 'activé (emails redirigés vers Nordine)' : 'désactivé (vrais envois)'}` : ''}`
+    })
     return res.status(200).json({ success: true })
   }
 
@@ -265,6 +286,7 @@ async function handleProspectsPatch(req, res, supabase) {
     .select('id')
 
   if (error) return res.status(500).json({ error: error.message })
+  await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: `Nordine (dashboard) : ${data?.length || 0} prospect(s) en attente passés en secteur « ${industryTag.trim()} »` })
   return res.status(200).json({ updated: data?.length || 0 })
 }
 
@@ -342,11 +364,7 @@ async function handleAnalytics(req, res, supabase) {
 }
 
 // ── exclusions (manual "pas intéressé" list — stops Hugo's relances) ──────────
-// Reuses the permanent `unsubscribes` table rather than a new status: Hugo
-// (handleFollowup), Chloé's send-batch and the CSV import already skip every
-// address in it, so excluding a mairie here needs no agent or schema change.
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
+// Logic shared with the agents' chat tools, see lib/exclusions.js.
 async function handleExclusions(req, res, supabase) {
   if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
 
@@ -371,39 +389,157 @@ async function handleExclusions(req, res, supabase) {
     return res.status(200).json({ prospects, excluded: excluded || [] })
   }
 
-  const email = String((req.body || {}).email || '').trim().toLowerCase()
-  if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Email invalide' })
+  const raw = String((req.body || {}).email || '').trim().toLowerCase()
+  if (!EMAIL_RE.test(raw)) return res.status(400).json({ error: 'Email invalide' })
 
-  if (req.method === 'POST') {
-    const { error } = await supabase.from('unsubscribes').upsert({ email }, { onConflict: 'email' })
-    if (error) return res.status(500).json({ error: error.message })
-    await supabase.from('prospects').update({ status: 'unsubscribed' }).eq('email', email)
-    return res.status(200).json({ success: true })
-  }
-
-  if (req.method === 'DELETE') {
-    const { error } = await supabase.from('unsubscribes').delete().eq('email', email)
-    if (error) return res.status(500).json({ error: error.message })
-    // Put the prospect back where the sequence left off, from what was
-    // actually sent/received — so Hugo resumes at the right relance (or
-    // stays stopped if they had replied).
-    const { data: prospect } = await supabase.from('prospects').select('id').eq('email', email).maybeSingle()
-    if (prospect) {
-      const [{ data: sent }, { count: replies }] = await Promise.all([
-        supabase.from('outreach_emails').select('sequence_step').eq('prospect_id', prospect.id).eq('status', 'sent')
-          .order('sequence_step', { ascending: false }).limit(1),
-        supabase.from('email_replies').select('id', { count: 'exact', head: true }).eq('prospect_id', prospect.id)
-      ])
-      const lastStep = sent && sent.length ? sent[0].sequence_step : -1
-      const status = replies ? 'replied'
-        : lastStep >= 2 ? 'followup2_sent'
-        : lastStep === 1 ? 'followup1_sent'
-        : lastStep === 0 ? 'contacted'
-        : 'pending'
-      await supabase.from('prospects').update({ status }).eq('id', prospect.id)
+  try {
+    if (req.method === 'POST') {
+      const email = await excludeEmail(supabase, raw)
+      await logActivity(supabase, { agent: 'hugo', kind: 'admin_action', summary: `Nordine (dashboard) : ${email} exclu(e) — plus de prospection ni de relance` })
+      return res.status(200).json({ success: true })
     }
-    return res.status(200).json({ success: true })
+    if (req.method === 'DELETE') {
+      const email = await includeEmail(supabase, raw)
+      await logActivity(supabase, { agent: 'hugo', kind: 'admin_action', summary: `Nordine (dashboard) : ${email} réintégré(e) dans la séquence` })
+      return res.status(200).json({ success: true })
+    }
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ── duplicates (same email sent twice to the same address) ────────────────────
+async function handleDuplicates(req, res, supabase) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
+  try {
+    return res.status(200).json(await findDuplicates(supabase))
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
+  }
+}
+
+// ── quotes (custom devis built in the dashboard "Devis" tab) ──────────────────
+// The devis itself is rendered and printed to PDF in the browser by
+// admin/devis-template.js; this endpoint stores the data model and asks the AI
+// for a first draft (or an edit) in that same model.
+async function handleQuotes(req, res, supabase) {
+  if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
+  const { id, action } = req.query || {}
+
+  if (req.method === 'GET') {
+    if (id) {
+      const { data, error } = await supabase.from('custom_quotes').select('*').eq('id', id).single()
+      if (error) return res.status(500).json({ error: error.message })
+      return res.status(200).json({ quote: data })
+    }
+    const { data, error } = await supabase.from('custom_quotes')
+      .select('id, number, client, title, total_ht, total_ttc, updated_at').order('updated_at', { ascending: false }).limit(200)
+    if (error) return res.status(500).json({ error: error.message, hint: 'Exécutez la migration 005 dans Supabase.' })
+    return res.status(200).json({ quotes: data || [] })
+  }
+
+  if (req.method === 'DELETE') {
+    if (!id) return res.status(400).json({ error: 'id requis' })
+    const { data, error } = await supabase.from('custom_quotes').delete().eq('id', id).select('number, client').single()
+    if (error) return res.status(500).json({ error: error.message })
+    await logActivity(supabase, { kind: 'quote_deleted', summary: `Devis ${data.number} (${data.client || '—'}) supprimé` })
+    return res.status(200).json({ success: true })
+  }
+
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  if (action === 'ai') return handleQuoteAi(req, res, supabase)
+
+  const { data: model, totals } = req.body || {}
+  if (!model || !model.number) return res.status(400).json({ error: 'Devis invalide (numéro requis)' })
+  const row = {
+    number: String(model.number).trim(),
+    client: model.client?.name || null,
+    title: model.objet?.title || null,
+    data: model,
+    total_ht: totals?.ht ?? null,
+    total_ttc: totals?.ttc ?? null,
+    updated_at: new Date().toISOString()
+  }
+  const query = id
+    ? supabase.from('custom_quotes').update(row).eq('id', id).select('id').single()
+    : supabase.from('custom_quotes').upsert(row, { onConflict: 'number' }).select('id').single()
+  const { data, error } = await query
+  if (error) return res.status(500).json({ error: error.message, hint: /custom_quotes/.test(error.message) ? 'Exécutez la migration 005 dans Supabase.' : undefined })
+  await logActivity(supabase, {
+    kind: 'quote_saved',
+    summary: `Devis ${row.number} enregistré — ${row.client || 'client ?'} — ${row.title || ''}${row.total_ht != null ? ` — ${Number(row.total_ht).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} € HT / ${Number(row.total_ttc).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} € TTC` : ''}`,
+    meta: { id: data.id, number: row.number }
+  })
+  return res.status(200).json({ id: data.id })
+}
+
+// Figures carry uploaded photos as data URLs — never send them to the model.
+function stripFigures(model) {
+  if (!model) return model
+  const { figures, ...rest } = model
+  return rest
+}
+
+const QUOTE_AI_SYSTEM = `Tu es l'assistant devis d'Exadrone Enterprise (nettoyage et traitement de toitures, façades et panneaux solaires par drone, clients : mairies et collectivités). Tu prépares des devis ultra-professionnels, au même niveau de détail, de ton et de structure que le devis de référence ci-dessous.
+
+Tu réponds UNIQUEMENT par un objet JSON valide (aucun texte autour, aucune balise markdown), avec exactement les mêmes clés que le devis de référence. Les champs texte peuvent contenir <strong>, <em> et <br>.
+
+Règles impératives :
+- Les prix, surfaces, remises et montants cibles donnés par Nordine sont contractuels : utilise-les exactement. Le total est calculé par l'application : somme(qty × pu) des lignes "mode":"price", moins remise.amountHT, TVA 20 %. Si Nordine fixe un total cible (HT ou TTC ; HT = TTC / 1,2 arrondi au centime), ajuste les forfaits ou la remise pour tomber EXACTEMENT dessus, en gardant des prix au m² cohérents et une remise réaliste (jamais une remise ridicule de quelques euros).
+- Lignes "mode" : "price" (facturée), "offert" ou "inclus" (affichées à 0 €, pu = 0). Structure habituelle : Lot 0 préparation (visite technique et préparation des vols offertes, balisage/protections facturé), un lot par bâtiment ou par passage, dernier lot finitions/réception/garantie (gouttières, repli et dossier inclus, réception & GARANTIE DE RÉSULTAT offerte).
+- La garantie de résultat est déjà rédigée par l'application : renseigne seulement garantie.objet (ex. « la toiture », « les toitures et les façades des deux bâtiments »), garantie.OBJ (ex. « TOITURE PROPRE »), garantie.mairie (nom de la commune) et garantie.limites (ce que le nettoyage ne peut pas corriger, adapté au bâtiment).
+- Produits ("products") : uniquement parmi "stopalg" (pré-traitement biosourcé des mousses/lichens/algues, toitures et façades), "decappierre" (taches de pollution sur pierre/façade, application manuelle), "protectguard" (hydrofuge/oléofuge, garantie fabricant 10 ans — seulement si un traitement hydrofuge est demandé), "antim48" (traitement préventif longue durée 1 à 3 ans). N'invente jamais d'autre propriété produit que celles connues (biosourcé 86 %, sans chlore, sans ammonium quaternaire, sans perturbateur endocrinien pour Stop'Alg ; etc.).
+- Monument historique : ajoute une ligne d'accompagnement du dossier d'autorisation (UDAP/DRAC), un encadré "highlight" sur la méthode adaptée au patrimoine, et précise que l'intervention commence après autorisation.
+- N'invente pas de défauts ou d'informations sur le bâtiment que Nordine n'a pas donnés : écris des constats prudents « à confirmer lors de la visite technique ». N'invente jamais de numéro d'assurance, de certification autre que BAPD/CATS, ni d'adresse : mets « [à compléter] » si une information manque.
+- Si des surfaces viennent de Google Earth, mentionne-le (état des lieux, note) et précise que la mesure est en projection horizontale et que le prix global est un maximum.
+- "figures" : laisse toujours un tableau vide [] (les photos sont ajoutées par Nordine).
+- "date" : ${'${TODAY}'} sauf indication contraire ; "number" au format EXA-AAAA-MMJJ-XXX (XXX = 3 lettres de la commune, ex. SEY).
+- Français irréprochable, ton institutionnel et rassurant pour une mairie.
+
+Devis de référence (structure à reproduire) :
+${'${EXAMPLE}'}`
+
+async function handleQuoteAi(req, res, supabase) {
+  const { brief, current } = req.body || {}
+  if (!brief || typeof brief !== 'string' || !brief.trim()) return res.status(400).json({ error: 'Décrivez le devis à préparer.' })
+
+  const today = new Date().toISOString().slice(0, 10)
+  const system = QUOTE_AI_SYSTEM.replace('${TODAY}', today).replace('${EXAMPLE}', JSON.stringify(DEVIS_EXAMPLE))
+  const userContent = current
+    ? `Voici le devis actuel (JSON) :
+${JSON.stringify(stripFigures(current))}
+
+Modification demandée par Nordine : ${brief}
+
+Renvoie le JSON complet mis à jour, sans rien changer d'autre que ce qui est demandé (et ce qui en découle : totaux, montants cités dans les textes, KPI).`
+    : `Prépare un nouveau devis à partir de ces informations de Nordine :
+${brief}`
+
+  try {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 12000,
+      system,
+      messages: [{ role: 'user', content: userContent }]
+    })
+    const raw = response.content.filter(b => b.type === 'text').map(b => b.text).join('')
+    const jsonText = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)
+    let model
+    try { model = JSON.parse(jsonText) } catch (e) {
+      return res.status(502).json({ error: "L'IA a renvoyé un devis illisible — relancez la génération.", raw: raw.slice(0, 2000) })
+    }
+    if (!Array.isArray(model.lots)) return res.status(502).json({ error: "Le devis généré n'a pas de lots — relancez la génération." })
+    if (current?.figures) model.figures = current.figures
+    else if (!Array.isArray(model.figures)) model.figures = []
+    await logActivity(supabase, { kind: 'quote_ai', summary: `${current ? 'Devis modifié' : 'Brouillon de devis généré'} par l'IA : ${model.number || ''} — ${model.client?.name || ''} — demande : « ${brief.slice(0, 140)} »` })
+    return res.status(200).json({ data: model })
+  } catch (e) {
+    console.error('Quote AI error:', e)
+    return res.status(500).json({ error: e.message })
+  }
 }

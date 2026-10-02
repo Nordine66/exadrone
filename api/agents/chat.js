@@ -1,7 +1,9 @@
 const Anthropic = require('@anthropic-ai/sdk')
 const { createClient } = require('@supabase/supabase-js')
 const { Resend } = require('resend')
-const { isAgentBlocked } = require('../../lib/settings')
+const { isAgentBlocked, getAgent } = require('../../lib/settings')
+const { instructionsPromptBlock } = require('../../lib/agent-memory')
+const { logActivity } = require('../../lib/activity')
 const pricing = require('../../lib/pricing')
 
 // In-memory rate limit (resets on cold start — sufficient for 10 msg/min protection)
@@ -104,6 +106,9 @@ module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
 
+  // Standing instructions Nordine gave Victoria from the dashboard chat.
+  const victoriaAgent = await getAgent(supabase, 'victoria')
+
   let fullText = ''
   let streamedLength = 0
   let leadDataSent = false
@@ -112,7 +117,7 @@ module.exports = async (req, res) => {
     const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-5',
       max_tokens: 400,
-      system: SYSTEM_PROMPT,
+      system: SYSTEM_PROMPT + instructionsPromptBlock(victoriaAgent),
       messages: messages.map(m => ({ role: m.role, content: m.content }))
     })
 
@@ -180,6 +185,12 @@ module.exports = async (req, res) => {
               break
             } catch (e) { if (attempt === 1) console.error('Conversation save error:', e) }
           }
+
+          await logActivity(supabase, {
+            agent: 'victoria', kind: 'lead_captured',
+            summary: `Demande captée sur le chat (${score}) : ${leadData.company || leadData.name || 'visiteur'} — ${leadData.project_type || 'projet ?'}${leadData.surface_m2 ? `, ${leadData.surface_m2} m²` : ''}${leadData.email ? ` <${leadData.email}>` : ''}`,
+            meta: { leadId }
+          })
 
           // Hot lead email notification
           if (score === 'hot') {

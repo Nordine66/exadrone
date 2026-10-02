@@ -6,6 +6,15 @@
     },
     "api/blog/content.js": {
       "includeFiles": "templates/**"
+    },
+    "api/admin/dashboard.js": {
+      "maxDuration": 300
+    },
+    "api/agents/console-chat.js": {
+      "maxDuration": 300
+    },
+    "api/agents/tasks.js": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -84,6 +93,14 @@
     {
       "source": "/api/admin/exclusions",
       "destination": "/api/admin/dashboard?resource=exclusions"
+    },
+    {
+      "source": "/api/admin/duplicates",
+      "destination": "/api/admin/dashboard?resource=duplicates"
+    },
+    {
+      "source": "/api/admin/quotes",
+      "destination": "/api/admin/dashboard?resource=quotes"
     },
     {
       "source": "/api/agents/blog-writer",

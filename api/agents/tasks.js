@@ -8,6 +8,8 @@ const { sendManagedEmail } = require('../../lib/resend-send')
 const { outreachFooterHtml, chloeSignatureHtml } = require('../../lib/email-footer')
 const pricing = require('../../lib/pricing')
 const { SERVICE_PAGES } = require('../../lib/service-pages')
+const { logActivity } = require('../../lib/activity')
+const { instructionsPromptBlock } = require('../../lib/agent-memory')
 
 const FROM_ADDRESS = 'chloe@exadrone-enterprise.com'
 // chloe@ isn't connected to an inbox anyone actually reads (no MX/inbound
@@ -17,6 +19,53 @@ const FROM_ADDRESS = 'chloe@exadrone-enterprise.com'
 // land somewhere a human sees it, so Reply-To points at contact@ instead.
 const REPLY_TO = 'contact@exadrone-enterprise.com'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const normEmail = (email) => String(email || '').trim().toLowerCase()
+
+// Every address that already received a successfully sent email at this
+// sequence step (0 = Chloé's first contact, 1-2 = Hugo's relances), compared
+// case-insensitively. Built from the send log itself rather than prospect
+// statuses, so a prospect re-imported or reset to "pending" can never get the
+// same email twice. Paged by 1000 (PostgREST's per-request row cap).
+async function sentEmailSet(supabase, step) {
+  const set = new Set()
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('outreach_emails').select('prospects(email)')
+      .eq('status', 'sent').eq('sequence_step', step)
+      .range(from, from + 999)
+    if (error) throw new Error(`Send log fetch error: ${error.message}`)
+    ;(data || []).forEach(row => { if (row.prospects?.email) set.add(normEmail(row.prospects.email)) })
+    if (!data || data.length < 1000) break
+  }
+  return set
+}
+
+// Atomically moves a prospect from one status to the next and reports whether
+// THIS run won it. Two overlapping runs (the 8:15 cron and a click on "Envoyer
+// le prochain lot", or a double click) both read the same pending rows; only
+// one conditional update can succeed per row, so only one of them sends.
+async function claimProspect(supabase, id, fromStatus, toStatus) {
+  const { data, error } = await supabase
+    .from('prospects').update({ status: toStatus })
+    .eq('id', id).eq('status', fromStatus).select('id')
+  if (error) throw new Error(`Claim error: ${error.message}`)
+  return !!(data && data.length)
+}
+
+// recipient_email arrives with migration 005 — fall back to the old shape so a
+// send is never left unlogged (an unlogged send is exactly what lets a
+// duplicate through on the next run) if the migration hasn't been run yet.
+async function insertOutreachEmail(supabase, row) {
+  const { error } = await supabase.from('outreach_emails').insert(row)
+  if (error && row.recipient_email !== undefined && /recipient_email/.test(error.message)) {
+    const { recipient_email, ...legacyRow } = row
+    const { error: retryError } = await supabase.from('outreach_emails').insert(legacyRow)
+    if (retryError) console.error('Outreach log insert failed:', retryError.message)
+  } else if (error) {
+    console.error('Outreach log insert failed:', error.message)
+  }
+}
 
 // Kept in sync with lib/pricing.js so blog prompts never quote a stale tarif.
 // Marco's list of linkable service pages — same source as the article
@@ -66,6 +115,7 @@ async function handleBlogWriter(req, res) {
   if (await isAgentBlocked(supabase, 'marco')) {
     return res.status(200).json({ message: 'Marco est en pause — aucun article généré.' })
   }
+  const marcoAgent = await getAgent(supabase, 'marco')
 
   try {
     const { data: topics, error: topicError } = await supabase
@@ -111,7 +161,7 @@ Format de sortie : HTML valide avec uniquement h1, h2, h3, p, ul, li, strong, a 
 Termine par ces 3 lignes exactes :
 SLUG:[kebab-case-max-60-chars]
 META:[meta description 130-155 caractères incluant le mot-clé — jamais vide, cette ligne est obligatoire]
-TITLE:[titre H1 exact, 45-55 caractères]`
+TITLE:[titre H1 exact, 45-55 caractères]${instructionsPromptBlock(marcoAgent)}`
 
     let articleRaw = ''
     let attempts = 0
@@ -187,6 +237,11 @@ TITLE:[titre H1 exact, 45-55 caractères]`
       .eq('id', topic.id)
 
     const wordCount = contentHtml.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length
+    await logActivity(supabase, {
+      agent: 'marco', kind: 'article_published',
+      summary: `Article publié : « ${article.title} » (/blog/${article.slug}, ${wordCount} mots, mot-clé « ${topic.target_keyword} »)`,
+      meta: { slug: article.slug }
+    })
 
     return res.status(200).json({
       success: true,
@@ -238,7 +293,8 @@ async function handleFollowup(req, res) {
   const cutoff = new Date(Date.now() - delayDays * 24 * 60 * 60 * 1000)
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-  const results = { followup1: 0, followup2: 0, failed: 0, skippedUnsubscribed: 0 }
+  const results = { followup1: 0, followup2: 0, failed: 0, skippedUnsubscribed: 0, skippedDuplicate: 0, skippedAlreadyClaimed: 0 }
+  const recipients = []
 
   const steps = [
     { fromStatus: 'contacted', toStatus: 'followup1_sent', step: 1 },
@@ -248,29 +304,48 @@ async function handleFollowup(req, res) {
   for (const { fromStatus, toStatus, step } of steps) {
     const { data: prospects, error } = await supabase
       .from('prospects')
-      .select('*, outreach_emails(sequence_step, sent_at, subject, email_message_id)')
+      .select('*, outreach_emails(sequence_step, sent_at, subject, email_message_id, status)')
       .eq('status', fromStatus)
 
     if (error) { console.error('Hugo fetch error:', error); continue }
 
+    const alreadySent = await sentEmailSet(supabase, step)
+    const seenThisRun = new Set()
+
     for (const prospect of prospects || []) {
-      const sends = (prospect.outreach_emails || []).slice().sort((a, b) => a.sequence_step - b.sequence_step)
+      const sends = (prospect.outreach_emails || []).filter(s => s.status === 'sent').sort((a, b) => a.sequence_step - b.sequence_step)
       if (!sends.length) continue
       const lastSend = sends[sends.length - 1]
       if (new Date(lastSend.sent_at) > cutoff) continue // not due yet
 
-      const { data: unsub } = await supabase.from('unsubscribes').select('email').eq('email', prospect.email).maybeSingle()
+      const email = normEmail(prospect.email)
+      const { data: unsub } = await supabase.from('unsubscribes').select('email').eq('email', email).maybeSingle()
       if (unsub) {
         await supabase.from('prospects').update({ status: 'unsubscribed' }).eq('id', prospect.id)
         results.skippedUnsubscribed++
         continue
       }
 
+      // This address already received this relance (another row, another run):
+      // advance the status so it isn't picked up again, but never resend.
+      if (alreadySent.has(email) || seenThisRun.has(email)) {
+        await supabase.from('prospects').update({ status: toStatus }).eq('id', prospect.id).eq('status', fromStatus)
+        results.skippedDuplicate++
+        continue
+      }
+      seenThisRun.add(email)
+
+      if (!(await claimProspect(supabase, prospect.id, fromStatus, toStatus))) {
+        results.skippedAlreadyClaimed++
+        continue
+      }
+
+      let sent = false
       try {
         const draft = await anthropic.messages.create({
           model: 'claude-sonnet-4-5',
           max_tokens: 350,
-          system: followupSystemPrompt(step),
+          system: followupSystemPrompt(step) + instructionsPromptBlock(agent),
           messages: [{
             role: 'user',
             content: `Prospect : ${prospect.company_name} (${prospect.contact_name || 'contact inconnu'}, secteur : ${prospect.industry || 'inconnu'}). Objet du premier email : "${sends[0].subject || ''}".`
@@ -286,7 +361,7 @@ async function handleFollowup(req, res) {
         const sendResult = await sendManagedEmail({
           settings,
           from: FROM_ADDRESS,
-          to: prospect.email,
+          to: email,
           subject,
           html: fullHtml,
           replyTo: REPLY_TO,
@@ -295,8 +370,9 @@ async function handleFollowup(req, res) {
             ...(referenceIds.length ? { 'In-Reply-To': referenceIds[referenceIds.length - 1], References: referenceIds.join(' ') } : {})
           }
         })
+        sent = true
 
-        await supabase.from('outreach_emails').insert({
+        await insertOutreachEmail(supabase, {
           prospect_id: prospect.id,
           agent_slug: 'hugo',
           sequence_step: step,
@@ -304,18 +380,31 @@ async function handleFollowup(req, res) {
           body_html: fullHtml,
           resend_message_id: sendResult.messageId,
           email_message_id: newMessageId,
+          recipient_email: email,
           status: 'sent'
         })
-        await supabase.from('prospects').update({ status: toStatus }).eq('id', prospect.id)
         results[`followup${step}`]++
+        recipients.push(`${prospect.company_name} <${email}> (relance ${step})`)
       } catch (e) {
-        console.error(`Hugo followup error for ${prospect.email}:`, e)
-        await supabase.from('outreach_emails').insert({
-          prospect_id: prospect.id, agent_slug: 'hugo', sequence_step: step, status: 'failed'
+        console.error(`Hugo followup error for ${email}:`, e)
+        // Only hand the prospect back if nothing went out — a sent relance
+        // whose log insert failed must stay claimed, or it would go out twice.
+        if (!sent) await supabase.from('prospects').update({ status: fromStatus }).eq('id', prospect.id).eq('status', toStatus)
+        await insertOutreachEmail(supabase, {
+          prospect_id: prospect.id, agent_slug: 'hugo', sequence_step: step, recipient_email: email, status: 'failed'
         })
         results.failed++
       }
     }
+  }
+
+  const total = results.followup1 + results.followup2
+  if (total || results.failed || results.skippedDuplicate) {
+    await logActivity(supabase, {
+      agent: 'hugo', kind: 'followup_run',
+      summary: `Relances : ${results.followup1} relance(s) n°1 et ${results.followup2} relance(s) n°2 envoyées, ${results.failed} échec(s), ${results.skippedDuplicate} doublon(s) évité(s)${recipients.length ? ` — ${recipients.slice(0, 15).join(', ')}${recipients.length > 15 ? '…' : ''}` : ''}`,
+      meta: { ...results, recipients }
+    })
   }
 
   return res.status(200).json(results)
@@ -518,6 +607,12 @@ async function handleImport(req, res, supabase) {
     inserted = data.length
   }
 
+  await logActivity(supabase, {
+    agent: 'chloe', kind: 'prospects_import',
+    summary: `Import CSV${batchName ? ` « ${batchName} »` : ''} : ${inserted} prospect(s) ajouté(s), ${candidates.length - toInsert.length} adresse(s) déjà connue(s) ou désinscrite(s) ignorée(s), ${rejected} ligne(s) rejetée(s)`,
+    meta: { batchName, inserted, rejected }
+  })
+
   return res.status(200).json({
     imported: inserted,
     duplicates: candidates.length - toInsert.length,
@@ -551,26 +646,46 @@ async function handleSendBatch(req, res, supabase) {
   const unsubscribedSet = new Set((freshUnsubs || []).map(u => u.email))
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  const results = { sent: 0, failed: 0, skippedUnsubscribed: 0 }
+  const results = { sent: 0, failed: 0, skippedUnsubscribed: 0, skippedDuplicate: 0, skippedAlreadyClaimed: 0 }
+  const recipients = []
   // Bcc Nordine on the first real send of each batch so he sees a live example
   // of what Chloé is sending without slowing down or duplicating the rest.
   let bccPending = !!process.env.NOTIFICATION_EMAIL
 
+  // Addresses that already got a first email (any prospect row, any past run)
+  // plus the ones handled earlier in this run: an address is contacted once.
+  const alreadyContacted = await sentEmailSet(supabase, 0)
+  const seenThisRun = new Set()
+
   for (const prospect of prospects) {
-    if (unsubscribedSet.has(prospect.email)) {
+    const email = normEmail(prospect.email)
+    if (unsubscribedSet.has(prospect.email) || unsubscribedSet.has(email)) {
       await supabase.from('prospects').update({ status: 'unsubscribed' }).eq('id', prospect.id)
       results.skippedUnsubscribed++
       continue
     }
 
+    if (alreadyContacted.has(email) || seenThisRun.has(email)) {
+      await supabase.from('prospects').update({ status: 'contacted' }).eq('id', prospect.id).eq('status', 'pending')
+      results.skippedDuplicate++
+      continue
+    }
+    seenThisRun.add(email)
+
+    if (!(await claimProspect(supabase, prospect.id, 'pending', 'contacted'))) {
+      results.skippedAlreadyClaimed++
+      continue
+    }
+
+    let sent = false
     try {
       const draft = await anthropic.messages.create({
         model: 'claude-sonnet-4-5',
         max_tokens: 500,
-        system: isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
+        system: (isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
           : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
           : isMairieProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE
-          : CHLOE_EMAIL_SYSTEM_PROMPT,
+          : CHLOE_EMAIL_SYSTEM_PROMPT) + instructionsPromptBlock(agent),
         messages: [{
           role: 'user',
           content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}`
@@ -586,16 +701,19 @@ async function handleSendBatch(req, res, supabase) {
       const sendResult = await sendManagedEmail({
         settings,
         from: FROM_ADDRESS,
-        to: prospect.email,
+        to: email,
         subject,
         html: fullHtml,
         replyTo: REPLY_TO,
         headers: { 'Message-ID': emailMessageId },
-        bcc: bccPending ? process.env.NOTIFICATION_EMAIL : undefined
+        // Never Bcc the inbox the email is already going to (test mode
+        // redirects to NOTIFICATION_EMAIL; resend-send.js drops it there too).
+        bcc: bccPending && normEmail(process.env.NOTIFICATION_EMAIL) !== email ? process.env.NOTIFICATION_EMAIL : undefined
       })
+      sent = true
       bccPending = false
 
-      await supabase.from('outreach_emails').insert({
+      await insertOutreachEmail(supabase, {
         prospect_id: prospect.id,
         agent_slug: 'chloe',
         sequence_step: 0,
@@ -603,21 +721,31 @@ async function handleSendBatch(req, res, supabase) {
         body_html: fullHtml,
         resend_message_id: sendResult.messageId,
         email_message_id: emailMessageId,
+        recipient_email: email,
         status: 'sent'
       })
-      await supabase.from('prospects').update({ status: 'contacted' }).eq('id', prospect.id)
       results.sent++
+      recipients.push(`${prospect.company_name} <${email}>`)
     } catch (e) {
-      console.error(`Chloé send error for ${prospect.email}:`, e)
-      await supabase.from('outreach_emails').insert({
+      console.error(`Chloé send error for ${email}:`, e)
+      // Hand the prospect back to the queue only if nothing went out.
+      if (!sent) await supabase.from('prospects').update({ status: 'pending' }).eq('id', prospect.id).eq('status', 'contacted')
+      await insertOutreachEmail(supabase, {
         prospect_id: prospect.id,
         agent_slug: 'chloe',
         sequence_step: 0,
+        recipient_email: email,
         status: 'failed'
       })
       results.failed++
     }
   }
+
+  await logActivity(supabase, {
+    agent: 'chloe', kind: 'outreach_batch',
+    summary: `Lot de prospection${settings.test_mode ? ' (mode test, redirigé vers Nordine)' : ''} : ${results.sent} email(s) envoyé(s), ${results.failed} échec(s), ${results.skippedDuplicate} doublon(s) évité(s), ${results.skippedUnsubscribed} désinscrit(s) ignoré(s)${recipients.length ? ` — ${recipients.slice(0, 15).join(', ')}${recipients.length > 15 ? '…' : ''}` : ''}`,
+    meta: { ...results, recipients }
+  })
 
   return res.status(200).json(results)
 }
