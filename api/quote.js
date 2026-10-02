@@ -4,6 +4,7 @@ const { sendManagedEmail } = require('../lib/resend-send')
 const { escapeHtml } = require('../lib/http')
 const { buildQuotePdf } = require('../lib/quote-pdf')
 const pricing = require('../lib/pricing')
+const { logActivity } = require('../lib/activity')
 
 // Victoria is the persona that "generates instant quotes" per her system
 // prompt (lib/agent-personas.js) — the devis email is her reply to the
@@ -176,6 +177,11 @@ module.exports = async (req, res) => {
       source: 'devis_instantane',
       score: 'hot',
       status: 'new'
+    })
+    await logActivity(supabase, {
+      agent: 'victoria', kind: 'web_quote',
+      summary: `Devis instantané ${quote.number} envoyé depuis le site à ${String(company).trim() || String(name).trim() || trimmedEmail || 'un visiteur'} — ${linesSummary} — ${pricing.formatCurrency(quote.totalTTC)} TTC`,
+      meta: { number: quote.number }
     })
   } catch (e) {
     console.error('Quote lead insert failed:', e)

@@ -280,6 +280,62 @@
     .csv-hint code{font-family:var(--font-mono);background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:.72rem}
     input[type="file"].file-input{font-size:.78rem;color:var(--muted)}
 
+    /* Agent chat: actions performed by the agent */
+    .chat-action{font-family:var(--font-mono);font-size:.72rem;color:var(--sky);background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);border-radius:8px;padding:5px 9px;margin-bottom:6px}
+    .chat-action.done::before{content:'✓ ';color:var(--green)}
+
+    /* Duplicate check (Emails tab) */
+    .dup-result{margin-top:12px;font-size:.84rem;line-height:1.6}
+    .dup-ok{color:var(--green)}
+    .dup-warn{color:var(--orange)}
+
+    /* Devis tab */
+    .dv-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+    .dv-status{font-size:.8rem;color:var(--muted);font-family:var(--font-mono)}
+    .dv-status[data-kind="error"]{color:var(--red)}
+    .dv-status[data-kind="ok"]{color:var(--green)}
+    .dv-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:18px;align-items:start}
+    .dv-editor{max-height:calc(100vh - 190px);overflow-y:auto;padding-right:6px;display:grid;gap:12px}
+    .dv-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg)}
+    .dv-card summary{padding:14px 18px;cursor:pointer;font-family:var(--font);font-weight:700;font-size:.92rem;list-style:none}
+    .dv-card summary::-webkit-details-marker{display:none}
+    .dv-card summary::after{content:'▾';float:right;color:var(--muted)}
+    .dv-card[open] summary{border-bottom:1px solid var(--border)}
+    .dv-card-body{padding:14px 18px;display:grid;gap:10px}
+    .dv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .dv-field{display:flex;flex-direction:column;gap:4px;font-size:.74rem;color:var(--muted);font-family:var(--font-mono)}
+    .dv-field.wide{grid-column:1/-1}
+    .dv-field small,.dv-hint{font-size:.7rem;color:var(--muted2);font-family:var(--font-body)}
+    .dv-editor input,.dv-editor textarea,.dv-editor select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:.82rem;font-family:var(--font-body);outline:none}
+    .dv-editor textarea{resize:vertical;line-height:1.45}
+    .dv-editor input:focus,.dv-editor textarea:focus{border-color:rgba(59,130,246,.5)}
+    .dv-lot,.dv-sub{border:1px solid var(--border);border-radius:10px;padding:10px;display:grid;gap:8px;background:rgba(255,255,255,.015)}
+    .dv-lot-head{display:flex;gap:8px;align-items:center}
+    .dv-lot-head input{font-weight:700}
+    .dv-line{display:grid;grid-template-columns:34px 1fr;gap:8px;padding-top:8px;border-top:1px dashed var(--border)}
+    .dv-line-ref{font-family:var(--font-mono);color:var(--sky);font-size:.78rem;padding-top:9px}
+    .dv-line-main{display:grid;gap:6px}
+    .dv-line-nums{display:grid;grid-template-columns:72px 76px 86px 96px 1fr auto;gap:6px;align-items:end}
+    .dv-line-nums label{display:flex;flex-direction:column;gap:3px;font-size:.66rem;color:var(--muted);font-family:var(--font-mono)}
+    .dv-line-total{font-family:var(--font-mono);font-size:.8rem;text-align:right;padding-bottom:9px;color:var(--text)}
+    .dv-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .dv-kpis>div{display:grid;gap:4px}
+    .dv-imgs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .dv-img{display:grid;gap:5px;align-content:start}
+    .dv-img img,.dv-img-empty{width:100%;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
+    .dv-img-empty{display:flex;align-items:center;justify-content:center;color:var(--muted2);font-size:.72rem;background:var(--surface2)}
+    .dv-img input[type=file]{font-size:.7rem;padding:4px}
+    .dv-products{display:grid;gap:8px}
+    .dv-products label{display:flex;gap:8px;align-items:baseline;font-size:.84rem}
+    .dv-products input{width:auto}
+    .dv-products small{color:var(--muted);font-size:.72rem}
+    .dv-preview-wrap{position:sticky;top:86px}
+    .dv-totals{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--font-mono);font-size:.76rem;color:var(--muted);margin-bottom:10px}
+    .dv-totals b{color:var(--text)}
+    .dv-preview{background:#525a66;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border)}
+    .dv-preview iframe{width:820px;height:1160px;border:0;background:#fff;transform-origin:top left;display:block}
+    @media (max-width: 1200px){ .dv-layout{grid-template-columns:1fr} .dv-preview-wrap{position:static} .dv-editor{max-height:none} }
+
     @media (max-width: 900px){
       .app-shell{flex-direction:column}
       .sidebar{width:100%;height:auto;position:sticky;flex-direction:row;align-items:center;padding:10px 14px;gap:14px}
@@ -326,6 +382,10 @@
         <button class="tab nav-item active" data-tab="agents">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 16h.01"/><path d="M16 16h.01"/></svg>
           Agents
+        </button>
+        <button class="tab nav-item" data-tab="devis">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6"/><path d="M9 11h2"/><path d="M12 18h3"/></svg>
+          Devis
         </button>
         <button class="tab nav-item" data-tab="overview">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
@@ -392,6 +452,9 @@
 
           <div class="agents-grid" id="agents-grid"><div class="empty-state"><span class="spinner"></span></div></div>
         </div>
+
+        <!-- DEVIS TAB — built by admin/devis-editor.js -->
+        <div class="tab-content" id="tab-devis"></div>
 
         <!-- OVERVIEW TAB -->
         <div class="tab-content" id="tab-overview">
@@ -561,6 +624,12 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
 
         <!-- EMAILS TAB (Chloé + Hugo) -->
         <div class="tab-content" id="tab-emails">
+          <div class="csv-upload-card">
+            <h2 class="csv-upload-title">🔁 Contrôle des doublons</h2>
+            <p class="csv-hint">Vérifie dans tout l'historique si une même adresse a reçu plusieurs fois le même email (premier contact ou relance). Depuis le correctif, chaque prospect est réservé avant l'envoi et chaque adresse est comparée à l'historique : un doublon ne peut plus partir.</p>
+            <button class="btn-primary btn-sm" id="dup-check-btn">Vérifier maintenant</button>
+            <div class="dup-result" id="dup-result"></div>
+          </div>
           <div class="table-wrap">
             <div class="table-head">
               <span class="table-head-title">Tous les emails envoyés</span>
@@ -726,6 +795,7 @@ authInput.addEventListener('keydown', e => { if (e.key === 'Enter') authBtn.clic
 // ── Tabs / navigation ───────────────────────────────────────────────────────
 const TAB_META = {
   agents: { title: 'Agents IA', subtitle: 'Supervisez Victoria, Marco, Chloé et Hugo' },
+  devis: { title: 'Devis personnalisés', subtitle: "Décrivez le devis à l'IA, ajustez, ajoutez vos photos, téléchargez le PDF" },
   overview: { title: "Vue d'ensemble", subtitle: 'Activité commerciale récente' },
   leads: { title: 'Leads', subtitle: 'Toutes les demandes de devis reçues sur le site' },
   prospects: { title: 'Prospects', subtitle: 'Campagnes de prospection à froid de Chloé' },
@@ -756,6 +826,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (name === 'blog' && !isFresh('blog')) loadBlog()
     if (name === 'emails' && !isFresh('emails')) loadEmails()
     if (name === 'analytics' && !isFresh('analytics')) loadAnalytics()
+    if (name === 'devis' && window.DevisEditor) window.DevisEditor.open()
   })
 })
 
@@ -943,10 +1014,14 @@ function loadChatHistory(slug) {
   API('/api/agents/console-chat?agent_slug=' + slug).then(data => {
     const msgs = data.messages || []
     if (!msgs.length) {
-      el.innerHTML = `<div class="chat-msg assistant">Bonjour, je suis ${esc(AGENT_META[slug].name)}. Posez-moi une question sur mon activité ou donnez-moi une instruction.</div>`
+      el.innerHTML = `<div class="chat-msg assistant">Bonjour, je suis ${esc(AGENT_META[slug].name)}. Je suis connecté(e) à l'activité du site : posez-moi une question sur ce qui s'est passé, demandez-moi une action ou donnez-moi une consigne durable.</div>`
       return
     }
-    el.innerHTML = msgs.map(m => `<div class="chat-msg ${m.role}">${esc(m.content)}</div>`).join('')
+    el.innerHTML = msgs.map(m => {
+      const [text, actions] = String(m.content).split('\n\n— Actions effectuées : ')
+      const chips = actions ? actions.split(' · ').map(a => `<div class="chat-action done">${esc(a)}</div>`).join('') : ''
+      return `<div class="chat-msg ${m.role}">${chips}${esc(text)}</div>`
+    }).join('')
     el.scrollTop = el.scrollHeight
   })
 }
@@ -987,6 +1062,10 @@ async function sendChatMessage() {
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let buffer = '', assistantText = ''
+    const actionsEl = document.createElement('div')
+    const textEl = document.createElement('div')
+    bubble.append(actionsEl, textEl)
+    textEl.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:1.5px"></span>'
 
     while (true) {
       const { done, value } = await reader.read()
@@ -1000,8 +1079,10 @@ async function sendChatMessage() {
         if (payload === '[DONE]') continue
         try {
           const data = JSON.parse(payload)
-          if (data.text) { assistantText += data.text; bubble.textContent = assistantText; el.scrollTop = el.scrollHeight }
-          if (data.error) bubble.textContent = data.error
+          if (data.status) { actionsEl.insertAdjacentHTML('beforeend', `<div class="chat-action done">${esc(data.status)}</div>`); el.scrollTop = el.scrollHeight }
+          if (data.text) { assistantText += data.text; textEl.textContent = assistantText; el.scrollTop = el.scrollHeight }
+          if (data.actions) { tabCache.agents = 0; loadAgents() }
+          if (data.error) textEl.textContent = data.error
         } catch (_) {}
       }
     }
@@ -1212,6 +1293,17 @@ document.querySelectorAll('.email-filter-btn').forEach(btn => {
   })
 })
 
+document.getElementById('dup-check-btn').addEventListener('click', () => {
+  const el = document.getElementById('dup-result')
+  el.innerHTML = '<span class="spinner"></span>'
+  API('/api/admin/duplicates').then(data => {
+    if (data.error) { el.innerHTML = `<span class="dup-warn">Erreur : ${esc(data.error)}</span>`; return }
+    if (!data.doublons.length) { el.innerHTML = `<span class="dup-ok">✓ Aucun doublon sur ${data.emails_envoyes_au_total} emails envoyés.</span>`; return }
+    el.innerHTML = `<span class="dup-warn">${data.adresses_touchees_en_double} adresse(s) ont reçu le même email plusieurs fois (envois passés, avant le correctif) :</span><ul style="margin:8px 0 0 18px">` +
+      data.doublons.map(d => `<li><strong>${esc(d.commune_ou_entreprise || '—')}</strong> — ${esc(d.email)} · ${esc(d.etape)} · ${d.nombre_envois} envois (${d.dates.map(esc).join(', ')})</li>`).join('') + '</ul>'
+  }).catch(() => { el.innerHTML = '<span class="dup-warn">Erreur réseau.</span>' })
+})
+
 // ── Visiteurs du site (mesure d'audience interne) ────────────────────────────────
 function loadAnalytics() {
   API('/api/admin/analytics').then(data => {
@@ -1277,15 +1369,23 @@ document.getElementById('csv-import-btn').addEventListener('click', () => {
   }).catch(() => { statusEl.textContent = 'Erreur réseau.' })
 })
 
+// Locked while a batch runs (it takes minutes: one AI-written email per
+// prospect) — a second click used to start a parallel batch on the same
+// prospects. The server now refuses to send twice anyway (see tasks.js).
 document.getElementById('send-batch-btn').addEventListener('click', () => {
+  const btn = document.getElementById('send-batch-btn')
   const statusEl = document.getElementById('csv-import-status')
-  statusEl.textContent = 'Envoi du prochain lot…'
+  if (btn.disabled) return
+  btn.disabled = true
+  btn.textContent = 'Envoi en cours…'
+  statusEl.textContent = 'Envoi du prochain lot… (plusieurs minutes, ne fermez pas cette page)'
   API('/api/agents/outreach?action=send-batch', { method: 'POST' }).then(data => {
     if (data.error) { statusEl.textContent = 'Erreur : ' + data.error; return }
-    statusEl.textContent = data.reason ? data.reason : `✓ ${data.sent} emails envoyés (${data.failed || 0} échecs, ${data.skippedUnsubscribed || 0} désinscrits ignorés).`
+    statusEl.textContent = data.reason ? data.reason : `✓ ${data.sent} emails envoyés (${data.failed || 0} échecs, ${data.skippedDuplicate || 0} doublons évités, ${data.skippedUnsubscribed || 0} désinscrits ignorés).`
     loadProspects()
     loadAgents()
   }).catch(() => { statusEl.textContent = 'Erreur réseau.' })
+    .finally(() => { btn.disabled = false; btn.textContent = 'Envoyer le prochain lot' })
 })
 
 document.querySelectorAll('.retag-quick-btn').forEach(btn => {
@@ -1445,5 +1545,7 @@ function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt
 function fmtDate(iso) { if (!iso) return '—'; return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
 function scoreLabel(s) { return s === 'hot' ? '🔥 Chaud' : s === 'warm' ? '🌡️ Tiède' : '❄️ Froid' }
 </script>
+<script src="/admin/devis-template.js"></script>
+<script src="/admin/devis-editor.js"></script>
 </body>
 </html>

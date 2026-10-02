@@ -13,6 +13,7 @@ const { getSupabase } = require('../../lib/supabase')
 const { getSettings } = require('../../lib/settings')
 const { sendManagedEmail } = require('../../lib/resend-send')
 const { getRawBody, escapeHtml } = require('../../lib/http')
+const { logActivity } = require('../../lib/activity')
 
 module.exports.config = { api: { bodyParser: false } }
 
@@ -64,6 +65,12 @@ module.exports = async (req, res) => {
     subject,
     snippet: bodyText.slice(0, 500),
     raw: data
+  })
+
+  await logActivity(supabase, {
+    agent: prospect ? 'chloe' : null, kind: 'reply_received',
+    summary: `Réponse reçue de ${fromEmail}${prospect ? ' (prospect — relances de Hugo arrêtées)' : ''} : « ${subject} » — ${bodyText.slice(0, 160).replace(/\s+/g, ' ')}`,
+    meta: { from: fromEmail, to: toEmail }
   })
 
   // Replicate the human-visibility role ImprovMX used to play: always forward a copy,
