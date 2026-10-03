@@ -5,7 +5,7 @@ const { logActivity } = require('../../lib/activity')
 const { EMAIL_RE, excludeEmail, includeEmail } = require('../../lib/exclusions')
 const { findDuplicates } = require('../../lib/agent-tools')
 const DEVIS_EXAMPLE = require('../../lib/devis-example')
-const { scanZone, analyzeBuilding, findContact, roofEmailPhoto, photoFor } = require('../../lib/roofs')
+const { scanZone, analyzeBuilding, findContact, screenBuildings, roofEmailPhoto, photoFor } = require('../../lib/roofs')
 
 // Consolidates agents/leads/prospects/stats into one function to stay under
 // Vercel Hobby's 12-serverless-function limit. Original URLs (/api/admin/agents,
@@ -570,7 +570,8 @@ async function handleRoofPhoto(req, res, supabase) {
 // ── roofs (dashboard "Toitures" tab, logic in lib/roofs.js) ──────────────────────
 const ROOF_STATUSES = ['nouveau', 'a_contacter', 'contacte', 'rdv', 'devis', 'gagne', 'perdu', 'ignore']
 const ROOF_EDITABLE = ['status', 'notes', 'contact_company', 'contact_name', 'contact_email', 'contact_phone']
-const ROOF_MIGRATION_HINT = (msg) => /website|contact_search/.test(msg || '') ? 'Exécutez la migration 007 dans Supabase.'
+const ROOF_MIGRATION_HINT = (msg) => /screen_score|screen_lichen|screened_at/.test(msg || '') ? 'Exécutez la migration 008 dans Supabase.'
+  : /website|contact_search/.test(msg || '') ? 'Exécutez la migration 007 dans Supabase.'
   : /roof_leads|context/.test(msg || '') ? 'Exécutez la migration 006 dans Supabase.' : undefined
 const withPhoto = (row) => ({ ...row, photo: photoFor(row) })
 
@@ -579,7 +580,7 @@ async function handleRoofs(req, res, supabase) {
   const { id, action } = req.query || {}
 
   if (req.method === 'GET') {
-    const { data, error } = await supabase.from('roof_leads').select('*')
+    const { data, error } = await supabase.from('roof_leads').select('*').not('analyzed_at', 'is', null)
       .order('score', { ascending: false, nullsFirst: false }).order('area_m2', { ascending: false }).limit(500)
     if (error) return res.status(500).json({ error: error.message, hint: ROOF_MIGRATION_HINT(error.message) })
     return res.status(200).json({ roofs: (data || []).map(withPhoto) })
@@ -619,6 +620,37 @@ async function handleRoofs(req, res, supabase) {
       total: result.total,
       roofs: result.buildings.map(b => withPhoto(known.get(b.osm_id) || b))
     })
+  }
+
+  // Quick AI screening, 9 roofs per call. Roofs already screened or analysed
+  // are returned as stored, never re-billed.
+  if (action === 'screen') {
+    const buildings = Array.isArray(req.body?.buildings) ? req.body.buildings.slice(0, 9) : []
+    if (!buildings.length) return res.status(400).json({ error: 'Aucun toit à trier' })
+    const { data: known, error: e1 } = await supabase.from('roof_leads').select('*').in('osm_id', buildings.map(b => b.osm_id))
+    if (e1) return res.status(500).json({ error: e1.message, hint: ROOF_MIGRATION_HINT(e1.message) })
+    const done = new Map((known || []).filter(r => r.screened_at || r.analyzed_at).map(r => [r.osm_id, r]))
+    const todo = buildings.filter(b => !done.has(b.osm_id))
+    let rows = []
+    if (todo.length) {
+      let results
+      try {
+        results = await screenBuildings(todo)
+      } catch (e) {
+        console.error('Roof screening error:', e)
+        return res.status(502).json({ error: e.message })
+      }
+      const now = new Date().toISOString()
+      const upserts = todo.map((b, k) => ({
+        osm_id: b.osm_id, name: b.name || null, usage: b.usage || null, area_m2: Math.round(b.area_m2),
+        lat: b.lat, lon: b.lon, rings: b.rings,
+        screen_score: results[k].screen_score, screen_lichen: results[k].screen_lichen, screened_at: now, updated_at: now
+      }))
+      const { data, error } = await supabase.from('roof_leads').upsert(upserts, { onConflict: 'osm_id' }).select('*')
+      if (error) return res.status(500).json({ error: error.message, hint: ROOF_MIGRATION_HINT(error.message) })
+      rows = data || []
+    }
+    return res.status(200).json({ roofs: [...done.values(), ...rows].map(withPhoto) })
   }
 
   if (action === 'analyze') {

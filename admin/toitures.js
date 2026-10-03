@@ -99,7 +99,8 @@
   root.innerHTML = `
     <div class="tt-toolbar">
       <input class="tt-input" id="tt-search" placeholder="Ville, adresse ou zone d'activités (ex. « Rivesaltes », « ZI Nord Narbonne »)…">
-      <button class="tt-btn" id="tt-go">Aller</button>
+      <button class="tt-btn" id="tt-go" title="Centrer la carte sur ce lieu">Aller</button>
+      <button class="btn-primary btn-sm" id="tt-city" title="Tous les toits de 800 m² et plus de la commune">Scanner toute la ville</button>
       <div class="tt-seg" id="tt-view">
         <button data-view="scan" class="on">Zone de la carte</button>
         <button data-view="saved">Mes toitures</button>
@@ -113,8 +114,16 @@
       <span class="tt-status" id="tt-zone"></span>
     </div>
     <div class="tt-actions" id="tt-batch" style="display:none">
-      <span id="tt-count" style="font-size:.84rem"></span>
+      <span id="tt-count" style="font-size:.84rem;flex-basis:100%"></span>
+      <b style="font-size:.8rem">1. Tri rapide</b>
+      <button class="tt-btn" id="tt-screen" title="L'IA note les toits 9 par 9 sur une planche photo : beaucoup moins cher que l'analyse détaillée">Trier les toits</button>
+      <span class="tt-mini" id="tt-screen-cost" style="margin:0"></span>
+      <span style="flex-basis:100%;height:0"></span>
+      <b style="font-size:.8rem">2. Analyse détaillée</b>
       <select id="tt-n">
+        <option value="s7">Toits notés 7/10 et + au tri</option>
+        <option value="s6">Toits notés 6/10 et + au tri</option>
+        <option value="s5">Toits notés 5/10 et + au tri</option>
         <option value="5">5 plus grands toits</option>
         <option value="10">10 plus grands</option>
         <option value="20" selected>20 plus grands</option>
@@ -122,6 +131,7 @@
         <option value="0">Tous</option>
       </select>
       <button class="btn-primary btn-sm" id="tt-analyze">Analyser</button>
+      <span class="tt-mini" id="tt-analyze-cost" style="margin:0"></span>
       <button class="tt-btn tt-btn-danger" id="tt-stop" style="display:none">Arrêter</button>
       <div class="tt-progress"><div id="tt-bar"></div></div>
     </div>
@@ -200,7 +210,10 @@
     const km = (deg, lat) => (deg * 111.32 * (lat ? 1 : Math.cos((z.north + z.south) / 2 * Math.PI / 180))).toFixed(1)
     const size = `${km(z.east - z.west, false)} × ${km(z.north - z.south, true)} km`
     const el = $('tt-zone')
-    if (zoneTooBig(z)) { el.textContent = `Zone affichée : ${size} — trop grande, zoomez (6 km max.)`; el.dataset.kind = 'error' }
+    if (zoneTooBig(z)) {
+      el.textContent = state.city ? `Ville entière scannée : ${state.city.nom} — pour un secteur précis, zoomez (6 km max.)` : `Zone affichée : ${size} — trop grande, zoomez (6 km max.) ou utilisez « Scanner toute la ville »`
+      el.dataset.kind = state.city ? '' : 'error'
+    }
     else { el.textContent = `Zone affichée : ${size}`; el.dataset.kind = '' }
     $('tt-scan').disabled = zoneTooBig(z) || state.running
   }
@@ -218,7 +231,8 @@
     updateZoneLabel()
   }
 
-  const scoreColor = (r) => r.score == null ? '#38bdf8' : r.score >= 7 ? '#f87171' : r.score >= 4 ? '#fb923c' : '#34d399'
+  const shownScore = (r) => r.score ?? r.screen_score ?? null
+  const scoreColor = (r) => shownScore(r) == null ? '#38bdf8' : shownScore(r) >= 7 ? '#f87171' : shownScore(r) >= 4 ? '#fb923c' : '#34d399'
 
   function drawPolygons(roofs) {
     if (!state.map) return
@@ -226,9 +240,9 @@
     state.polygons.clear()
     for (const r of roofs) {
       const poly = window.L.polygon(r.rings.map(ring => ring.map(([lon, lat]) => [lat, lon])), {
-        color: scoreColor(r), weight: 2, fillOpacity: r.score == null ? 0.15 : 0.35
+        color: scoreColor(r), weight: 2, fillOpacity: r.score != null ? 0.35 : 0.15, dashArray: r.score == null && r.screen_score != null ? '4 3' : null
       })
-      poly.bindTooltip(`${r.area_m2.toLocaleString('fr-FR')} m²${r.score != null ? ` — saleté ${r.score}/10` : ''}`)
+      poly.bindTooltip(`${r.area_m2.toLocaleString('fr-FR')} m²${r.score != null ? ` — saleté ${r.score}/10` : r.screen_score != null ? ` — tri rapide ${r.screen_score}/10` : ''}`)
       poly.on('click', () => focusCard(r.osm_id))
       poly.addTo(state.layer)
       state.polygons.set(r.osm_id, poly)
@@ -275,6 +289,8 @@
     const zone = zoneOfMap()
     if (zoneTooBig(zone)) return
     state.view = 'scan'; syncViewButtons()
+    state.city = null
+    if (state.cityLayer) { state.cityLayer.remove(); state.cityLayer = null }
     $('tt-scan').disabled = true
     setStatus('Recherche des bâtiments de 800 m² et plus dans la zone…')
     try {
@@ -307,12 +323,161 @@
     return data
   }
 
-  async function analyzeBatch() {
-    const n = Number($('tt-n').value)
-    const todo = state.scan.filter(r => !r.analyzed_at).slice(0, n || undefined)
-    if (!todo.length) return setStatus('Tous ces toits sont déjà analysés.', 'ok')
+  // ── Whole-town scan + quick screening ──────────────────────────────────────
+  const MAX_CARDS = 120
+  const COST_ANALYSIS = 0.025   // € per detailed analysis (estimate)
+  const COST_SCREEN = 0.025     // € per 9-roof screening grid (estimate)
+  const TILE = { lat: 0.04, lon: 0.055 }
+  const euros = (v) => `${v < 1 ? v.toFixed(2) : v.toFixed(1)} €`.replace('.', ',')
+  const strip = (r) => ({ osm_id: r.osm_id, name: r.name, usage: r.usage, area_m2: r.area_m2, lat: r.lat, lon: r.lon, rings: r.rings })
+
+  function analysisTodo() {
+    const v = $('tt-n').value
+    const pool = state.scan.filter(r => !r.analyzed_at)
+    if (v.startsWith('s')) {
+      const min = Number(v.slice(1))
+      return pool.filter(r => r.screen_score >= min).sort((a, b) => b.screen_score - a.screen_score || b.area_m2 - a.area_m2)
+    }
+    const n = Number(v)
+    return pool.slice().sort((a, b) => b.area_m2 - a.area_m2).slice(0, n || undefined)
+  }
+
+  function updateBatchBar() {
+    const n = state.scan.length
+    const analysed = state.scan.filter(r => r.analyzed_at).length
+    const screened = state.scan.filter(r => r.screened_at || r.analyzed_at).length
+    const toScreen = state.scan.filter(r => !r.analyzed_at && !r.screened_at).length
+    const dirty = state.scan.filter(r => (r.score ?? r.screen_score ?? 0) >= 6).length
+    $('tt-count').textContent = `${state.city ? `${state.city.nom} (${state.city.dep}) · ` : ''}${n} toits de 800 m² et + · ${screened} triés · ${analysed} analysés en détail${screened ? ` · ${dirty} notés 6/10 et +` : ''}`
+    $('tt-screen').disabled = !toScreen || state.running
+    $('tt-screen').textContent = toScreen ? `Trier les ${toScreen} toits` : 'Tous les toits sont triés'
+    $('tt-screen-cost').textContent = toScreen ? `≈ ${euros(Math.ceil(toScreen / 9) * COST_SCREEN)} (estimation)` : ''
+    const todo = analysisTodo()
+    $('tt-analyze').disabled = !todo.length || state.running
+    $('tt-analyze').textContent = todo.length ? `Analyser ${todo.length} toit(s)` : 'Analyser'
+    $('tt-analyze-cost').textContent = todo.length ? `≈ ${euros(todo.length * COST_ANALYSIS)} (estimation)` : ''
+  }
+
+  function pointInRings(lon, lat, rings) {
+    let inside = false
+    for (const ring of rings) {
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i], [xj, yj] = ring[j]
+        if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside
+      }
+    }
+    return inside
+  }
+  const inCommune = (lon, lat, polygons) => polygons.some(rings => pointInRings(lon, lat, rings))
+
+  async function cityScan() {
+    let q = $('tt-search').value.trim()
+    if (q.length < 2) return setStatus('Tapez le nom de la ville (ex. « Narbonne » ou « Saint-Cyprien 66 »).', 'error')
+    if (state.running) return
+    const dep = (q.match(/\s(\d{2}|2A|2B|97\d)$/i) || [])[1]
+    if (dep) q = q.slice(0, -dep.length).trim()
+    state.view = 'scan'; syncViewButtons()
+    setStatus(`Recherche de la commune « ${q} »…`)
+    let commune
+    try {
+      const res = await fetch(`https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(q)}${dep ? `&codeDepartement=${dep.toUpperCase()}` : ''}&fields=nom,code,codeDepartement,population,contour&format=json&geometry=contour&boost=population&limit=1`)
+      commune = (await res.json())[0]
+    } catch (e) { /* handled below */ }
+    if (!commune?.contour) return setStatus(`Commune « ${q} » introuvable. Vérifiez l'orthographe, ou ajoutez le département (ex. « Saint-Cyprien 66 »).`, 'error')
+
+    const polygons = commune.contour.type === 'Polygon' ? [commune.contour.coordinates] : commune.contour.coordinates
+    const pts = polygons.flat(2)
+    const box = { west: Math.min(...pts.map(p => p[0])), east: Math.max(...pts.map(p => p[0])), south: Math.min(...pts.map(p => p[1])), north: Math.max(...pts.map(p => p[1])) }
+    const tiles = []
+    for (let s = box.south; s < box.north; s += TILE.lat) {
+      for (let w = box.west; w < box.east; w += TILE.lon) {
+        const t = { south: s, west: w, north: Math.min(s + TILE.lat, box.north), east: Math.min(w + TILE.lon, box.east) }
+        const touches = pts.some(([x, y]) => x >= t.west && x <= t.east && y >= t.south && y <= t.north) ||
+          [[t.west, t.south], [t.east, t.south], [t.west, t.north], [t.east, t.north], [(t.west + t.east) / 2, (t.south + t.north) / 2]].some(([x, y]) => inCommune(x, y, polygons))
+        if (touches) tiles.push(t)
+      }
+    }
+
+    state.city = { nom: commune.nom, dep: commune.codeDepartement, code: commune.code }
+    state.scan = []
+    if (state.cityLayer) state.cityLayer.remove()
+    state.cityLayer = window.L.geoJSON(commune.contour, { style: { color: '#a78bfa', weight: 2, fill: false, dashArray: '6 4' }, interactive: false }).addTo(state.map)
+    state.map.fitBounds(state.cityLayer.getBounds())
+
     state.running = true; state.stop = false
-    $('tt-analyze').disabled = true; $('tt-stop').style.display = ''; updateZoneLabel()
+    $('tt-city').disabled = true; $('tt-stop').style.display = ''; updateZoneLabel()
+    const seen = new Set()
+    let failed = 0, done = 0
+    for (const zone of tiles) {
+      if (state.stop) break
+      let data = null
+      for (let attempt = 0; attempt < 2 && !data; attempt++) {
+        const r = await API('/api/admin/roofs?action=scan', { method: 'POST', body: JSON.stringify({ zone }) }).catch(e => ({ error: e.message }))
+        if (!r.error) data = r
+        else if (r.hint) { setStatus(`${r.error} — ${r.hint}`, 'error'); state.stop = true }
+      }
+      done++
+      if (!data) { failed++; continue }
+      for (const roof of data.roofs) {
+        if (seen.has(roof.osm_id) || !inCommune(roof.lon, roof.lat, polygons)) continue
+        seen.add(roof.osm_id)
+        state.scan.push(roof)
+      }
+      $('tt-bar').style.width = `${Math.round(done / tiles.length * 100)}%`
+      setStatus(`Scan de ${commune.nom} : secteur ${done}/${tiles.length} — ${state.scan.length} toits de 800 m² et + trouvés…`)
+      render()
+    }
+    state.running = false
+    $('tt-city').disabled = false; $('tt-stop').style.display = 'none'; updateZoneLabel()
+    const n = state.scan.length
+    const toScreen = state.scan.filter(r => !r.analyzed_at && !r.screened_at).length
+    setStatus(`${commune.nom} : ${n} toits de 800 m² et + trouvés${failed ? ` (${failed} secteur(s) en échec : relancez pour compléter)` : ''}. ${toScreen ? `Étape 1 : « Trier les ${toScreen} toits » (≈ ${euros(Math.ceil(toScreen / 9) * COST_SCREEN)}), puis analysez en détail les plus sales.` : 'Tous déjà triés : passez à l\'analyse détaillée.'}`, failed ? 'error' : 'ok')
+    $('tt-n').value = toScreen < n ? 's6' : '20'
+    render()
+  }
+
+  async function screenAll() {
+    const todo = state.scan.filter(r => !r.analyzed_at && !r.screened_at).sort((a, b) => b.area_m2 - a.area_m2)
+    if (!todo.length) return
+    const grids = []
+    for (let i = 0; i < todo.length; i += 9) grids.push(todo.slice(i, i + 9))
+    if (!confirm(`Tri rapide de ${todo.length} toit(s) en ${grids.length} planche(s) de 9.\nCoût estimé : ≈ ${euros(grids.length * COST_SCREEN)} sur vos crédits Anthropic.\n\nChaque toit n'est trié qu'une seule fois. Continuer ?`)) return
+    state.running = true; state.stop = false
+    $('tt-stop').style.display = ''; updateZoneLabel(); render()
+    let done = 0, failed = 0
+    const queue = grids.slice()
+    async function worker() {
+      while (queue.length && !state.stop) {
+        const grid = queue.shift()
+        const data = await API('/api/admin/roofs?action=screen', { method: 'POST', body: JSON.stringify({ buildings: grid.map(strip) }) }).catch(e => ({ error: e.message }))
+        if (data.error) {
+          failed++
+          setStatus(data.error + (data.hint ? ` — ${data.hint}` : ''), 'error')
+          if (data.hint) state.stop = true
+        } else {
+          for (const roof of data.roofs) replaceRoof(roof)
+        }
+        done++
+        $('tt-bar').style.width = `${Math.round(done / grids.length * 100)}%`
+        if (!data.error) setStatus(`Tri rapide : planche ${done}/${grids.length}${failed ? ` — ${failed} échec(s)` : ''}…`)
+        render()
+      }
+    }
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker))
+    state.running = false
+    $('tt-stop').style.display = 'none'; updateZoneLabel()
+    const dirty = state.scan.filter(r => (r.score ?? r.screen_score ?? 0) >= 6).length
+    $('tt-n').value = 's6'
+    setStatus(`${state.stop ? 'Tri arrêté' : 'Tri terminé'} : ${dirty} toit(s) notés 6/10 et plus${failed ? `, ${failed} planche(s) en échec (relancez le tri pour les compléter)` : ''}. Étape 2 : analysez-les en détail pour avoir le diagnostic, le propriétaire et les occupants.`, failed ? 'error' : 'ok')
+    render()
+  }
+
+  async function analyzeBatch() {
+    const todo = analysisTodo()
+    if (!todo.length) return setStatus($('tt-n').value.startsWith('s') ? 'Aucun toit non analysé avec cette note au tri (lancez le tri rapide, ou baissez le seuil).' : 'Tous ces toits sont déjà analysés.', 'ok')
+    if (todo.length > 10 && !confirm(`Analyse détaillée de ${todo.length} toit(s) : coût estimé ≈ ${euros(todo.length * COST_ANALYSIS)} sur vos crédits Anthropic. Continuer ?`)) return
+    state.running = true; state.stop = false
+    $('tt-analyze').disabled = true; $('tt-stop').style.display = ''; updateZoneLabel(); render()
     let done = 0, failed = 0
     const bar = $('tt-bar')
     const queue = todo.slice()
@@ -329,7 +494,7 @@
     }
     await Promise.all(Array.from({ length: CONCURRENCY }, worker))
     state.running = false
-    $('tt-analyze').disabled = false; $('tt-stop').style.display = 'none'; updateZoneLabel()
+    $('tt-stop').style.display = 'none'; updateZoneLabel()
     setStatus(`${state.stop ? 'Arrêté' : 'Terminé'} : ${done - failed} toit(s) analysé(s)${failed ? `, ${failed} échec(s) (relancez « Analyser » pour réessayer)` : ''}. Les plus sales sont en haut.`, failed ? 'error' : 'ok')
     render()
   }
@@ -353,7 +518,7 @@
 
   // ── Rendering ─────────────────────────────────────────────────────────────
   function sorted(list) {
-    return list.slice().sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.area_m2 - a.area_m2)
+    return list.slice().sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || (b.screen_score ?? -1) - (a.screen_score ?? -1) || b.area_m2 - a.area_m2)
   }
 
   function filtered(list) {
@@ -464,7 +629,7 @@
             ${r.status && r.status !== 'nouveau' ? `<span class="badge badge-new">${esc(STATUS_LABEL[r.status] || r.status)}</span>` : ''}
           </div>
           <div class="tt-diag">${esc(r.diagnostic)}</div>`
-        : `<div class="tt-badges">${isPending
+        : `<div class="tt-badges">${r.screen_score != null ? `<span class="badge ${r.screen_score >= 7 ? 'badge-hot' : r.screen_score >= 4 ? 'badge-warm' : 'badge-cold'}" title="Note du tri rapide (planche de 9 toits) : à confirmer par l'analyse détaillée">Tri rapide ${r.screen_score}/10${r.screen_lichen ? ' · mousse' : ''}</span>` : ''}${isPending
           ? '<span class="tt-pending"><span class="spinner"></span> Analyse en cours (photo, IA, propriétaire)…</span>'
           : `<button class="tt-btn" data-act="analyze" data-osm="${esc(r.osm_id)}">Analyser ce toit</button>`}</div>`}
         ${ownersHtml(r)}
@@ -488,16 +653,13 @@
     const all = current()
     $('tt-batch').style.display = state.view === 'scan' && state.scan.length ? '' : 'none'
     $('tt-scan').parentElement.style.display = state.view === 'scan' ? '' : 'none'
-    if (state.view === 'scan' && state.scan.length) {
-      const left = state.scan.filter(r => !r.analyzed_at).length
-      $('tt-count').textContent = `${state.scan.length} toits · ${left} à analyser`
-    }
+    if (state.view === 'scan' && state.scan.length) updateBatchBar()
     drawPolygons(all)
     // Keep what Nordine is typing when a background analysis re-renders the list
     const focused = document.activeElement?.closest?.('.tt-card')
     if (focused && root.contains(focused)) return
     $('tt-list').innerHTML = list.length
-      ? list.map(cardHtml).join('')
+      ? list.slice(0, MAX_CARDS).map(cardHtml).join('') + (list.length > MAX_CARDS ? `<div class="tt-empty">+ ${list.length - MAX_CARDS} autres toits moins prioritaires (tous visibles sur la carte). Lancez le tri puis l'analyse : les plus sales remontent en haut.</div>` : '')
       : `<div class="tt-empty">${all.length ? 'Aucun toit ne correspond aux filtres.' : state.view === 'saved' ? 'Aucune toiture analysée pour le moment.' : "Déplacez la carte sur une zone d'activités, puis cliquez sur « Scanner la zone affichée »."}</div>`
   }
 
@@ -770,8 +932,12 @@ Règles impératives :
   // ── Events ────────────────────────────────────────────────────────────────
   $('tt-go').addEventListener('click', search)
   $('tt-search').addEventListener('keydown', e => { if (e.key === 'Enter') search() })
+  $('tt-search').placeholder = "Ville (ex. « Narbonne », « Saint-Cyprien 66 ») ou adresse…"
   $('tt-scan').addEventListener('click', scan)
   $('tt-analyze').addEventListener('click', analyzeBatch)
+  $('tt-screen').addEventListener('click', screenAll)
+  $('tt-city').addEventListener('click', cityScan)
+  $('tt-n').addEventListener('change', () => render())
   $('tt-stop').addEventListener('click', () => { state.stop = true; setStatus('Arrêt après les analyses en cours…') })
   $('tt-f-priority').addEventListener('change', e => { state.filter.priority = e.target.value; render() })
   $('tt-f-status').addEventListener('change', e => { state.filter.status = e.target.value; render() })
