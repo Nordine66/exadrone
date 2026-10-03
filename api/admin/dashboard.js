@@ -690,6 +690,34 @@ async function handleRoofs(req, res, supabase) {
     return res.status(200).json({ roof: withPhoto(result.roof) })
   }
 
+  // Emails Nordine found himself (free research file re-imported from the
+  // "Démarchage" view). Only non-empty cells overwrite what is stored.
+  if (action === 'contacts-import') {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows.slice(0, 500) : []
+    if (!rows.length) return res.status(400).json({ error: 'Fichier vide.' })
+    const updated = []
+    const errors = []
+    for (const row of rows) {
+      if (!/^[0-9a-f-]{36}$/i.test(String(row.id || ''))) continue
+      const patch = {}
+      const email = String(row.contact_email || '').trim().toLowerCase().replace(/^mailto:/, '')
+      if (email) {
+        if (!EMAIL_RE.test(email)) { errors.push(`Email invalide : ${email}`); continue }
+        patch.contact_email = email
+      }
+      for (const k of ['contact_company', 'contact_name', 'contact_phone', 'website', 'notes']) {
+        const v = String(row[k] || '').trim()
+        if (v) patch[k] = v.slice(0, 2000)
+      }
+      if (!Object.keys(patch).length) continue
+      patch.updated_at = new Date().toISOString()
+      const { data, error } = await supabase.from('roof_leads').update(patch).eq('id', row.id).select('*').maybeSingle()
+      if (error) errors.push(error.message)
+      else if (data) updated.push(withPhoto(data))
+    }
+    return res.status(200).json({ updated, errors })
+  }
+
   if (action === 'prospect-bulk') {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.slice(0, 200) : []
     if (!ids.length) return res.status(400).json({ error: 'Cochez au moins une toiture.' })

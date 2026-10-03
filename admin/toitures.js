@@ -144,8 +144,17 @@
           <select id="tt-o-min"><option value="4">4/10</option><option value="5">5/10</option><option value="6" selected>6/10</option><option value="7">7/10</option><option value="8">8/10</option></select></label>
         <label style="font-size:.82rem;color:var(--muted);display:flex;gap:6px;align-items:center"><input type="checkbox" id="tt-o-hide-sent" checked> Masquer ceux déjà transmis</label>
         <span style="flex:1"></span>
-        <button class="tt-btn" id="tt-o-search">Trouver les emails manquants</button>
-        <button class="btn-primary btn-sm" id="tt-o-send">Envoyer à Chloé</button>
+        <button class="tt-btn" id="tt-o-export" title="Fichier Excel / Google Sheets avec toutes les infos gratuites pour trouver les emails">1. Exporter le fichier de recherche</button>
+        <button class="tt-btn" id="tt-o-import" title="Réimporte le fichier une fois les colonnes Email / Contact remplies">2. Importer les emails trouvés</button>
+        <input type="file" id="tt-o-file" accept=".csv,text/csv" style="display:none">
+        <button class="btn-primary btn-sm" id="tt-o-send">3. Envoyer à Chloé</button>
+      </div>
+      <div class="tt-actions" style="padding:8px 14px">
+        <span class="tt-mini" style="margin:0">Faire remplir le fichier par une IA gratuite (avec accès au web) :</span>
+        <button class="tt-btn" id="tt-o-prompt">Copier les consignes pour l'IA</button>
+        <span style="flex:1"></span>
+        <span class="tt-mini" style="margin:0">Option payante :</span>
+        <button class="tt-btn" id="tt-o-search">Recherche auto par IA</button>
       </div>
       <div class="tt-actions" id="tt-o-progress-wrap" style="display:none">
         <span id="tt-o-progress-label" style="font-size:.82rem"></span>
@@ -395,7 +404,7 @@
 
   function foundHtml(r) {
     const cs = r.contact_search
-    const btn = contactPending.has(r.id) ? '' : `<button class="tt-btn" data-act="contact" data-id="${r.id}">${cs ? "Relancer la recherche d'email" : "Trouver l'email (recherche web)"}</button>`
+    const btn = contactPending.has(r.id) ? '' : `<button class="tt-btn" data-act="contact" data-id="${r.id}">${cs ? "Relancer la recherche IA (payant)" : "Recherche IA de l'email (payant)"}</button>`
     if (!cs) return `<div class="tt-form-actions" style="margin:4px 0 6px">${btn} ${emailBadge(r)}</div>`
     return `<div class="tt-found">
       <b>${esc(cs.company || '—')}</b>${cs.website ? ` · <a href="${esc(cs.website)}" target="_blank" rel="noopener">${esc(cs.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a>` : ''}
@@ -516,9 +525,9 @@
     }
     for (const id of [...selected]) if (!rows.some(r => r.id === id && sendable(r))) selected.delete(id)
     const missing = rows.filter(r => !r.prospect_id && !r.contact_search && !r.contact_email).length
-    $('tt-o-search').textContent = missing ? `Trouver les emails manquants (${missing})` : 'Trouver les emails manquants'
+    $('tt-o-search').textContent = missing ? `Recherche auto par IA — payant (${missing})` : 'Recherche auto par IA — payant'
     $('tt-o-search').disabled = !missing || state.running
-    $('tt-o-send').textContent = `Envoyer à Chloé (${selected.size})`
+    $('tt-o-send').textContent = `3. Envoyer à Chloé (${selected.size})`
     $('tt-o-send').disabled = !selected.size || state.running
 
     const focused = document.activeElement?.closest?.('#tt-o-rows')
@@ -531,12 +540,12 @@
           <b style="color:${scoreColor(r)}">${r.score}/10</b> · ${r.area_m2.toLocaleString('fr-FR')} m²
           <div class="tt-mini">${esc(r.address || r.commune || '')}</div>
           <div class="tt-mini">${esc((r.diagnostic || '').slice(0, 110))}${(r.diagnostic || '').length > 110 ? '…' : ''}</div></td>
-        <td style="min-width:180px"><input type="text" data-k="contact_company" value="${esc(r.contact_company || '')}" placeholder="Entreprise">
+        <td style="min-width:180px"><input type="text" data-k="contact_company" value="${esc(r.contact_company || '')}" placeholder="${esc(bestCompany(r).name || 'Entreprise')}">
           ${r.website ? `<div class="tt-mini"><a href="${esc(r.website)}" target="_blank" rel="noopener">${esc(r.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a></div>` : ''}</td>
         <td style="min-width:150px"><input type="text" data-k="contact_name" value="${esc(r.contact_name || '')}" placeholder="Nom (facultatif)">
           ${r.contact_search?.contact_role ? `<div class="tt-mini">${esc(r.contact_search.contact_role)}</div>` : ''}</td>
         <td style="min-width:220px"><input type="email" data-k="contact_email" value="${esc(r.contact_email || '')}" placeholder="email@entreprise.fr">
-          <div class="tt-mini">${emailBadge(r)}${!r.prospect_id && !contactPending.has(r.id) ? ` · <a href="#" data-act="contact" data-id="${r.id}">${r.contact_search ? 'relancer' : 'rechercher'}</a>` : ''}</div></td>
+          <div class="tt-mini">${emailBadge(r)}${!r.prospect_id && !contactPending.has(r.id) ? ` · <a href="#" data-act="contact" data-id="${r.id}">${r.contact_search ? 'relancer IA (payant)' : 'recherche IA (payant)'}</a>` : ''}</div></td>
         <td style="min-width:120px">${r.prospect_id ? '<span class="badge badge-new">Transmis à Chloé</span>' : esc(STATUS_LABEL[r.status || 'nouveau'])}
           ${r.contact_phone ? `<div class="tt-mini">${esc(r.contact_phone)}</div>` : ''}</td>
       </tr>`
@@ -544,10 +553,126 @@
     $('tt-o-all').checked = rows.some(sendable) && rows.filter(sendable).every(r => selected.has(r.id))
   }
 
+  // ── Free research file (CSV for Excel / Google Sheets / a free AI) ─────────
+  // Best company to pitch from the free data: the owner that also operates the
+  // site, else an operating owner (not a property holding), else the occupant.
+  function bestCompany(r) {
+    if (r.contact_company) return { name: r.contact_company, siren: r.contact_search?.siren || '' }
+    const owners = (r.owners || []).map(o => ({ name: o.company?.name || o.name, siren: o.siren || '', forme: o.forme || '', company: o.company }))
+    const occ = (r.occupants || []).map(o => ({ name: o.name, siren: o.siren || '', company: o }))
+    const holding = (o) => /\bSCI\b|SOCIETE CIVILE|FONCI|IMMOBILI/i.test(`${o.forme} ${o.name}`)
+    return owners.find(o => o.siren && occ.some(c => c.siren === o.siren)) ||
+      owners.find(o => o.siren && !holding(o)) || occ[0] || owners[0] || { name: '', siren: '' }
+  }
+
+  const CSV_COLUMNS = ['ID (ne pas modifier)', 'Score saleté /10', 'Surface m²', 'Adresse du bâtiment', 'Commune', 'Diagnostic toiture',
+    'Entreprise à démarcher', 'SIREN', 'Dirigeants', 'Siège', 'Propriétaire(s)', 'Autres entreprises sur place',
+    'Fiche entreprise', 'Recherche Google', 'Google Maps', 'Site web', 'Email', 'Nom du contact', 'Téléphone', 'Source email']
+
+  function csvRow(r) {
+    const best = bestCompany(r)
+    const all = [...(r.owners || []).map(o => o.company).filter(Boolean), ...(r.occupants || [])]
+    const company = (best.siren && all.find(c => c.siren === best.siren)) || best.company || null
+    const leaders = (company?.leaders || []).map(l => `${l.name}${l.role ? ` (${l.role})` : ''}`).join(', ')
+    const owners = (r.owners || []).map(o => `${o.company?.name || o.name}${o.siren ? ` (SIREN ${o.siren})` : ''}${o.right ? ` — ${o.right}` : ''}`).join(' | ')
+    const others = (r.occupants || []).filter(o => o.siren !== best.siren).slice(0, 5).map(o => `${o.name}${o.siren ? ` (${o.siren})` : ''}`).join(' | ')
+    const q = `${best.name || ''} ${r.commune || ''} contact email`.trim()
+    return [r.id, r.score, r.area_m2, r.address || '', r.commune || '', r.diagnostic || '',
+      best.name || '', best.siren || '', leaders, company?.hq_address || '', owners, others,
+      best.siren ? `https://annuaire-entreprises.data.gouv.fr/entreprise/${best.siren}` : '',
+      `https://www.google.com/search?q=${encodeURIComponent(q)}`, `https://www.google.com/maps?q=${r.lat},${r.lon}`,
+      r.website || '', r.contact_email || '', r.contact_name || '', r.contact_phone || '', r.contact_search?.email_source || '']
+  }
+
+  function exportResearchFile() {
+    const rows = outreachRows().filter(r => !r.prospect_id)
+    if (!rows.length) return setOStatus('Aucune toiture à exporter avec ce niveau de saleté.', 'error')
+    const cell = (v) => `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`
+    const csv = '\ufeff' + [CSV_COLUMNS, ...rows.map(csvRow)].map(line => line.map(cell).join(';')).join('\r\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    a.download = `recherche-contacts-toitures-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+    setOStatus(`${rows.length} toiture(s) exportée(s). Remplissez les colonnes Site web / Email / Nom du contact / Téléphone / Source email, puis réimportez le fichier.`, 'ok')
+  }
+
+  // Minimal RFC 4180 parser (handles quotes, ';' or ',' separator, CRLF)
+  function parseCsv(text) {
+    text = text.replace(/^\ufeff/, '')
+    const firstLine = text.slice(0, text.indexOf('\n') >= 0 ? text.indexOf('\n') : text.length)
+    const sep = (firstLine.match(/;/g) || []).length >= (firstLine.match(/,/g) || []).length ? ';' : (firstLine.includes('\t') ? '\t' : ',')
+    const rows = []
+    let row = [], field = '', quoted = false
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i]
+      if (quoted) {
+        if (c === '"' && text[i + 1] === '"') { field += '"'; i++ } else if (c === '"') quoted = false
+        else field += c
+      } else if (c === '"') quoted = true
+      else if (c === sep) { row.push(field); field = '' }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++
+        row.push(field); rows.push(row); row = []; field = ''
+      } else field += c
+    }
+    if (field || row.length) { row.push(field); rows.push(row) }
+    return rows.filter(r => r.some(v => v.trim()))
+  }
+
+  async function importResearchFile(file) {
+    const rows = parseCsv(await file.text())
+    if (rows.length < 2) return setOStatus('Fichier vide ou illisible.', 'error')
+    const norm = (h) => h.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+    const head = rows[0].map(norm)
+    const col = (name) => head.findIndex(h => h.startsWith(norm(name)))
+    const idx = { id: col('ID'), email: col('Email'), name: col('Nom du contact'), phone: col('Telephone'), web: col('Site web'), company: col('Entreprise a demarcher'), source: col('Source email') }
+    if (idx.id < 0 || idx.email < 0) return setOStatus('Colonnes « ID » ou « Email » introuvables : réimportez le fichier exporté (sans renommer les colonnes).', 'error')
+    const get = (r, i) => (i >= 0 ? String(r[i] || '').trim() : '')
+    const payload = rows.slice(1).map(r => {
+      const id = get(r, idx.id)
+      const roof = state.saved.find(x => x.id === id)
+      const source = get(r, idx.source)
+      return {
+        id,
+        contact_email: get(r, idx.email),
+        contact_name: get(r, idx.name),
+        contact_phone: get(r, idx.phone),
+        website: get(r, idx.web),
+        contact_company: get(r, idx.company),
+        notes: source && roof && !roof.notes ? `Source de l'email : ${source}` : ''
+      }
+    }).filter(r => r.id && (r.contact_email || r.contact_name || r.contact_phone || r.website))
+    if (!payload.length) return setOStatus("Aucune ligne remplie dans le fichier (colonnes Email / Nom du contact / Téléphone / Site web).", 'error')
+    setOStatus(`Import de ${payload.length} ligne(s)…`)
+    const data = await API('/api/admin/roofs?action=contacts-import', { method: 'POST', body: JSON.stringify({ rows: payload }) })
+    if (data.error) return setOStatus(data.error + (data.hint ? ` — ${data.hint}` : ''), 'error')
+    const before = new Map(state.saved.map(r => [r.id, r.contact_email || '']))
+    for (const roof of data.updated) replaceRoof(roof)
+    // Tick the roofs whose email is new from the file (not the ones that came back unchanged)
+    const withEmail = data.updated.filter(r => r.contact_email && !r.prospect_id && r.contact_email !== before.get(r.id))
+    outreachTouched = true
+    for (const r of withEmail) selected.add(r.id)
+    setOStatus(`${data.updated.length} toiture(s) mise(s) à jour, ${withEmail.length} nouvel(s) email(s) (cochés).${data.errors.length ? ` ${data.errors.length} erreur(s) : ${data.errors.slice(0, 3).join(' / ')}` : ''} Vérifiez puis cliquez sur « Envoyer à Chloé ».`, data.errors.length ? 'error' : 'ok')
+    render()
+  }
+
+  const AI_PROMPT = `Voici un fichier CSV de prospection (séparateur point-virgule), une ligne par bâtiment professionnel.
+Pour chaque ligne, cherche sur le web le site officiel et une adresse email de contact professionnelle de l'entreprise indiquée dans la colonne « Entreprise à démarcher » (aide-toi du SIREN, de la commune, des dirigeants et des liens fournis).
+
+Règles impératives :
+- N'invente JAMAIS une adresse email et ne la déduis jamais d'un format (contact@…, prenom.nom@…). Recopie uniquement une adresse lue telle quelle sur une page web, et mets l'URL exacte de cette page dans la colonne « Source email ».
+- Préfère l'email de l'établissement local, d'une direction de site ou des services techniques ; sinon l'email de contact général.
+- Si tu ne trouves rien de fiable, laisse les cases vides.
+- Remplis uniquement les colonnes « Site web », « Email », « Nom du contact », « Téléphone » et « Source email ». Ne modifie aucune autre colonne, surtout pas « ID (ne pas modifier) ».
+- Rends-moi le fichier CSV complet, avec les mêmes colonnes dans le même ordre et le même séparateur point-virgule.`
+
+  function setOStatus(msg, kind = '') { const el = $('tt-o-status'); el.textContent = msg; el.dataset.kind = kind }
+
   async function runContactSearch() {
     const todo = outreachRows().filter(r => !r.prospect_id && !r.contact_search && !r.contact_email)
     if (!todo.length) return
-    if (!confirm(`Rechercher sur le web le site et l'email de ${todo.length} entreprise(s) ?\n\nCoût estimé : quelques centimes par entreprise (recherche web + IA).`)) return
+    if (!confirm(`Option PAYANTE : rechercher automatiquement le site et l'email de ${todo.length} entreprise(s) ?\n\nCoût estimé : 5 à 20 centimes par entreprise, débités de vos crédits Anthropic.\n\nAlternative gratuite : « 1. Exporter le fichier de recherche ».`)) return
     state.running = true; state.stop = false
     $('tt-o-progress-wrap').style.display = ''
     let done = 0, found = 0, failed = 0
@@ -588,6 +713,21 @@
   $('tt-o-min').addEventListener('change', () => { outreachTouched = false; selected.clear(); render() })
   $('tt-o-hide-sent').addEventListener('change', render)
   $('tt-o-search').addEventListener('click', runContactSearch)
+  $('tt-o-export').addEventListener('click', exportResearchFile)
+  $('tt-o-import').addEventListener('click', () => $('tt-o-file').click())
+  $('tt-o-file').addEventListener('change', (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file) importResearchFile(file).catch(err => setOStatus(err.message, 'error'))
+  })
+  $('tt-o-prompt').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(AI_PROMPT)
+      setOStatus("Consignes copiées. Ouvrez une IA gratuite qui a accès au web, collez les consignes, joignez le fichier exporté, puis réimportez le fichier qu'elle vous rend. Vérifiez quelques emails avec la colonne « Source email ».", 'ok')
+    } catch (e) {
+      prompt('Copiez ces consignes :', AI_PROMPT)
+    }
+  })
   $('tt-o-stop').addEventListener('click', () => { state.stop = true })
   $('tt-o-send').addEventListener('click', sendToChloe)
   $('tt-o-all').addEventListener('change', e => {
@@ -605,7 +745,10 @@
     if (!t.dataset.k) return
     const id = t.closest('tr').dataset.id
     const status = $('tt-o-status')
-    const saved = await API(`/api/admin/roofs?id=${id}`, { method: 'PATCH', body: JSON.stringify({ [t.dataset.k]: t.value.trim() }) })
+    const roof = state.saved.find(r => r.id === id)
+    const patch = { [t.dataset.k]: t.value.trim() }
+    if (t.dataset.k === 'contact_email' && roof && !roof.contact_company && bestCompany(roof).name) patch.contact_company = bestCompany(roof).name
+    const saved = await API(`/api/admin/roofs?id=${id}`, { method: 'PATCH', body: JSON.stringify(patch) })
     if (saved.error) { status.textContent = saved.error; status.dataset.kind = 'error'; return }
     replaceRoof(saved.roof)
     status.textContent = 'Enregistré.'; status.dataset.kind = 'ok'
