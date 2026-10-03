@@ -68,6 +68,10 @@
       "destination": "/api/blog/content?resource=listing"
     },
     {
+      "source": "/api/roof-photo/:id",
+      "destination": "/api/admin/dashboard?resource=roof-photo&id=:id"
+    },
+    {
       "source": "/api/admin/roofs",
       "destination": "/api/admin/dashboard?resource=roofs"
     },

@@ -554,6 +554,7 @@ Angle imposé — constat sur leur toiture :
 - Conséquences concrètes d'une toiture encrassée ou moussue : rétention d'humidité, vieillissement accéléré du bac acier / de la membrane / du fibrociment, chéneaux et évacuations obstrués, perte de rendement si des panneaux solaires sont présents
 - Le drone : personne ne monte sur la toiture (aucun risque de chute ni de casse, point clé sur du fibrociment), ni nacelle ni échafaudage, activité du site non interrompue
 - Proposer un diagnostic gratuit par drone avec photos avant intervention
+- Si le prospect indique « Photo aérienne : oui », la vue aérienne IGN de leur bâtiment est insérée automatiquement juste après ton paragraphe de constat : tu peux y faire référence une seule fois et brièvement (« la vue aérienne ci-dessous »). Sinon, n'évoque aucune image.
 
 Règles :
 - Objet court et concret, mentionnant la toiture (pas de clickbait)
@@ -568,6 +569,33 @@ Format de sortie STRICT :
 SUBJECT:[objet]
 ---
 [corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
+
+// Public URL of the light aerial photo of the roof behind a "Toitures"
+// prospect (api/admin/dashboard.js, resource=roof-photo), or null. Fetched once
+// here so a broken photo is never put in an email (and the CDN is warm).
+async function roofPhotoUrl(supabase, prospect) {
+  try {
+    const { data: roof } = await supabase.from('roof_leads').select('id').eq('prospect_id', prospect.id).maybeSingle()
+    if (!roof) return null
+    const url = `${process.env.SITE_URL || 'https://exadrone-enterprise.com'}/api/roof-photo/${roof.id}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(45000) })
+    return res.ok && String(res.headers.get('content-type')).startsWith('image/') ? url : null
+  } catch (e) {
+    console.error('Roof photo unavailable:', e.message)
+    return null
+  }
+}
+
+// Puts the photo right after the paragraph describing the roof: after the
+// first paragraph, or the second one when the first is only a greeting.
+function insertRoofPhoto(bodyHtml, url) {
+  const block = `<p style="margin:16px 0"><img src="${url}" width="480" alt="Vue aérienne IGN de votre bâtiment" style="display:block;width:100%;max-width:480px;height:auto;border-radius:6px;border:0"><span style="display:block;font-size:12px;color:#6b7280;margin-top:6px">Vue aérienne IGN de votre bâtiment (contour en rouge)</span></p>`
+  const ends = [...bodyHtml.matchAll(/<\/p>/gi)].map(m => m.index + m[0].length)
+  if (!ends.length) return bodyHtml + block
+  const firstText = bodyHtml.slice(0, ends[0]).replace(/<[^>]+>/g, '').trim()
+  const at = firstText.length < 60 && ends.length > 1 ? ends[1] : ends[0]
+  return bodyHtml.slice(0, at) + block + bodyHtml.slice(at)
+}
 
 function startOfTodayIso() {
   return new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z'
@@ -719,6 +747,7 @@ async function handleSendBatch(req, res, supabase) {
 
     let sent = false
     try {
+      const photoUrl = isRoofProspect(prospect) ? await roofPhotoUrl(supabase, prospect) : null
       const draft = await anthropic.messages.create({
         model: 'claude-sonnet-4-5',
         max_tokens: 500,
@@ -729,13 +758,14 @@ async function handleSendBatch(req, res, supabase) {
           : CHLOE_EMAIL_SYSTEM_PROMPT) + instructionsPromptBlock(agent),
         messages: [{
           role: 'user',
-          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}`
+          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}${isRoofProspect(prospect) ? `\n- Photo aérienne : ${photoUrl ? 'oui' : 'non'}` : ''}`
         }]
       })
       const raw = draft.content[0]?.text || ''
       const subjectMatch = raw.match(/^SUBJECT:(.+)$/m)
       const subject = (subjectMatch?.[1] || `Exadrone Enterprise — ${prospect.company_name}`).trim()
-      const bodyHtml = raw.split('---').slice(1).join('---').trim() || `<p>Bonjour ${prospect.contact_name || ''},</p>`
+      const draftHtml = raw.split('---').slice(1).join('---').trim() || `<p>Bonjour ${prospect.contact_name || ''},</p>`
+      const bodyHtml = photoUrl ? insertRoofPhoto(draftHtml, photoUrl) : draftHtml
       const fullHtml = bodyHtml + chloeSignatureHtml() + outreachFooterHtml(prospect.email)
       const emailMessageId = `<${crypto.randomUUID()}@exadrone-enterprise.com>`
 

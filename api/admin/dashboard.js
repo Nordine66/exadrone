@@ -5,7 +5,7 @@ const { logActivity } = require('../../lib/activity')
 const { EMAIL_RE, excludeEmail, includeEmail } = require('../../lib/exclusions')
 const { findDuplicates } = require('../../lib/agent-tools')
 const DEVIS_EXAMPLE = require('../../lib/devis-example')
-const { scanZone, analyzeBuilding, findContact, photoFor } = require('../../lib/roofs')
+const { scanZone, analyzeBuilding, findContact, roofEmailPhoto, photoFor } = require('../../lib/roofs')
 
 // Consolidates agents/leads/prospects/stats into one function to stay under
 // Vercel Hobby's 12-serverless-function limit. Original URLs (/api/admin/agents,
@@ -30,6 +30,7 @@ module.exports = async (req, res) => {
     case 'duplicates': return handleDuplicates(req, res, supabase)
     case 'quotes': return handleQuotes(req, res, supabase)
     case 'roofs': return handleRoofs(req, res, supabase)
+    case 'roof-photo': return handleRoofPhoto(req, res, supabase)
     default: return res.status(400).json({ error: 'resource requis : stats, leads, agents, prospects, emails, analytics, exclusions, duplicates, quotes ou roofs' })
   }
 }
@@ -543,6 +544,26 @@ ${brief}`
   } catch (e) {
     console.error('Quote AI error:', e)
     return res.status(500).json({ error: e.message })
+  }
+}
+
+// ── roof-photo (public, no admin token) ─────────────────────────────────────────
+// The aerial photo shown in Chloé's first email to a roof prospect. Public on
+// purpose (mail clients fetch it), addressed by the unguessable roof UUID, and
+// cached for a year by the CDN so the function runs about once per roof.
+async function handleRoofPhoto(req, res, supabase) {
+  const id = String(req.query.id || '').replace(/\.jpe?g$/i, '')
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(404).end()
+  const { data: roof } = await supabase.from('roof_leads').select('osm_id, rings, lat, lon, area_m2').eq('id', id).maybeSingle()
+  if (!roof) return res.status(404).end()
+  try {
+    const jpeg = await roofEmailPhoto(roof)
+    res.setHeader('Content-Type', 'image/jpeg')
+    res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable')
+    return res.status(200).send(jpeg)
+  } catch (e) {
+    console.error('Roof photo error:', e.message)
+    return res.status(502).end()
   }
 }
 
