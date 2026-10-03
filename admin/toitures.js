@@ -82,6 +82,16 @@
     .tt-form-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
     .tt-empty{color:var(--muted);text-align:center;padding:36px;background:var(--surface);border:1px dashed var(--border-strong);border-radius:var(--radius-lg)}
     .tt-pending{color:var(--muted);font-size:.84rem}
+    .tt-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:auto}
+    .tt-table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:900px}
+    .tt-table th{text-align:left;font-family:var(--font-mono);font-size:.64rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);padding:10px;border-bottom:1px solid var(--border);font-weight:600}
+    .tt-table td{padding:10px;border-bottom:1px solid var(--border);vertical-align:top}
+    .tt-table tr:last-child td{border-bottom:none}
+    .tt-table input[type=text],.tt-table input[type=email]{width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:.8rem;font-family:var(--font-body)}
+    .tt-thumb{width:64px;height:64px;border-radius:8px;object-fit:cover;float:left;margin-right:10px;background:var(--surface2)}
+    .tt-mini{font-size:.72rem;color:var(--muted);margin-top:4px;line-height:1.4}
+    .tt-ok{color:var(--green)}.tt-warn{color:var(--orange)}.tt-ko{color:var(--muted2)}
+    .tt-found{font-size:.8rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin:6px 0 2px;line-height:1.5}
     @media (max-width:760px){.tt-card{grid-template-columns:1fr}.tt-map{height:320px}}
   `
   document.head.appendChild(css)
@@ -93,8 +103,10 @@
       <div class="tt-seg" id="tt-view">
         <button data-view="scan" class="on">Zone de la carte</button>
         <button data-view="saved">Mes toitures</button>
+        <button data-view="outreach">Démarchage</button>
       </div>
     </div>
+    <div id="tt-main">
     <div class="tt-map" id="tt-map"></div>
     <div class="tt-actions">
       <button class="btn-primary btn-sm" id="tt-scan">Scanner la zone affichée</button>
@@ -125,6 +137,29 @@
       <label style="font-size:.8rem;color:var(--muted);display:flex;gap:6px;align-items:center"><input type="checkbox" id="tt-f-analyzed"> Analysés seulement</label>
     </div>
     <div class="tt-grid" id="tt-list"><div class="tt-empty">Déplacez la carte sur une zone d'activités, puis cliquez sur « Scanner la zone affichée ».</div></div>
+    </div>
+    <div id="tt-outreach" style="display:none">
+      <div class="tt-actions">
+        <label style="font-size:.82rem;color:var(--muted);display:flex;gap:6px;align-items:center">Toits sales à partir de
+          <select id="tt-o-min"><option value="4">4/10</option><option value="5">5/10</option><option value="6" selected>6/10</option><option value="7">7/10</option><option value="8">8/10</option></select></label>
+        <label style="font-size:.82rem;color:var(--muted);display:flex;gap:6px;align-items:center"><input type="checkbox" id="tt-o-hide-sent" checked> Masquer ceux déjà transmis</label>
+        <span style="flex:1"></span>
+        <button class="tt-btn" id="tt-o-search">Trouver les emails manquants</button>
+        <button class="btn-primary btn-sm" id="tt-o-send">Envoyer à Chloé</button>
+      </div>
+      <div class="tt-actions" id="tt-o-progress-wrap" style="display:none">
+        <span id="tt-o-progress-label" style="font-size:.82rem"></span>
+        <button class="tt-btn tt-btn-danger" id="tt-o-stop">Arrêter</button>
+        <div class="tt-progress"><div id="tt-o-bar"></div></div>
+      </div>
+      <div class="tt-status" id="tt-o-status" style="margin-bottom:10px"></div>
+      <div class="tt-table-wrap"><table class="tt-table">
+        <thead><tr>
+          <th><input type="checkbox" id="tt-o-all" title="Tout cocher"></th><th>Toit</th><th>Entreprise à démarcher</th><th>Contact</th><th>Email</th><th>Suivi</th>
+        </tr></thead>
+        <tbody id="tt-o-rows"></tbody>
+      </table></div>
+    </div>
   `
   root.querySelectorAll('.tt-filter').forEach(s => { s.style.cssText = 'background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:.8rem' })
 
@@ -290,6 +325,20 @@
     render()
   }
 
+  const contactPending = new Set()
+
+  async function searchContact(roof, force = false) {
+    contactPending.add(roof.id); render()
+    try {
+      const data = await API(`/api/admin/roofs?action=contact&id=${roof.id}`, { method: 'POST', body: JSON.stringify({ force }) })
+      if (data.error) throw new Error(data.error + (data.hint ? ` — ${data.hint}` : ''))
+      replaceRoof(data.roof)
+      return data.roof
+    } finally {
+      contactPending.delete(roof.id); render()
+    }
+  }
+
   const pending = new Set()
   function markPending(osmId, on) { on ? pending.add(osmId) : pending.delete(osmId); render() }
 
@@ -332,12 +381,37 @@
     return `<div class="tt-section"><h4>Entreprises à cette adresse (occupants possibles)</h4>${occ.slice(0, 4).map(o => companyBlock(o, o.name)).join('')}${occ.length > 4 ? `<div class="tt-sub">+ ${occ.length - 4} autre(s)</div>` : ''}</div>`
   }
 
+  function emailBadge(r) {
+    const cs = r.contact_search
+    if (contactPending.has(r.id)) return '<span class="tt-pending"><span class="spinner"></span> Recherche sur le web…</span>'
+    if (!r.contact_email) return cs ? '<span class="tt-ko">Aucun email publié trouvé</span>' : '<span class="tt-ko">Pas encore recherché</span>'
+    if (cs && cs.email && cs.email === r.contact_email) {
+      return cs.email_verified
+        ? `<span class="tt-ok" title="Email retrouvé sur la page source">✓ vérifié</span>${cs.email_source ? ` · <a href="${esc(cs.email_source)}" target="_blank" rel="noopener">source</a>` : ''}`
+        : `<span class="tt-warn" title="L'email n'a pas pu être retrouvé automatiquement sur la page : vérifiez-le avant envoi">⚠ à vérifier</span>${cs.email_source ? ` · <a href="${esc(cs.email_source)}" target="_blank" rel="noopener">source</a>` : ''}`
+    }
+    return '<span class="tt-ok">✓ saisi par vous</span>'
+  }
+
+  function foundHtml(r) {
+    const cs = r.contact_search
+    const btn = contactPending.has(r.id) ? '' : `<button class="tt-btn" data-act="contact" data-id="${r.id}">${cs ? "Relancer la recherche d'email" : "Trouver l'email (recherche web)"}</button>`
+    if (!cs) return `<div class="tt-form-actions" style="margin:4px 0 6px">${btn} ${emailBadge(r)}</div>`
+    return `<div class="tt-found">
+      <b>${esc(cs.company || '—')}</b>${cs.website ? ` · <a href="${esc(cs.website)}" target="_blank" rel="noopener">${esc(cs.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a>` : ''}
+      ${cs.email ? ` · ${esc(cs.email)}` : ''} ${emailBadge(r)}
+      ${cs.contact_name ? `<div>Contact : ${esc(cs.contact_name)}${cs.contact_role ? ` (${esc(cs.contact_role)})` : ''}</div>` : ''}
+      ${cs.reason ? `<div class="tt-sub">${esc(cs.reason)}</div>` : ''}
+      <div style="margin-top:6px">${btn}</div></div>`
+  }
+
   function prospectHtml(r) {
     if (!r.id) return ''
     const names = [...new Set([...(r.owners || []).map(o => o.company?.name || o.name), ...(r.occupants || []).map(o => o.name)].filter(Boolean))]
     const listId = `tt-dl-${r.id}`
     const open = (r.status && r.status !== 'nouveau') || r.contact_email || r.contact_name || r.notes
     return `<details class="tt-section tt-prospect" ${open ? 'open' : ''}><summary><h4>Prospection — ${esc(STATUS_LABEL[r.status || 'nouveau'])}${r.prospect_id ? ' · transmis à Chloé' : ''}</h4></summary>
+      ${foundHtml(r)}
       <div class="tt-form" data-id="${r.id}">
         <div class="tt-field"><label>Statut</label><select data-k="status">${STATUSES.map(([v, l]) => `<option value="${v}" ${v === (r.status || 'nouveau') ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <div class="tt-field"><label>Entreprise à démarcher</label><input data-k="contact_company" list="${listId}" value="${esc(r.contact_company || names[0] || '')}"><datalist id="${listId}">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
@@ -398,6 +472,9 @@
   }
 
   function render() {
+    $('tt-main').style.display = state.view === 'outreach' ? 'none' : ''
+    $('tt-outreach').style.display = state.view === 'outreach' ? '' : 'none'
+    if (state.view === 'outreach') return renderOutreach()
     const list = filtered(sorted(current()))
     const all = current()
     $('tt-batch').style.display = state.view === 'scan' && state.scan.length ? '' : 'none'
@@ -414,6 +491,134 @@
       ? list.map(cardHtml).join('')
       : `<div class="tt-empty">${all.length ? 'Aucun toit ne correspond aux filtres.' : state.view === 'saved' ? 'Aucune toiture analysée pour le moment.' : "Déplacez la carte sur une zone d'activités, puis cliquez sur « Scanner la zone affichée »."}</div>`
   }
+
+  // ── Démarchage view: tick the dirty roofs to pitch, send them to Chloé ──────
+  const selected = new Set()
+  let outreachTouched = false
+
+  function outreachRows() {
+    const min = Number($('tt-o-min').value)
+    const hideSent = $('tt-o-hide-sent').checked
+    return sorted(state.saved).filter(r => r.analyzed_at && r.score >= min && r.status !== 'ignore' && r.status !== 'perdu' && (!hideSent || !r.prospect_id))
+  }
+
+  const sendable = (r) => !r.prospect_id && r.contact_email && r.contact_company
+
+  function renderOutreach() {
+    const rows = outreachRows()
+    // First display: tick every roof with a verified (or hand-typed) email
+    if (!outreachTouched) {
+      for (const r of rows) {
+        const cs = r.contact_search
+        const trusted = !cs || cs.email !== r.contact_email || cs.email_verified
+        if (sendable(r) && trusted) selected.add(r.id)
+      }
+    }
+    for (const id of [...selected]) if (!rows.some(r => r.id === id && sendable(r))) selected.delete(id)
+    const missing = rows.filter(r => !r.prospect_id && !r.contact_search && !r.contact_email).length
+    $('tt-o-search').textContent = missing ? `Trouver les emails manquants (${missing})` : 'Trouver les emails manquants'
+    $('tt-o-search').disabled = !missing || state.running
+    $('tt-o-send').textContent = `Envoyer à Chloé (${selected.size})`
+    $('tt-o-send').disabled = !selected.size || state.running
+
+    const focused = document.activeElement?.closest?.('#tt-o-rows')
+    if (focused) return
+    $('tt-o-rows').innerHTML = rows.length ? rows.map(r => {
+      const can = sendable(r)
+      return `<tr data-id="${r.id}">
+        <td><input type="checkbox" data-sel="${r.id}" ${selected.has(r.id) ? 'checked' : ''} ${can ? '' : 'disabled'}></td>
+        <td style="min-width:230px">${r.photo ? `<img class="tt-thumb" src="${esc(r.photo.url)}" alt="" loading="lazy">` : ''}
+          <b style="color:${scoreColor(r)}">${r.score}/10</b> · ${r.area_m2.toLocaleString('fr-FR')} m²
+          <div class="tt-mini">${esc(r.address || r.commune || '')}</div>
+          <div class="tt-mini">${esc((r.diagnostic || '').slice(0, 110))}${(r.diagnostic || '').length > 110 ? '…' : ''}</div></td>
+        <td style="min-width:180px"><input type="text" data-k="contact_company" value="${esc(r.contact_company || '')}" placeholder="Entreprise">
+          ${r.website ? `<div class="tt-mini"><a href="${esc(r.website)}" target="_blank" rel="noopener">${esc(r.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a></div>` : ''}</td>
+        <td style="min-width:150px"><input type="text" data-k="contact_name" value="${esc(r.contact_name || '')}" placeholder="Nom (facultatif)">
+          ${r.contact_search?.contact_role ? `<div class="tt-mini">${esc(r.contact_search.contact_role)}</div>` : ''}</td>
+        <td style="min-width:220px"><input type="email" data-k="contact_email" value="${esc(r.contact_email || '')}" placeholder="email@entreprise.fr">
+          <div class="tt-mini">${emailBadge(r)}${!r.prospect_id && !contactPending.has(r.id) ? ` · <a href="#" data-act="contact" data-id="${r.id}">${r.contact_search ? 'relancer' : 'rechercher'}</a>` : ''}</div></td>
+        <td style="min-width:120px">${r.prospect_id ? '<span class="badge badge-new">Transmis à Chloé</span>' : esc(STATUS_LABEL[r.status || 'nouveau'])}
+          ${r.contact_phone ? `<div class="tt-mini">${esc(r.contact_phone)}</div>` : ''}</td>
+      </tr>`
+    }).join('') : `<tr><td colspan="6"><div class="tt-empty" style="border:none">Aucune toiture analysée avec ce niveau de saleté. Scannez et analysez une zone dans « Zone de la carte ».</div></td></tr>`
+    $('tt-o-all').checked = rows.some(sendable) && rows.filter(sendable).every(r => selected.has(r.id))
+  }
+
+  async function runContactSearch() {
+    const todo = outreachRows().filter(r => !r.prospect_id && !r.contact_search && !r.contact_email)
+    if (!todo.length) return
+    if (!confirm(`Rechercher sur le web le site et l'email de ${todo.length} entreprise(s) ?\n\nCoût estimé : quelques centimes par entreprise (recherche web + IA).`)) return
+    state.running = true; state.stop = false
+    $('tt-o-progress-wrap').style.display = ''
+    let done = 0, found = 0, failed = 0
+    const queue = todo.slice()
+    const status = $('tt-o-status')
+    async function worker() {
+      while (queue.length && !state.stop) {
+        const roof = queue.shift()
+        try { const r = await searchContact(roof); if (r.contact_email) found++ } catch (e) { failed++; console.error(roof.id, e); status.textContent = e.message; status.dataset.kind = 'error' }
+        done++
+        $('tt-o-bar').style.width = `${Math.round(done / todo.length * 100)}%`
+        $('tt-o-progress-label').textContent = `Recherche ${done}/${todo.length} — ${found} email(s) trouvé(s)${failed ? `, ${failed} échec(s)` : ''}`
+      }
+    }
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker))
+    state.running = false
+    $('tt-o-progress-wrap').style.display = 'none'
+    status.textContent = `${state.stop ? 'Arrêté' : 'Terminé'} : ${found} email(s) trouvé(s) sur ${done} entreprise(s)${failed ? `, ${failed} échec(s)` : ''}. Vérifiez les « ⚠ à vérifier » avant d'envoyer.`
+    status.dataset.kind = failed ? 'error' : 'ok'
+    render()
+  }
+
+  async function sendToChloe() {
+    const ids = [...selected]
+    if (!ids.length) return
+    if (!confirm(`Transmettre ${ids.length} toiture(s) à Chloé ?\n\nElle enverra à chacune un premier email personnalisé sur l'état de sa toiture, en priorité lors de sa prochaine tournée (chaque matin, ou bouton « Envoyer le prochain lot » dans Prospects). Hugo fera ensuite les relances.`)) return
+    $('tt-o-send').disabled = true
+    const status = $('tt-o-status')
+    const data = await API('/api/admin/roofs?action=prospect-bulk', { method: 'POST', body: JSON.stringify({ ids }) })
+    if (data.error) { status.textContent = data.error; status.dataset.kind = 'error'; return render() }
+    for (const r of data.results) { if (r.roof) replaceRoof(r.roof); if (r.ok) selected.delete(r.id) }
+    const errors = data.results.filter(r => !r.ok)
+    status.textContent = `${data.sent} toiture(s) transmise(s) à Chloé.${errors.length ? ` ${errors.length} non transmise(s) : ${errors.map(e => e.error).filter((v, i, a) => a.indexOf(v) === i).join(' / ')}` : ''}`
+    status.dataset.kind = errors.length ? 'error' : 'ok'
+    render()
+  }
+
+  $('tt-o-min').addEventListener('change', () => { outreachTouched = false; selected.clear(); render() })
+  $('tt-o-hide-sent').addEventListener('change', render)
+  $('tt-o-search').addEventListener('click', runContactSearch)
+  $('tt-o-stop').addEventListener('click', () => { state.stop = true })
+  $('tt-o-send').addEventListener('click', sendToChloe)
+  $('tt-o-all').addEventListener('change', e => {
+    outreachTouched = true
+    for (const r of outreachRows()) if (sendable(r)) e.target.checked ? selected.add(r.id) : selected.delete(r.id)
+    render()
+  })
+  $('tt-o-rows').addEventListener('change', async (e) => {
+    const t = e.target
+    if (t.dataset.sel) {
+      outreachTouched = true
+      t.checked ? selected.add(t.dataset.sel) : selected.delete(t.dataset.sel)
+      return render()
+    }
+    if (!t.dataset.k) return
+    const id = t.closest('tr').dataset.id
+    const status = $('tt-o-status')
+    const saved = await API(`/api/admin/roofs?id=${id}`, { method: 'PATCH', body: JSON.stringify({ [t.dataset.k]: t.value.trim() }) })
+    if (saved.error) { status.textContent = saved.error; status.dataset.kind = 'error'; return }
+    replaceRoof(saved.roof)
+    status.textContent = 'Enregistré.'; status.dataset.kind = 'ok'
+    t.blur(); render()
+  })
+  $('tt-o-rows').addEventListener('click', async (e) => {
+    const a = e.target.closest('[data-act="contact"]')
+    if (!a) return
+    e.preventDefault()
+    const roof = state.saved.find(r => r.id === a.dataset.id)
+    if (!roof) return
+    try { await searchContact(roof, !!roof.contact_search) } catch (err) { $('tt-o-status').textContent = err.message; $('tt-o-status').dataset.kind = 'error' }
+  })
 
   function syncViewButtons() {
     root.querySelectorAll('#tt-view button').forEach(b => b.classList.toggle('on', b.dataset.view === state.view))
@@ -432,7 +637,7 @@
     const v = e.target.closest('button')?.dataset.view
     if (!v || v === state.view) return
     state.view = v; syncViewButtons()
-    if (v === 'saved') loadSaved(); else render()
+    if (v === 'saved' || v === 'outreach') loadSaved(); else render()
   })
 
   function formValues(id) {
@@ -445,6 +650,12 @@
     if (!btn) return
     e.preventDefault()
     const act = btn.dataset.act
+    if (act === 'contact') {
+      const roof = current().find(r => r.id === btn.dataset.id)
+      if (!roof) return
+      try { await searchContact(roof, !!roof.contact_search); setStatus('Recherche de contact terminée.', 'ok') } catch (err) { setStatus(err.message, 'error') }
+      return
+    }
     if (act === 'analyze' || act === 'reanalyze') {
       const roof = current().find(r => r.osm_id === btn.dataset.osm)
       if (!roof || pending.has(roof.osm_id)) return

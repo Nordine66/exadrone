@@ -667,10 +667,18 @@ async function handleSendBatch(req, res, supabase) {
   const remaining = Math.max(0, dailyLimit - (sentToday || 0))
   if (remaining === 0) return res.status(200).json({ sent: 0, reason: 'Limite quotidienne atteinte' })
 
-  const { data: prospects, error: fetchError } = await supabase
-    .from('prospects').select('*').eq('status', 'pending')
+  // Roofs Nordine picked in the "Toitures" tab jump the queue: they were
+  // qualified by hand, the CSV backlog can wait a day.
+  const { data: roofProspects, error: roofError } = await supabase
+    .from('prospects').select('*').eq('status', 'pending').eq('csv_batch', 'toitures')
     .order('created_at', { ascending: true }).limit(remaining)
+  if (roofError) return res.status(500).json({ error: roofError.message })
+  const { data: otherProspects, error: fetchError } = remaining > roofProspects.length
+    ? await supabase.from('prospects').select('*').eq('status', 'pending').or('csv_batch.is.null,csv_batch.neq.toitures')
+      .order('created_at', { ascending: true }).limit(remaining - roofProspects.length)
+    : { data: [], error: null }
   if (fetchError) return res.status(500).json({ error: fetchError.message })
+  const prospects = [...roofProspects, ...(otherProspects || [])]
   if (!prospects.length) return res.status(200).json({ sent: 0, reason: 'Aucun prospect en attente' })
 
   const { data: freshUnsubs } = await supabase

@@ -5,7 +5,7 @@ const { logActivity } = require('../../lib/activity')
 const { EMAIL_RE, excludeEmail, includeEmail } = require('../../lib/exclusions')
 const { findDuplicates } = require('../../lib/agent-tools')
 const DEVIS_EXAMPLE = require('../../lib/devis-example')
-const { scanZone, analyzeBuilding, photoFor } = require('../../lib/roofs')
+const { scanZone, analyzeBuilding, findContact, photoFor } = require('../../lib/roofs')
 
 // Consolidates agents/leads/prospects/stats into one function to stay under
 // Vercel Hobby's 12-serverless-function limit. Original URLs (/api/admin/agents,
@@ -549,7 +549,8 @@ ${brief}`
 // ── roofs (dashboard "Toitures" tab, logic in lib/roofs.js) ──────────────────────
 const ROOF_STATUSES = ['nouveau', 'a_contacter', 'contacte', 'rdv', 'devis', 'gagne', 'perdu', 'ignore']
 const ROOF_EDITABLE = ['status', 'notes', 'contact_company', 'contact_name', 'contact_email', 'contact_phone']
-const ROOF_MIGRATION_HINT = (msg) => /roof_leads|context/.test(msg || '') ? 'Exécutez la migration 006 dans Supabase.' : undefined
+const ROOF_MIGRATION_HINT = (msg) => /website|contact_search/.test(msg || '') ? 'Exécutez la migration 007 dans Supabase.'
+  : /roof_leads|context/.test(msg || '') ? 'Exécutez la migration 006 dans Supabase.' : undefined
 const withPhoto = (row) => ({ ...row, photo: photoFor(row) })
 
 async function handleRoofs(req, res, supabase) {
@@ -627,46 +628,100 @@ async function handleRoofs(req, res, supabase) {
     return res.status(200).json({ roof: withPhoto(data) })
   }
 
-  // Hands a qualified roof over to Chloé's cold-email sequence.
-  if (action === 'prospect') {
+  if (action === 'contact') {
     if (!id) return res.status(400).json({ error: 'id requis' })
     const { data: roof, error: e1 } = await supabase.from('roof_leads').select('*').eq('id', id).single()
     if (e1) return res.status(500).json({ error: e1.message })
-    if (roof.prospect_id) return res.status(400).json({ error: 'Déjà transmis à Chloé.' })
-    const email = String(roof.contact_email || '').trim().toLowerCase()
-    const company = String(roof.contact_company || '').trim()
-    if (!EMAIL_RE.test(email)) return res.status(400).json({ error: "Renseignez d'abord l'email du contact." })
-    if (!company) return res.status(400).json({ error: "Renseignez d'abord l'entreprise à démarcher." })
-
-    const [{ data: existing }, { data: unsub }] = await Promise.all([
-      supabase.from('prospects').select('id, status').eq('email', email).limit(1),
-      supabase.from('unsubscribes').select('email').eq('email', email).limit(1)
-    ])
-    if (unsub?.length) return res.status(400).json({ error: 'Cette adresse est dans les exclusions (désinscrite ou « pas intéressé »).' })
-    if (existing?.length) return res.status(400).json({ error: 'Cette adresse est déjà dans les prospects.' })
-
-    const context = [
-      `Bâtiment de ${roof.area_m2} m² d'emprise au sol${roof.address ? ` situé ${roof.address}` : ''}${roof.roof_type && roof.roof_type !== 'indéterminé' ? `, toiture en ${roof.roof_type}` : ''}.`,
-      roof.diagnostic ? `Constat sur la vue aérienne IGN : ${roof.diagnostic}` : null,
-      roof.lichen ? 'Présence de mousses / lichens visible.' : null
-    ].filter(Boolean).join(' ')
-
-    const { data: prospect, error: e2 } = await supabase.from('prospects').insert({
-      company_name: company,
-      contact_name: roof.contact_name || null,
-      email,
-      industry: 'Toiture industrielle',
-      csv_batch: 'toitures',
-      status: 'pending',
-      context
-    }).select('id').single()
-    if (e2) return res.status(500).json({ error: e2.message, hint: ROOF_MIGRATION_HINT(e2.message) })
-    const { data: updated } = await supabase.from('roof_leads')
-      .update({ prospect_id: prospect.id, status: 'a_contacter', updated_at: new Date().toISOString() })
-      .eq('id', id).select('*').single()
-    await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: `Nordine (dashboard) : toiture de ${company} (${roof.area_m2} m², saleté ${roof.score}/10) transmise à Chloé pour un premier email à ${email}` })
-    return res.status(200).json({ roof: withPhoto(updated || roof) })
+    if (roof.contact_searched_at && !req.body?.force) return res.status(200).json({ roof: withPhoto(roof), cached: true })
+    let found
+    try {
+      found = await findContact(roof)
+    } catch (e) {
+      console.error('Roof contact search error:', e)
+      return res.status(502).json({ error: e.message })
+    }
+    // Never overwrite what Nordine typed himself
+    const patch = {
+      website: found.website || roof.website || null,
+      contact_search: found,
+      contact_searched_at: found.searched_at,
+      updated_at: new Date().toISOString()
+    }
+    if (!roof.contact_company && found.company) patch.contact_company = found.company
+    if (!roof.contact_email && found.email) patch.contact_email = found.email
+    if (!roof.contact_name && found.contact_name) patch.contact_name = found.contact_name
+    if (!roof.contact_phone && found.phone) patch.contact_phone = found.phone
+    const { data, error } = await supabase.from('roof_leads').update(patch).eq('id', id).select('*').single()
+    if (error) return res.status(500).json({ error: error.message, hint: ROOF_MIGRATION_HINT(error.message) })
+    await logActivity(supabase, {
+      kind: 'roof_contact',
+      summary: `Contact recherché pour la toiture ${roof.address || roof.osm_id} : ${found.company || '—'} — ${found.email ? `${found.email}${found.email_verified ? ' (vérifié sur le site)' : ' (à vérifier)'}` : 'aucun email trouvé'}`,
+      meta: { id }
+    })
+    return res.status(200).json({ roof: withPhoto(data) })
   }
 
-  return res.status(400).json({ error: 'action requise : scan, analyze ou prospect' })
+  // Hands qualified roofs over to Chloé's cold-email sequence.
+  if (action === 'prospect') {
+    if (!id) return res.status(400).json({ error: 'id requis' })
+    const result = await roofToProspect(supabase, id)
+    if (result.error) return res.status(400).json({ error: result.error, hint: result.hint })
+    return res.status(200).json({ roof: withPhoto(result.roof) })
+  }
+
+  if (action === 'prospect-bulk') {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.slice(0, 200) : []
+    if (!ids.length) return res.status(400).json({ error: 'Cochez au moins une toiture.' })
+    const results = []
+    for (const roofId of ids) {
+      const r = await roofToProspect(supabase, roofId)
+      results.push({ id: roofId, ok: !r.error, error: r.error, roof: r.roof ? withPhoto(r.roof) : undefined })
+    }
+    const sent = results.filter(r => r.ok).length
+    if (sent) await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: `Nordine (dashboard) : ${sent} toiture(s) transmise(s) à Chloé pour un premier email` })
+    return res.status(200).json({ sent, results })
+  }
+
+  return res.status(400).json({ error: 'action requise : scan, analyze, contact, prospect ou prospect-bulk' })
+}
+
+async function roofToProspect(supabase, id) {
+  const { data: roof, error: e1 } = await supabase.from('roof_leads').select('*').eq('id', id).single()
+  if (e1) return { error: e1.message }
+  if (roof.prospect_id) return { error: 'Déjà transmis à Chloé.' }
+  const email = String(roof.contact_email || '').trim().toLowerCase()
+  const company = String(roof.contact_company || '').trim()
+  if (!EMAIL_RE.test(email)) return { error: "Pas d'email de contact." }
+  if (!company) return { error: "Entreprise à démarcher non renseignée." }
+
+  const [{ data: existing }, { data: unsub }] = await Promise.all([
+    supabase.from('prospects').select('id, status').eq('email', email).limit(1),
+    supabase.from('unsubscribes').select('email').eq('email', email).limit(1)
+  ])
+  if (unsub?.length) return { error: 'Adresse dans les exclusions (désinscrite ou « pas intéressé »).' }
+  if (existing?.length) return { error: 'Adresse déjà dans les prospects.' }
+
+  const context = [
+    `Bâtiment de ${roof.area_m2} m² d'emprise au sol${roof.address ? ` situé ${roof.address}` : ''}${roof.roof_type && roof.roof_type !== 'indéterminé' ? `, toiture en ${roof.roof_type}` : ''}.`,
+    roof.diagnostic ? `Constat sur la vue aérienne IGN : ${roof.diagnostic}` : null,
+    roof.lichen ? 'Présence de mousses / lichens visible.' : null,
+    roof.contact_search?.contact_role && roof.contact_name ? `Destinataire : ${roof.contact_name}, ${roof.contact_search.contact_role}.` : null
+  ].filter(Boolean).join(' ')
+
+  const { data: prospect, error: e2 } = await supabase.from('prospects').insert({
+    company_name: company,
+    contact_name: roof.contact_name || null,
+    email,
+    industry: 'Toiture industrielle',
+    website: roof.website || null,
+    csv_batch: 'toitures',
+    status: 'pending',
+    context
+  }).select('id').single()
+  if (e2) return { error: e2.message, hint: ROOF_MIGRATION_HINT(e2.message) }
+  const { data: updated } = await supabase.from('roof_leads')
+    .update({ prospect_id: prospect.id, status: 'a_contacter', updated_at: new Date().toISOString() })
+    .eq('id', id).select('*').single()
+  await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: `Nordine (dashboard) : toiture de ${company} (${roof.area_m2} m², saleté ${roof.score}/10) transmise à Chloé pour un premier email à ${email}` })
+  return { roof: updated || roof }
 }
