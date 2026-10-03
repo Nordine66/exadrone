@@ -570,7 +570,8 @@ async function handleRoofPhoto(req, res, supabase) {
 // ── roofs (dashboard "Toitures" tab, logic in lib/roofs.js) ──────────────────────
 const ROOF_STATUSES = ['nouveau', 'a_contacter', 'contacte', 'rdv', 'devis', 'gagne', 'perdu', 'ignore']
 const ROOF_EDITABLE = ['status', 'notes', 'contact_company', 'contact_name', 'contact_email', 'contact_phone']
-const ROOF_MIGRATION_HINT = (msg) => /screen_score|screen_lichen|screened_at/.test(msg || '') ? 'Exécutez la migration 008 dans Supabase.'
+const ROOF_MIGRATION_HINT = (msg) => /solar|kind|prospect_offer/.test(msg || '') ? 'Exécutez la migration 009 dans Supabase.'
+  : /screen_score|screen_lichen|screened_at/.test(msg || '') ? 'Exécutez la migration 008 dans Supabase.'
   : /website|contact_search/.test(msg || '') ? 'Exécutez la migration 007 dans Supabase.'
   : /roof_leads|context/.test(msg || '') ? 'Exécutez la migration 006 dans Supabase.' : undefined
 const withPhoto = (row) => ({ ...row, photo: photoFor(row) })
@@ -629,7 +630,8 @@ async function handleRoofs(req, res, supabase) {
     if (!buildings.length) return res.status(400).json({ error: 'Aucun toit à trier' })
     const { data: known, error: e1 } = await supabase.from('roof_leads').select('*').in('osm_id', buildings.map(b => b.osm_id))
     if (e1) return res.status(500).json({ error: e1.message, hint: ROOF_MIGRATION_HINT(e1.message) })
-    const done = new Map((known || []).filter(r => r.screened_at || r.analyzed_at).map(r => [r.osm_id, r]))
+    // Rows rated before solar panels were added (solar fields null) are rated again
+    const done = new Map((known || []).filter(r => (r.screened_at && r.screen_solar != null) || (r.analyzed_at && r.solar != null)).map(r => [r.osm_id, r]))
     const todo = buildings.filter(b => !done.has(b.osm_id))
     let rows = []
     if (todo.length) {
@@ -642,9 +644,10 @@ async function handleRoofs(req, res, supabase) {
       }
       const now = new Date().toISOString()
       const upserts = todo.map((b, k) => ({
-        osm_id: b.osm_id, name: b.name || null, usage: b.usage || null, area_m2: Math.round(b.area_m2),
-        lat: b.lat, lon: b.lon, rings: b.rings,
-        screen_score: results[k].screen_score, screen_lichen: results[k].screen_lichen, screened_at: now, updated_at: now
+        osm_id: b.osm_id, name: b.name || null, usage: b.usage || null, kind: b.kind === 'centrale' ? 'centrale' : 'batiment',
+        area_m2: Math.round(b.area_m2), lat: b.lat, lon: b.lon, rings: b.rings,
+        screen_score: results[k].screen_score, screen_lichen: results[k].screen_lichen,
+        screen_solar: results[k].screen_solar, screen_solar_score: results[k].screen_solar_score, screened_at: now, updated_at: now
       }))
       const { data, error } = await supabase.from('roof_leads').upsert(upserts, { onConflict: 'osm_id' }).select('*')
       if (error) return res.status(500).json({ error: error.message, hint: ROOF_MIGRATION_HINT(error.message) })
@@ -659,7 +662,7 @@ async function handleRoofs(req, res, supabase) {
     if (!building?.osm_id) return res.status(400).json({ error: 'Bâtiment manquant' })
     if (!force) {
       const { data: existing } = await supabase.from('roof_leads').select('*').eq('osm_id', building.osm_id).maybeSingle()
-      if (existing?.analyzed_at) return res.status(200).json({ roof: withPhoto(existing), cached: true })
+      if (existing?.analyzed_at && existing.solar != null) return res.status(200).json({ roof: withPhoto(existing), cached: true })
     }
     let analysis
     try {
@@ -717,7 +720,7 @@ async function handleRoofs(req, res, supabase) {
   // Hands qualified roofs over to Chloé's cold-email sequence.
   if (action === 'prospect') {
     if (!id) return res.status(400).json({ error: 'id requis' })
-    const result = await roofToProspect(supabase, id)
+    const result = await roofToProspect(supabase, id, req.body?.offer)
     if (result.error) return res.status(400).json({ error: result.error, hint: result.hint })
     return res.status(200).json({ roof: withPhoto(result.roof) })
   }
@@ -755,7 +758,7 @@ async function handleRoofs(req, res, supabase) {
     if (!ids.length) return res.status(400).json({ error: 'Cochez au moins une toiture.' })
     const results = []
     for (const roofId of ids) {
-      const r = await roofToProspect(supabase, roofId)
+      const r = await roofToProspect(supabase, roofId, req.body?.offer)
       results.push({ id: roofId, ok: !r.error, error: r.error, roof: r.roof ? withPhoto(r.roof) : undefined })
     }
     const sent = results.filter(r => r.ok).length
@@ -766,7 +769,9 @@ async function handleRoofs(req, res, supabase) {
   return res.status(400).json({ error: 'action requise : scan, analyze, contact, prospect ou prospect-bulk' })
 }
 
-async function roofToProspect(supabase, id) {
+// offer: 'toiture' (roof cleaning pitch) or 'solaire' (PV panel cleaning pitch)
+async function roofToProspect(supabase, id, offer = 'toiture') {
+  const solarOffer = offer === 'solaire'
   const { data: roof, error: e1 } = await supabase.from('roof_leads').select('*').eq('id', id).single()
   if (e1) return { error: e1.message }
   if (roof.prospect_id) return { error: 'Déjà transmis à Chloé.' }
@@ -774,6 +779,7 @@ async function roofToProspect(supabase, id) {
   const company = String(roof.contact_company || '').trim()
   if (!EMAIL_RE.test(email)) return { error: "Pas d'email de contact." }
   if (!company) return { error: "Entreprise à démarcher non renseignée." }
+  if (solarOffer && !roof.solar) return { error: "Pas de panneaux solaires détectés sur ce bâtiment (analyse détaillée)." }
 
   const [{ data: existing }, { data: unsub }] = await Promise.all([
     supabase.from('prospects').select('id, status').eq('email', email).limit(1),
@@ -782,8 +788,15 @@ async function roofToProspect(supabase, id) {
   if (unsub?.length) return { error: 'Adresse dans les exclusions (désinscrite ou « pas intéressé »).' }
   if (existing?.length) return { error: 'Adresse déjà dans les prospects.' }
 
-  const context = [
-    `Bâtiment de ${roof.area_m2} m² d'emprise au sol${roof.address ? ` situé ${roof.address}` : ''}${roof.roof_type && roof.roof_type !== 'indéterminé' ? `, toiture en ${roof.roof_type}` : ''}.`,
+  const where = roof.address ? ` situé${roof.kind === 'centrale' ? 'e' : ''} ${roof.address}` : ''
+  const context = solarOffer ? [
+    roof.kind === 'centrale'
+      ? `Centrale solaire au sol d'environ ${roof.area_m2} m²${where}${roof.solar_area_m2 ? `, environ ${roof.solar_area_m2} m² de panneaux` : ''}.`
+      : `Bâtiment de ${roof.area_m2} m² d'emprise au sol${where}, avec environ ${roof.solar_area_m2 || '?'} m² de panneaux photovoltaïques en toiture.`,
+    roof.solar_diagnostic ? `Constat sur la vue aérienne IGN : ${roof.solar_diagnostic}` : null,
+    roof.contact_search?.contact_role && roof.contact_name ? `Destinataire : ${roof.contact_name}, ${roof.contact_search.contact_role}.` : null
+  ].filter(Boolean).join(' ') : [
+    `Bâtiment de ${roof.area_m2} m² d'emprise au sol${where}${roof.roof_type && roof.roof_type !== 'indéterminé' ? `, toiture en ${roof.roof_type}` : ''}.`,
     roof.diagnostic ? `Constat sur la vue aérienne IGN : ${roof.diagnostic}` : null,
     roof.lichen ? 'Présence de mousses / lichens visible.' : null,
     roof.contact_search?.contact_role && roof.contact_name ? `Destinataire : ${roof.contact_name}, ${roof.contact_search.contact_role}.` : null
@@ -793,16 +806,18 @@ async function roofToProspect(supabase, id) {
     company_name: company,
     contact_name: roof.contact_name || null,
     email,
-    industry: 'Toiture industrielle',
+    industry: solarOffer ? 'Panneaux solaires' : 'Toiture industrielle',
     website: roof.website || null,
-    csv_batch: 'toitures',
+    csv_batch: solarOffer ? 'solaire-detecte' : 'toitures',
     status: 'pending',
     context
   }).select('id').single()
   if (e2) return { error: e2.message, hint: ROOF_MIGRATION_HINT(e2.message) }
   const { data: updated } = await supabase.from('roof_leads')
-    .update({ prospect_id: prospect.id, status: 'a_contacter', updated_at: new Date().toISOString() })
+    .update({ prospect_id: prospect.id, prospect_offer: solarOffer ? 'solaire' : 'toiture', status: 'a_contacter', updated_at: new Date().toISOString() })
     .eq('id', id).select('*').single()
-  await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: `Nordine (dashboard) : toiture de ${company} (${roof.area_m2} m², saleté ${roof.score}/10) transmise à Chloé pour un premier email à ${email}` })
+  await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: solarOffer
+    ? `Nordine (dashboard) : panneaux solaires de ${company} (~${roof.solar_area_m2 || '?'} m², encrassement ${roof.solar_score}/10) transmis à Chloé pour un premier email à ${email}`
+    : `Nordine (dashboard) : toiture de ${company} (${roof.area_m2} m², saleté ${roof.score}/10) transmise à Chloé pour un premier email à ${email}` })
   return { roof: updated || roof }
 }

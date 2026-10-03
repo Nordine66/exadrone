@@ -1,5 +1,5 @@
 // Dashboard "Toitures" tab: pick a zone on the IGN satellite map → list every
-// roof ≥ 800 m² → AI dirt diagnosis + owner / occupants → follow-up and hand-off
+// roof ≥ 500 m² (and solar farm) → AI dirt diagnosis + owner / occupants → follow-up and hand-off
 // to Chloé. Server side in lib/roofs.js (api/admin/dashboard.js, resource=roofs).
 // Depends on the dashboard's global API() and esc().
 (function () {
@@ -20,7 +20,8 @@
   const STATUS_LABEL = Object.fromEntries(STATUSES)
 
   const state = {
-    view: 'scan',          // 'scan' (current map zone) | 'saved' (every analysed roof)
+    view: 'scan',          // 'scan' (current map zone) | 'saved' (every analysed roof) | 'outreach'
+    mode: (() => { try { return localStorage.getItem('tt-mode') === 'solaire' ? 'solaire' : 'toiture' } catch (e) { return 'toiture' } })(),
     scan: [],              // roofs of the last scan
     saved: [],             // roofs from the database
     filter: { priority: '', status: '', analyzedOnly: false },
@@ -100,7 +101,11 @@
     <div class="tt-toolbar">
       <input class="tt-input" id="tt-search" placeholder="Ville, adresse ou zone d'activités (ex. « Rivesaltes », « ZI Nord Narbonne »)…">
       <button class="tt-btn" id="tt-go" title="Centrer la carte sur ce lieu">Aller</button>
-      <button class="btn-primary btn-sm" id="tt-city" title="Tous les toits de 800 m² et plus de la commune">Scanner toute la ville</button>
+      <button class="btn-primary btn-sm" id="tt-city" title="Tous les toits de 500 m² et plus de la commune">Scanner toute la ville</button>
+      <div class="tt-seg" id="tt-mode" title="Ce que vous voulez démarcher : la note, le tri, les filtres et l'argumentaire de Chloé s'adaptent">
+        <button data-mode="toiture">Toitures sales</button>
+        <button data-mode="solaire">Panneaux solaires</button>
+      </div>
       <div class="tt-seg" id="tt-view">
         <button data-view="scan" class="on">Zone de la carte</button>
         <button data-view="saved">Mes toitures</button>
@@ -121,9 +126,9 @@
       <span style="flex-basis:100%;height:0"></span>
       <b style="font-size:.8rem">2. Analyse détaillée</b>
       <select id="tt-n">
-        <option value="s7">Toits notés 7/10 et + au tri</option>
-        <option value="s6">Toits notés 6/10 et + au tri</option>
-        <option value="s5">Toits notés 5/10 et + au tri</option>
+        <option value="s7" data-label="notés 7/10 et + au tri">Toits notés 7/10 et + au tri</option>
+        <option value="s6" data-label="notés 6/10 et + au tri">Toits notés 6/10 et + au tri</option>
+        <option value="s5" data-label="notés 5/10 et + au tri">Toits notés 5/10 et + au tri</option>
         <option value="5">5 plus grands toits</option>
         <option value="10">10 plus grands</option>
         <option value="20" selected>20 plus grands</option>
@@ -231,8 +236,25 @@
     updateZoneLabel()
   }
 
-  const shownScore = (r) => r.score ?? r.screen_score ?? null
-  const scoreColor = (r) => shownScore(r) == null ? '#38bdf8' : shownScore(r) >= 7 ? '#f87171' : shownScore(r) >= 4 ? '#fb923c' : '#34d399'
+  // ── Target: dirty roofs or solar panels ───────────────────────────────────
+  // Every photo analysis rates both; the mode picks which rating drives the
+  // ranking, the filters, the Démarchage list and Chloé's pitch.
+  const isSolar = () => state.mode === 'solaire'
+  const analysedForMode = (r) => !!r.analyzed_at && (!isSolar() || r.solar != null)
+  const screenedForMode = (r) => analysedForMode(r) || (!!r.screened_at && (!isSolar() || r.screen_solar != null))
+  // Known to have no panels (detailed analysis first, quick screening otherwise)
+  const noPanels = (r) => r.kind !== 'centrale' && (r.solar === false || (r.solar == null && r.screen_solar === false))
+  function screenScore(r) {
+    if (isSolar()) return r.screen_solar ? r.screen_solar_score : r.screen_solar === false ? 0 : null
+    return r.screen_score ?? null
+  }
+  function detailScore(r) {
+    if (!analysedForMode(r)) return null
+    return isSolar() ? (r.solar ? r.solar_score : 0) : r.score
+  }
+  const shownScore = (r) => detailScore(r) ?? screenScore(r)
+  const scoreColor = (r) => isSolar() && noPanels(r) ? '#64748b' : shownScore(r) == null ? '#38bdf8' : shownScore(r) >= 7 ? '#f87171' : shownScore(r) >= 4 ? '#fb923c' : '#34d399'
+  const scoreWord = () => isSolar() ? 'panneaux' : 'saleté'
 
   function drawPolygons(roofs) {
     if (!state.map) return
@@ -240,9 +262,10 @@
     state.polygons.clear()
     for (const r of roofs) {
       const poly = window.L.polygon(r.rings.map(ring => ring.map(([lon, lat]) => [lat, lon])), {
-        color: scoreColor(r), weight: 2, fillOpacity: r.score != null ? 0.35 : 0.15, dashArray: r.score == null && r.screen_score != null ? '4 3' : null
+        color: scoreColor(r), weight: 2, fillOpacity: detailScore(r) != null ? 0.35 : 0.15, dashArray: detailScore(r) == null && screenScore(r) != null ? '4 3' : null
       })
-      poly.bindTooltip(`${r.area_m2.toLocaleString('fr-FR')} m²${r.score != null ? ` — saleté ${r.score}/10` : r.screen_score != null ? ` — tri rapide ${r.screen_score}/10` : ''}`)
+      const d = detailScore(r), q = screenScore(r)
+      poly.bindTooltip(`${r.kind === 'centrale' ? 'Centrale solaire · ' : ''}${r.area_m2.toLocaleString('fr-FR')} m²${isSolar() && noPanels(r) ? ' — pas de panneaux' : d != null ? ` — ${scoreWord()} ${d}/10` : q != null ? ` — tri rapide ${q}/10` : ''}`)
       poly.on('click', () => focusCard(r.osm_id))
       poly.addTo(state.layer)
       state.polygons.set(r.osm_id, poly)
@@ -292,13 +315,13 @@
     state.city = null
     if (state.cityLayer) { state.cityLayer.remove(); state.cityLayer = null }
     $('tt-scan').disabled = true
-    setStatus('Recherche des bâtiments de 800 m² et plus dans la zone…')
+    setStatus('Recherche des bâtiments de 500 m² et plus dans la zone…')
     try {
       const data = await API('/api/admin/roofs?action=scan', { method: 'POST', body: JSON.stringify({ zone }) })
       if (data.error) throw new Error(data.error + (data.hint ? ` — ${data.hint}` : ''))
       state.scan = data.roofs
       const analysed = data.roofs.filter(r => r.analyzed_at).length
-      setStatus(`${data.total.toLocaleString('fr-FR')} bâtiments dans la zone, ${data.roofs.length} toits de 800 m² et plus${analysed ? ` (${analysed} déjà analysés)` : ''}.`, 'ok')
+      setStatus(`${data.total.toLocaleString('fr-FR')} bâtiments dans la zone, ${data.roofs.length} toits de 500 m² et plus${analysed ? ` (${analysed} déjà analysés)` : ''}.`, 'ok')
       render()
     } catch (e) {
       setStatus(e.message, 'error')
@@ -333,10 +356,12 @@
 
   function analysisTodo() {
     const v = $('tt-n').value
-    const pool = state.scan.filter(r => !r.analyzed_at)
+    const pool = state.scan.filter(r => !analysedForMode(r) && !(isSolar() && noPanels(r)))
     if (v.startsWith('s')) {
       const min = Number(v.slice(1))
-      return pool.filter(r => r.screen_score >= min).sort((a, b) => b.screen_score - a.screen_score || b.area_m2 - a.area_m2)
+      // Solar farms are always worth a look in solar mode, even unscreened
+      return pool.filter(r => (screenScore(r) ?? -1) >= min || (isSolar() && r.kind === 'centrale' && screenScore(r) == null))
+        .sort((a, b) => (screenScore(b) ?? 10) - (screenScore(a) ?? 10) || b.area_m2 - a.area_m2)
     }
     const n = Number(v)
     return pool.slice().sort((a, b) => b.area_m2 - a.area_m2).slice(0, n || undefined)
@@ -344,11 +369,14 @@
 
   function updateBatchBar() {
     const n = state.scan.length
-    const analysed = state.scan.filter(r => r.analyzed_at).length
-    const screened = state.scan.filter(r => r.screened_at || r.analyzed_at).length
-    const toScreen = state.scan.filter(r => !r.analyzed_at && !r.screened_at).length
-    const dirty = state.scan.filter(r => (r.score ?? r.screen_score ?? 0) >= 6).length
-    $('tt-count').textContent = `${state.city ? `${state.city.nom} (${state.city.dep}) · ` : ''}${n} toits de 800 m² et + · ${screened} triés · ${analysed} analysés en détail${screened ? ` · ${dirty} notés 6/10 et +` : ''}`
+    const analysed = state.scan.filter(analysedForMode).length
+    const screened = state.scan.filter(screenedForMode).length
+    const toScreen = state.scan.filter(r => !screenedForMode(r)).length
+    const dirty = state.scan.filter(r => (shownScore(r) ?? 0) >= 6).length
+    const farms = state.scan.filter(r => r.kind === 'centrale').length
+    const withPanels = state.scan.filter(r => r.kind === 'centrale' || r.solar === true || (r.solar == null && r.screen_solar === true)).length
+    $('tt-count').textContent = `${state.city ? `${state.city.nom} (${state.city.dep}) · ` : ''}${n} toits de 500 m² et +${farms ? ` (dont ${farms} centrale(s) solaire(s) au sol)` : ''} · ${screened} triés · ${analysed} analysés en détail${isSolar() && screened ? ` · ${withPanels} avec panneaux` : ''}${screened ? ` · ${dirty} notés 6/10 et + (${scoreWord()})` : ''}`
+    for (const o of $('tt-n').options) if (o.dataset.label) o.textContent = `${isSolar() ? 'Panneaux' : 'Toits'} ${o.dataset.label}`
     $('tt-screen').disabled = !toScreen || state.running
     $('tt-screen').textContent = toScreen ? `Trier les ${toScreen} toits` : 'Tous les toits sont triés'
     $('tt-screen-cost').textContent = toScreen ? `≈ ${euros(Math.ceil(toScreen / 9) * COST_SCREEN)} (estimation)` : ''
@@ -424,20 +452,20 @@
         state.scan.push(roof)
       }
       $('tt-bar').style.width = `${Math.round(done / tiles.length * 100)}%`
-      setStatus(`Scan de ${commune.nom} : secteur ${done}/${tiles.length} — ${state.scan.length} toits de 800 m² et + trouvés…`)
+      setStatus(`Scan de ${commune.nom} : secteur ${done}/${tiles.length} — ${state.scan.length} toits de 500 m² et + trouvés…`)
       render()
     }
     state.running = false
     $('tt-city').disabled = false; $('tt-stop').style.display = 'none'; updateZoneLabel()
     const n = state.scan.length
-    const toScreen = state.scan.filter(r => !r.analyzed_at && !r.screened_at).length
-    setStatus(`${commune.nom} : ${n} toits de 800 m² et + trouvés${failed ? ` (${failed} secteur(s) en échec : relancez pour compléter)` : ''}. ${toScreen ? `Étape 1 : « Trier les ${toScreen} toits » (≈ ${euros(Math.ceil(toScreen / 9) * COST_SCREEN)}), puis analysez en détail les plus sales.` : 'Tous déjà triés : passez à l\'analyse détaillée.'}`, failed ? 'error' : 'ok')
+    const toScreen = state.scan.filter(r => !screenedForMode(r)).length
+    setStatus(`${commune.nom} : ${n} toits de 500 m² et + trouvés${failed ? ` (${failed} secteur(s) en échec : relancez pour compléter)` : ''}. ${toScreen ? `Étape 1 : « Trier les ${toScreen} toits » (≈ ${euros(Math.ceil(toScreen / 9) * COST_SCREEN)}), puis analysez en détail les plus sales.` : 'Tous déjà triés : passez à l\'analyse détaillée.'}`, failed ? 'error' : 'ok')
     $('tt-n').value = toScreen < n ? 's6' : '20'
     render()
   }
 
   async function screenAll() {
-    const todo = state.scan.filter(r => !r.analyzed_at && !r.screened_at).sort((a, b) => b.area_m2 - a.area_m2)
+    const todo = state.scan.filter(r => !screenedForMode(r)).sort((a, b) => b.area_m2 - a.area_m2)
     if (!todo.length) return
     const grids = []
     for (let i = 0; i < todo.length; i += 9) grids.push(todo.slice(i, i + 9))
@@ -466,9 +494,9 @@
     await Promise.all(Array.from({ length: CONCURRENCY }, worker))
     state.running = false
     $('tt-stop').style.display = 'none'; updateZoneLabel()
-    const dirty = state.scan.filter(r => (r.score ?? r.screen_score ?? 0) >= 6).length
+    const dirty = state.scan.filter(r => (shownScore(r) ?? 0) >= 6).length
     $('tt-n').value = 's6'
-    setStatus(`${state.stop ? 'Tri arrêté' : 'Tri terminé'} : ${dirty} toit(s) notés 6/10 et plus${failed ? `, ${failed} planche(s) en échec (relancez le tri pour les compléter)` : ''}. Étape 2 : analysez-les en détail pour avoir le diagnostic, le propriétaire et les occupants.`, failed ? 'error' : 'ok')
+    setStatus(`${state.stop ? 'Tri arrêté' : 'Tri terminé'} : ${dirty} ${isSolar() ? 'site(s) aux panneaux notés' : 'toit(s) notés'} 6/10 et plus${failed ? `, ${failed} planche(s) en échec (relancez le tri pour les compléter)` : ''}. Étape 2 : analysez-les en détail pour avoir le diagnostic, le propriétaire et les occupants.`, failed ? 'error' : 'ok')
     render()
   }
 
@@ -518,15 +546,16 @@
 
   // ── Rendering ─────────────────────────────────────────────────────────────
   function sorted(list) {
-    return list.slice().sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || (b.screen_score ?? -1) - (a.screen_score ?? -1) || b.area_m2 - a.area_m2)
+    return list.slice().sort((a, b) => (detailScore(b) ?? -1) - (detailScore(a) ?? -1) || (screenScore(b) ?? -1) - (screenScore(a) ?? -1) || b.area_m2 - a.area_m2)
   }
 
   function filtered(list) {
     const f = state.filter
     return list.filter(r =>
-      (!f.priority || r.priority === f.priority) &&
+      !(isSolar() && noPanels(r)) &&
+      (!f.priority || (isSolar() ? r.solar_priority : r.priority) === f.priority) &&
       (!f.status || (r.status || 'nouveau') === f.status) &&
-      (!f.analyzedOnly || r.analyzed_at))
+      (!f.analyzedOnly || analysedForMode(r)))
   }
 
   function companyBlock(c, fallbackName, extra = '') {
@@ -603,10 +632,36 @@
       </div></details>`
   }
 
+  function screenBadge(r) {
+    const q = screenScore(r)
+    if (q == null) return ''
+    const cls = q >= 7 ? 'badge-hot' : q >= 4 ? 'badge-warm' : 'badge-cold'
+    const text = isSolar()
+      ? (r.screen_solar ? `Tri rapide : panneaux ${q}/10` : 'Tri rapide : pas de panneaux')
+      : `Tri rapide ${q}/10${r.screen_lichen ? ' · mousse' : ''}`
+    return `<span class="badge ${cls}" title="Note du tri rapide (planche de 9 toits) : à confirmer par l'analyse détaillée">${text}</span>`
+  }
+
+  function solarHtml(r) {
+    if (r.solar == null) {
+      return isSolar() && !pending.has(r.osm_id)
+        ? `<div class="tt-section"><h4>Panneaux solaires</h4><div class="tt-sub">Pas encore évalués pour ce toit (analysé avant l'ajout du solaire).</div><button class="tt-btn" data-act="analyze" data-osm="${esc(r.osm_id)}" style="margin-top:6px">Évaluer les panneaux (nouvelle analyse)</button></div>`
+        : ''
+    }
+    if (!r.solar) return isSolar() ? '<div class="tt-section"><h4>Panneaux solaires</h4><div class="tt-sub">Aucun panneau détecté.</div></div>' : ''
+    const cls = { HAUTE: 'badge-hot', MOYENNE: 'badge-warm', BASSE: 'badge-cold' }[r.solar_priority] || 'badge-cold'
+    return `<div class="tt-section"><h4>Panneaux solaires</h4>
+      <div class="tt-badges" style="margin:2px 0 6px">
+        <span class="badge ${cls}">Encrassement ${r.solar_score}/10${r.solar_priority ? ` · priorité ${esc(r.solar_priority)}` : ''}</span>
+        ${r.solar_area_m2 ? `<span class="badge badge-cold">~${r.solar_area_m2.toLocaleString('fr-FR')} m² de panneaux</span>` : ''}
+      </div>
+      ${r.solar_diagnostic ? `<div class="tt-diag" style="margin:0">${esc(r.solar_diagnostic)}</div>` : ''}</div>`
+  }
+
   function cardHtml(r) {
     const photo = r.photo
     const outline = (photo?.outline || []).map(ring => `<polyline points="${ring.map(p => p.join(',')).join(' ')}" fill="none" stroke="#ff3b3b" stroke-width="${Math.max(2, photo.px / 260)}"/>`).join('')
-    const title = r.name || r.address || (r.usage ? `Bâtiment (${r.usage})` : 'Bâtiment')
+    const title = r.name || r.address || (r.kind === 'centrale' ? 'Centrale solaire au sol' : r.usage ? `Bâtiment (${r.usage})` : 'Bâtiment')
     const where = [r.name ? r.address : null, r.commune && !(r.address || '').includes(r.commune) ? r.commune : null].filter(Boolean).join(' · ')
     const company = (r.owners || [])[0]?.company?.name || (r.owners || [])[0]?.name || (r.occupants || [])[0]?.name || ''
     const prioClass = { HAUTE: 'badge-hot', MOYENNE: 'badge-warm', BASSE: 'badge-cold' }[r.priority] || 'badge-cold'
@@ -619,7 +674,7 @@
             <div class="tt-title">${esc(title)}</div>
             <div class="tt-sub">${r.area_m2.toLocaleString('fr-FR')} m² au sol${where ? ` · ${esc(where)}` : ''}</div>
           </div>
-          ${r.score != null ? `<div class="tt-score" style="color:${scoreColor(r)}">${r.score}<small>/10 saleté</small></div>` : ''}
+          ${detailScore(r) != null && !(isSolar() && !r.solar) ? `<div class="tt-score" style="color:${scoreColor(r)}">${detailScore(r)}<small>/10 ${scoreWord()}</small></div>` : ''}
         </div>
         ${r.analyzed_at ? `
           <div class="tt-badges">
@@ -628,8 +683,9 @@
             <span class="badge badge-cold">${esc(r.roof_type || '')}</span>
             ${r.status && r.status !== 'nouveau' ? `<span class="badge badge-new">${esc(STATUS_LABEL[r.status] || r.status)}</span>` : ''}
           </div>
-          <div class="tt-diag">${esc(r.diagnostic)}</div>`
-        : `<div class="tt-badges">${r.screen_score != null ? `<span class="badge ${r.screen_score >= 7 ? 'badge-hot' : r.screen_score >= 4 ? 'badge-warm' : 'badge-cold'}" title="Note du tri rapide (planche de 9 toits) : à confirmer par l'analyse détaillée">Tri rapide ${r.screen_score}/10${r.screen_lichen ? ' · mousse' : ''}</span>` : ''}${isPending
+          <div class="tt-diag">${esc(r.diagnostic)}</div>
+          ${solarHtml(r)}`
+        : `<div class="tt-badges">${r.kind === 'centrale' ? '<span class="badge badge-new">Centrale solaire au sol</span>' : ''}${screenBadge(r)}${isPending
           ? '<span class="tt-pending"><span class="spinner"></span> Analyse en cours (photo, IA, propriétaire)…</span>'
           : `<button class="tt-btn" data-act="analyze" data-osm="${esc(r.osm_id)}">Analyser ce toit</button>`}</div>`}
         ${ownersHtml(r)}
@@ -670,10 +726,12 @@
   function outreachRows() {
     const min = Number($('tt-o-min').value)
     const hideSent = $('tt-o-hide-sent').checked
-    return sorted(state.saved).filter(r => r.analyzed_at && r.score >= min && r.status !== 'ignore' && r.status !== 'perdu' && (!hideSent || !r.prospect_id))
+    return sorted(state.saved).filter(r => analysedForMode(r) && (!isSolar() || r.solar) && (detailScore(r) ?? 0) >= min &&
+      r.status !== 'ignore' && r.status !== 'perdu' && (!hideSent || !r.prospect_id))
   }
 
   const sendable = (r) => !r.prospect_id && r.contact_email && r.contact_company
+  const diagFor = (r) => (isSolar() ? r.solar_diagnostic : r.diagnostic) || ''
 
   function renderOutreach() {
     const rows = outreachRows()
@@ -699,9 +757,9 @@
       return `<tr data-id="${r.id}">
         <td><input type="checkbox" data-sel="${r.id}" ${selected.has(r.id) ? 'checked' : ''} ${can ? '' : 'disabled'}></td>
         <td style="min-width:230px">${r.photo ? `<img class="tt-thumb" src="${esc(r.photo.url)}" alt="" loading="lazy">` : ''}
-          <b style="color:${scoreColor(r)}">${r.score}/10</b> · ${r.area_m2.toLocaleString('fr-FR')} m²
+          <b style="color:${scoreColor(r)}">${detailScore(r)}/10</b> ${scoreWord()} · ${isSolar() && r.solar_area_m2 ? `~${r.solar_area_m2.toLocaleString('fr-FR')} m² de panneaux` : `${r.area_m2.toLocaleString('fr-FR')} m²`}${r.kind === 'centrale' ? ' · centrale au sol' : ''}
           <div class="tt-mini">${esc(r.address || r.commune || '')}</div>
-          <div class="tt-mini">${esc((r.diagnostic || '').slice(0, 110))}${(r.diagnostic || '').length > 110 ? '…' : ''}</div></td>
+          <div class="tt-mini">${esc(diagFor(r).slice(0, 110))}${diagFor(r).length > 110 ? '…' : ''}</div></td>
         <td style="min-width:180px"><input type="text" data-k="contact_company" value="${esc(r.contact_company || '')}" placeholder="${esc(bestCompany(r).name || 'Entreprise')}">
           ${r.website ? `<div class="tt-mini"><a href="${esc(r.website)}" target="_blank" rel="noopener">${esc(r.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a></div>` : ''}</td>
         <td style="min-width:150px"><input type="text" data-k="contact_name" value="${esc(r.contact_name || '')}" placeholder="Nom (facultatif)">
@@ -727,7 +785,7 @@
       owners.find(o => o.siren && !holding(o)) || occ[0] || owners[0] || { name: '', siren: '' }
   }
 
-  const CSV_COLUMNS = ['ID (ne pas modifier)', 'Score saleté /10', 'Surface m²', 'Adresse du bâtiment', 'Commune', 'Diagnostic toiture',
+  const csvColumns = () => ['ID (ne pas modifier)', isSolar() ? 'Encrassement panneaux /10' : 'Score saleté /10', isSolar() ? 'Surface panneaux m²' : 'Surface m²', 'Adresse du bâtiment', 'Commune', isSolar() ? 'Diagnostic panneaux' : 'Diagnostic toiture',
     'Entreprise à démarcher', 'SIREN', 'Dirigeants', 'Siège', 'Propriétaire(s)', 'Autres entreprises sur place',
     'Fiche entreprise', 'Recherche Google', 'Google Maps', 'Site web', 'Email', 'Nom du contact', 'Téléphone', 'Source email']
 
@@ -739,7 +797,7 @@
     const owners = (r.owners || []).map(o => `${o.company?.name || o.name}${o.siren ? ` (SIREN ${o.siren})` : ''}${o.right ? ` — ${o.right}` : ''}`).join(' | ')
     const others = (r.occupants || []).filter(o => o.siren !== best.siren).slice(0, 5).map(o => `${o.name}${o.siren ? ` (${o.siren})` : ''}`).join(' | ')
     const q = `${best.name || ''} ${r.commune || ''} contact email`.trim()
-    return [r.id, r.score, r.area_m2, r.address || '', r.commune || '', r.diagnostic || '',
+    return [r.id, detailScore(r), isSolar() ? (r.solar_area_m2 || '') : r.area_m2, r.address || '', r.commune || '', diagFor(r),
       best.name || '', best.siren || '', leaders, company?.hq_address || '', owners, others,
       best.siren ? `https://annuaire-entreprises.data.gouv.fr/entreprise/${best.siren}` : '',
       `https://www.google.com/search?q=${encodeURIComponent(q)}`, `https://www.google.com/maps?q=${r.lat},${r.lon}`,
@@ -750,10 +808,10 @@
     const rows = outreachRows().filter(r => !r.prospect_id)
     if (!rows.length) return setOStatus('Aucune toiture à exporter avec ce niveau de saleté.', 'error')
     const cell = (v) => `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`
-    const csv = '\ufeff' + [CSV_COLUMNS, ...rows.map(csvRow)].map(line => line.map(cell).join(';')).join('\r\n')
+    const csv = '\ufeff' + [csvColumns(), ...rows.map(csvRow)].map(line => line.map(cell).join(';')).join('\r\n')
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-    a.download = `recherche-contacts-toitures-${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `recherche-contacts-${isSolar() ? 'panneaux-solaires' : 'toitures'}-${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
     setTimeout(() => URL.revokeObjectURL(a.href), 2000)
     setOStatus(`${rows.length} toiture(s) exportée(s). Remplissez les colonnes Site web / Email / Nom du contact / Téléphone / Source email, puis réimportez le fichier.`, 'ok')
@@ -860,10 +918,10 @@ Règles impératives :
   async function sendToChloe() {
     const ids = [...selected]
     if (!ids.length) return
-    if (!confirm(`Transmettre ${ids.length} toiture(s) à Chloé ?\n\nElle enverra à chacune un premier email personnalisé sur l'état de sa toiture, en priorité lors de sa prochaine tournée (chaque matin, ou bouton « Envoyer le prochain lot » dans Prospects). Hugo fera ensuite les relances.`)) return
+    if (!confirm(`Transmettre ${ids.length} ${isSolar() ? 'site(s) avec panneaux solaires' : 'toiture(s)'} à Chloé (argumentaire « ${isSolar() ? 'nettoyage de panneaux solaires' : 'nettoyage de toiture'} ») ?\n\nElle enverra à chacune un premier email personnalisé sur l'état de sa toiture, en priorité lors de sa prochaine tournée (chaque matin, ou bouton « Envoyer le prochain lot » dans Prospects). Hugo fera ensuite les relances.`)) return
     $('tt-o-send').disabled = true
     const status = $('tt-o-status')
-    const data = await API('/api/admin/roofs?action=prospect-bulk', { method: 'POST', body: JSON.stringify({ ids }) })
+    const data = await API('/api/admin/roofs?action=prospect-bulk', { method: 'POST', body: JSON.stringify({ ids, offer: state.mode }) })
     if (data.error) { status.textContent = data.error; status.dataset.kind = 'error'; return render() }
     for (const r of data.results) { if (r.roof) replaceRoof(r.roof); if (r.ok) selected.delete(r.id) }
     const errors = data.results.filter(r => !r.ok)
@@ -942,6 +1000,19 @@ Règles impératives :
   $('tt-f-priority').addEventListener('change', e => { state.filter.priority = e.target.value; render() })
   $('tt-f-status').addEventListener('change', e => { state.filter.status = e.target.value; render() })
   $('tt-f-analyzed').addEventListener('change', e => { state.filter.analyzedOnly = e.target.checked; render() })
+  function syncModeButtons() {
+    root.querySelectorAll('#tt-mode button').forEach(b => b.classList.toggle('on', b.dataset.mode === state.mode))
+  }
+  syncModeButtons()
+  $('tt-mode').addEventListener('click', e => {
+    const m = e.target.closest('button')?.dataset.mode
+    if (!m || m === state.mode) return
+    state.mode = m
+    try { localStorage.setItem('tt-mode', m) } catch (err) { /* private mode */ }
+    syncModeButtons()
+    outreachTouched = false; selected.clear()
+    render()
+  })
   $('tt-view').addEventListener('click', e => {
     const v = e.target.closest('button')?.dataset.view
     if (!v || v === state.view) return
@@ -982,7 +1053,7 @@ Règles impératives :
       if (saved.error) throw new Error(saved.error)
       replaceRoof(saved.roof)
       if (act === 'chloe') {
-        const sent = await API(`/api/admin/roofs?action=prospect&id=${id}`, { method: 'POST', body: '{}' })
+        const sent = await API(`/api/admin/roofs?action=prospect&id=${id}`, { method: 'POST', body: JSON.stringify({ offer: state.mode }) })
         if (sent.error) throw new Error(sent.error + (sent.hint ? ` — ${sent.hint}` : ''))
         replaceRoof(sent.roof)
         msg.textContent = 'Ajouté aux prospects : Chloé enverra le premier email lors de sa prochaine tournée.'

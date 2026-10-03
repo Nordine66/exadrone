@@ -444,6 +444,8 @@ Angle imposé — nettoyage de panneaux solaires :
 
 Règles :
 - Objet court et concret (pas de clickbait), mentionnant explicitement les panneaux solaires/photovoltaïques
+- Si un « Contexte » décrit ce qui a été observé sur la vue aérienne de leurs panneaux, ouvre sur ce constat avec prudence (« sur les vues aériennes récentes, vos panneaux semblent… »), sans rien inventer au-delà
+- Si le prospect indique « Photo aérienne : oui », la vue aérienne IGN de leur site est insérée automatiquement juste après ton paragraphe de constat : tu peux y faire référence une seule fois et brièvement (« la vue aérienne ci-dessous »). Sinon, n'évoque aucune image.
 - Une accroche personnalisée liée à l'entreprise/secteur du prospect si l'information est disponible
 - Jamais de promesse de prix précis ni de pourcentage de gain garanti dans l'email
 - Signature : "Chloé — Exadrone Enterprise"
@@ -544,6 +546,11 @@ function isRoofProspect(prospect) {
   const haystack = `${prospect.industry || ''} ${prospect.csv_batch || ''}`.toLowerCase()
   return /toiture industrielle|toitures/.test(haystack)
 }
+
+// Buildings / solar farms picked in the "Toitures" tab (roof or PV panel
+// pitch): they carry an aerial photo and jump Chloé's queue.
+const MAP_BATCHES = ['toitures', 'solaire-detecte']
+const isMapProspect = (prospect) => MAP_BATCHES.includes(prospect.csv_batch)
 
 const CHLOE_EMAIL_SYSTEM_PROMPT_ROOF = `Tu es Chloé, chargée de développement commercial chez Exadrone Enterprise, spécialiste du nettoyage et du démoussage de toitures industrielles et tertiaires par drone.
 
@@ -698,11 +705,11 @@ async function handleSendBatch(req, res, supabase) {
   // Roofs Nordine picked in the "Toitures" tab jump the queue: they were
   // qualified by hand, the CSV backlog can wait a day.
   const { data: roofProspects, error: roofError } = await supabase
-    .from('prospects').select('*').eq('status', 'pending').eq('csv_batch', 'toitures')
+    .from('prospects').select('*').eq('status', 'pending').in('csv_batch', MAP_BATCHES)
     .order('created_at', { ascending: true }).limit(remaining)
   if (roofError) return res.status(500).json({ error: roofError.message })
   const { data: otherProspects, error: fetchError } = remaining > roofProspects.length
-    ? await supabase.from('prospects').select('*').eq('status', 'pending').or('csv_batch.is.null,csv_batch.neq.toitures')
+    ? await supabase.from('prospects').select('*').eq('status', 'pending').or(`csv_batch.is.null,csv_batch.not.in.(${MAP_BATCHES.join(',')})`)
       .order('created_at', { ascending: true }).limit(remaining - roofProspects.length)
     : { data: [], error: null }
   if (fetchError) return res.status(500).json({ error: fetchError.message })
@@ -747,7 +754,7 @@ async function handleSendBatch(req, res, supabase) {
 
     let sent = false
     try {
-      const photoUrl = isRoofProspect(prospect) ? await roofPhotoUrl(supabase, prospect) : null
+      const photoUrl = isMapProspect(prospect) ? await roofPhotoUrl(supabase, prospect) : null
       const draft = await anthropic.messages.create({
         model: 'claude-sonnet-4-5',
         max_tokens: 500,
@@ -758,7 +765,7 @@ async function handleSendBatch(req, res, supabase) {
           : CHLOE_EMAIL_SYSTEM_PROMPT) + instructionsPromptBlock(agent),
         messages: [{
           role: 'user',
-          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}${isRoofProspect(prospect) ? `\n- Photo aérienne : ${photoUrl ? 'oui' : 'non'}` : ''}`
+          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}${isMapProspect(prospect) || isRoofProspect(prospect) ? `\n- Photo aérienne : ${photoUrl ? 'oui' : 'non'}` : ''}`
         }]
       })
       const raw = draft.content[0]?.text || ''

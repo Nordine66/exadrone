@@ -8,16 +8,18 @@
 //      the PM_AA_NB_<dep>0.csv files you need (66, 11, 31…).
 //   2. node scripts/build-proprietaires.js PM_25_NB_660.csv PM_25_NB_110.csv PM_25_NB_310.csv
 //
-// Only built-up land ("S - Sols") parcels of 500 m² or more are kept: an
-// industrial roof of 800 m²+ always sits on such a parcel, and it keeps the
-// file small enough to ship inside the serverless function.
+// Kept: built-up land ("S - Sols") parcels of 300 m² or more (every roof of
+// 500 m²+ sits on such parcels) and any parcel of 5 000 m² or more (ground-
+// mounted solar farms sit on farmland / heath parcels). That keeps the file
+// small enough to ship inside the serverless function.
 const fs = require('fs')
 const path = require('path')
 const readline = require('readline')
 const zlib = require('zlib')
 
 const OUT = path.join(__dirname, '..', 'lib', 'data', 'proprietaires-pm.json.gz')
-const MIN_PARCEL_M2 = 500
+const MIN_BUILT_PARCEL_M2 = 300
+const MIN_LAND_PARCEL_M2 = 5000
 
 // Column indexes of the DGFiP CSV (';'-separated, UTF-8, one row per parcel
 // subdivision and per owner right).
@@ -30,7 +32,9 @@ async function readFile(file, owners) {
   for await (const line of rl) {
     if (header) { header = false; continue }
     const r = line.split(';')
-    if (!String(r[C.culture]).startsWith('S ') || Number(r[C.contenance]) < MIN_PARCEL_M2) continue
+    const area = Number(r[C.contenance])
+    const builtUp = String(r[C.culture]).startsWith('S ')
+    if (!(builtUp && area >= MIN_BUILT_PARCEL_M2) && area < MIN_LAND_PARCEL_M2) continue
     const idu = r[C.dep].padStart(2, '0') + r[C.com].padStart(3, '0') + (r[C.prefixe].trim() || '000').padStart(3, '0') +
       r[C.section].trim().padStart(2, '0') + r[C.numero].trim().padStart(4, '0')
     const siren = r[C.siren].trim()

@@ -3,7 +3,7 @@
 Prospection automatisée de toitures industrielles à démousser / nettoyer.
 
 Chaîne complète :
-  A. Overpass (OpenStreetMap) -> bâtiments de la BBOX dont l'emprise au sol >= 800 m²
+  A. Overpass (OpenStreetMap) -> bâtiments de la BBOX dont l'emprise au sol >= 500 m²
   B. WMS IGN Géoplateforme (ORTHOIMAGERY.ORTHOPHOTOS) -> orthophoto HD centrée sur chaque toit
   C. API Anthropic (vision) -> diagnostic d'encrassement en JSON strict
   D. Export Excel trié par score de saleté décroissant
@@ -53,7 +53,7 @@ DEFAULT_OUTPUT = BASE_DIR / "leads_toitures_a_traiter.xlsx"
 
 # BBOX par défaut (sud, ouest, nord, est) : zone d'activités Grand Saint-Charles, Perpignan
 DEFAULT_BBOX = (42.712, 2.860, 42.735, 2.895)
-MIN_SURFACE_M2 = 800.0
+MIN_SURFACE_M2 = 500.0
 # Valeurs OSM building=* sans intérêt pour du nettoyage de toiture
 EXCLUDED_USAGES = {"greenhouse", "ruins", "construction", "roof", "demolished"}
 TEST_SAMPLE_SIZE = 5
@@ -551,7 +551,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="Zone GPS 'sud,ouest,nord,est' en degrés décimaux "
                         f"(défaut : {','.join(map(str, DEFAULT_BBOX))})")
     p.add_argument("--min-surface", type=float, default=MIN_SURFACE_M2,
-                   help="Surface au sol minimale en m² (défaut : 800)")
+                   help="Surface au sol minimale en m² (défaut : 500)")
     p.add_argument("--limit", type=int, default=0,
                    help="Nombre max de bâtiments traités, les plus grands d'abord (0 = tous)")
     p.add_argument("--test", action="store_true",
