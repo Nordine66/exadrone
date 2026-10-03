@@ -5,6 +5,7 @@ const { logActivity } = require('../../lib/activity')
 const { EMAIL_RE, excludeEmail, includeEmail } = require('../../lib/exclusions')
 const { findDuplicates } = require('../../lib/agent-tools')
 const DEVIS_EXAMPLE = require('../../lib/devis-example')
+const { scanZone, analyzeBuilding, photoFor } = require('../../lib/roofs')
 
 // Consolidates agents/leads/prospects/stats into one function to stay under
 // Vercel Hobby's 12-serverless-function limit. Original URLs (/api/admin/agents,
@@ -28,7 +29,8 @@ module.exports = async (req, res) => {
     case 'exclusions': return handleExclusions(req, res, supabase)
     case 'duplicates': return handleDuplicates(req, res, supabase)
     case 'quotes': return handleQuotes(req, res, supabase)
-    default: return res.status(400).json({ error: 'resource requis : stats, leads, agents, prospects, emails, analytics, exclusions, duplicates ou quotes' })
+    case 'roofs': return handleRoofs(req, res, supabase)
+    default: return res.status(400).json({ error: 'resource requis : stats, leads, agents, prospects, emails, analytics, exclusions, duplicates, quotes ou roofs' })
   }
 }
 
@@ -542,4 +544,129 @@ ${brief}`
     console.error('Quote AI error:', e)
     return res.status(500).json({ error: e.message })
   }
+}
+
+// ── roofs (dashboard "Toitures" tab, logic in lib/roofs.js) ──────────────────────
+const ROOF_STATUSES = ['nouveau', 'a_contacter', 'contacte', 'rdv', 'devis', 'gagne', 'perdu', 'ignore']
+const ROOF_EDITABLE = ['status', 'notes', 'contact_company', 'contact_name', 'contact_email', 'contact_phone']
+const ROOF_MIGRATION_HINT = (msg) => /roof_leads|context/.test(msg || '') ? 'Exécutez la migration 006 dans Supabase.' : undefined
+const withPhoto = (row) => ({ ...row, photo: photoFor(row) })
+
+async function handleRoofs(req, res, supabase) {
+  if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
+  const { id, action } = req.query || {}
+
+  if (req.method === 'GET') {
+    const { data, error } = await supabase.from('roof_leads').select('*')
+      .order('score', { ascending: false, nullsFirst: false }).order('area_m2', { ascending: false }).limit(500)
+    if (error) return res.status(500).json({ error: error.message, hint: ROOF_MIGRATION_HINT(error.message) })
+    return res.status(200).json({ roofs: (data || []).map(withPhoto) })
+  }
+
+  if (req.method === 'PATCH') {
+    if (!id) return res.status(400).json({ error: 'id requis' })
+    const patch = {}
+    for (const k of ROOF_EDITABLE) if (k in (req.body || {})) patch[k] = req.body[k] === '' ? null : req.body[k]
+    if (patch.status && !ROOF_STATUSES.includes(patch.status)) return res.status(400).json({ error: 'Statut inconnu' })
+    if (patch.contact_email && !EMAIL_RE.test(String(patch.contact_email).trim())) return res.status(400).json({ error: 'Email invalide' })
+    if (patch.contact_email) patch.contact_email = String(patch.contact_email).trim().toLowerCase()
+    patch.updated_at = new Date().toISOString()
+    const { data, error } = await supabase.from('roof_leads').update(patch).eq('id', id).select('*').single()
+    if (error) return res.status(500).json({ error: error.message })
+    return res.status(200).json({ roof: withPhoto(data) })
+  }
+
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  if (action === 'scan') {
+    let result
+    try {
+      result = await scanZone(req.body?.zone)
+    } catch (e) {
+      return res.status(400).json({ error: e.message })
+    }
+    // Roofs already analysed keep their score / status in the scan results
+    const known = new Map()
+    const ids = result.buildings.map(b => b.osm_id)
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data, error } = await supabase.from('roof_leads').select('*').in('osm_id', ids.slice(i, i + 200))
+      if (error) return res.status(500).json({ error: error.message, hint: ROOF_MIGRATION_HINT(error.message) })
+      for (const row of data || []) known.set(row.osm_id, row)
+    }
+    return res.status(200).json({
+      total: result.total,
+      roofs: result.buildings.map(b => withPhoto(known.get(b.osm_id) || b))
+    })
+  }
+
+  if (action === 'analyze') {
+    const building = req.body?.building
+    const force = !!req.body?.force
+    if (!building?.osm_id) return res.status(400).json({ error: 'Bâtiment manquant' })
+    if (!force) {
+      const { data: existing } = await supabase.from('roof_leads').select('*').eq('osm_id', building.osm_id).maybeSingle()
+      if (existing?.analyzed_at) return res.status(200).json({ roof: withPhoto(existing), cached: true })
+    }
+    let analysis
+    try {
+      analysis = await analyzeBuilding(building)
+    } catch (e) {
+      console.error('Roof analysis error:', e)
+      return res.status(502).json({ error: e.message })
+    }
+    const { data, error } = await supabase.from('roof_leads')
+      .upsert({ ...analysis, updated_at: new Date().toISOString() }, { onConflict: 'osm_id' })
+      .select('*').single()
+    if (error) return res.status(500).json({ error: error.message, hint: ROOF_MIGRATION_HINT(error.message) })
+    const owner = analysis.owners[0]?.company?.name || analysis.owners[0]?.name || analysis.occupants[0]?.name || 'propriétaire inconnu'
+    await logActivity(supabase, {
+      kind: 'roof_analyzed',
+      summary: `Toiture analysée : ${analysis.area_m2} m² ${analysis.address ? `au ${analysis.address}` : ''} — ${owner} — saleté ${analysis.score}/10, priorité ${analysis.priority}`,
+      meta: { id: data.id, osm_id: analysis.osm_id }
+    })
+    return res.status(200).json({ roof: withPhoto(data) })
+  }
+
+  // Hands a qualified roof over to Chloé's cold-email sequence.
+  if (action === 'prospect') {
+    if (!id) return res.status(400).json({ error: 'id requis' })
+    const { data: roof, error: e1 } = await supabase.from('roof_leads').select('*').eq('id', id).single()
+    if (e1) return res.status(500).json({ error: e1.message })
+    if (roof.prospect_id) return res.status(400).json({ error: 'Déjà transmis à Chloé.' })
+    const email = String(roof.contact_email || '').trim().toLowerCase()
+    const company = String(roof.contact_company || '').trim()
+    if (!EMAIL_RE.test(email)) return res.status(400).json({ error: "Renseignez d'abord l'email du contact." })
+    if (!company) return res.status(400).json({ error: "Renseignez d'abord l'entreprise à démarcher." })
+
+    const [{ data: existing }, { data: unsub }] = await Promise.all([
+      supabase.from('prospects').select('id, status').eq('email', email).limit(1),
+      supabase.from('unsubscribes').select('email').eq('email', email).limit(1)
+    ])
+    if (unsub?.length) return res.status(400).json({ error: 'Cette adresse est dans les exclusions (désinscrite ou « pas intéressé »).' })
+    if (existing?.length) return res.status(400).json({ error: 'Cette adresse est déjà dans les prospects.' })
+
+    const context = [
+      `Bâtiment de ${roof.area_m2} m² d'emprise au sol${roof.address ? ` situé ${roof.address}` : ''}${roof.roof_type && roof.roof_type !== 'indéterminé' ? `, toiture en ${roof.roof_type}` : ''}.`,
+      roof.diagnostic ? `Constat sur la vue aérienne IGN : ${roof.diagnostic}` : null,
+      roof.lichen ? 'Présence de mousses / lichens visible.' : null
+    ].filter(Boolean).join(' ')
+
+    const { data: prospect, error: e2 } = await supabase.from('prospects').insert({
+      company_name: company,
+      contact_name: roof.contact_name || null,
+      email,
+      industry: 'Toiture industrielle',
+      csv_batch: 'toitures',
+      status: 'pending',
+      context
+    }).select('id').single()
+    if (e2) return res.status(500).json({ error: e2.message, hint: ROOF_MIGRATION_HINT(e2.message) })
+    const { data: updated } = await supabase.from('roof_leads')
+      .update({ prospect_id: prospect.id, status: 'a_contacter', updated_at: new Date().toISOString() })
+      .eq('id', id).select('*').single()
+    await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: `Nordine (dashboard) : toiture de ${company} (${roof.area_m2} m², saleté ${roof.score}/10) transmise à Chloé pour un premier email à ${email}` })
+    return res.status(200).json({ roof: withPhoto(updated || roof) })
+  }
+
+  return res.status(400).json({ error: 'action requise : scan, analyze ou prospect' })
 }

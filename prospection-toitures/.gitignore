@@ -1,0 +1,7 @@
+.venv/
+.env
+!.env.example
+__pycache__/
+captures/*
+!captures/.gitkeep
+leads_toitures_a_traiter.xlsx

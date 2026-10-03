@@ -8,7 +8,8 @@
       "includeFiles": "templates/**"
     },
     "api/admin/dashboard.js": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "includeFiles": "lib/data/**"
     },
     "api/agents/console-chat.js": {
       "maxDuration": 300
@@ -65,6 +66,10 @@
     {
       "source": "/api/blog/listing",
       "destination": "/api/blog/content?resource=listing"
+    },
+    {
+      "source": "/api/admin/roofs",
+      "destination": "/api/admin/dashboard?resource=roofs"
     },
     {
       "source": "/api/admin/stats",

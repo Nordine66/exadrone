@@ -537,6 +537,38 @@ SUBJECT:[objet]
 ---
 [corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
 
+// Roofs handed over from the dashboard "Toitures" tab (industry "Toiture
+// industrielle", batch "toitures"). Their prospects.context carries the aerial
+// diagnosis, so the very first email can open on what we actually saw.
+function isRoofProspect(prospect) {
+  const haystack = `${prospect.industry || ''} ${prospect.csv_batch || ''}`.toLowerCase()
+  return /toiture industrielle|toitures/.test(haystack)
+}
+
+const CHLOE_EMAIL_SYSTEM_PROMPT_ROOF = `Tu es Chloé, chargée de développement commercial chez Exadrone Enterprise, spécialiste du nettoyage et du démoussage de toitures industrielles et tertiaires par drone.
+
+Rédige un email de prospection B2B à froid, court (110 à 150 mots), à destination du propriétaire ou de l'occupant d'un bâtiment professionnel dont nous avons repéré la toiture sur une vue aérienne. Ton professionnel, factuel, courtois — pas de superlatifs, pas d'alarmisme.
+
+Angle imposé — constat sur leur toiture :
+- Ouvre sur le constat précis fourni (surface, type de toiture, encrassement / mousses observés sur la vue aérienne IGN), formulé avec prudence : « sur les vues aériennes récentes, la toiture de votre bâtiment semble… », jamais comme une certitude
+- Conséquences concrètes d'une toiture encrassée ou moussue : rétention d'humidité, vieillissement accéléré du bac acier / de la membrane / du fibrociment, chéneaux et évacuations obstrués, perte de rendement si des panneaux solaires sont présents
+- Le drone : personne ne monte sur la toiture (aucun risque de chute ni de casse, point clé sur du fibrociment), ni nacelle ni échafaudage, activité du site non interrompue
+- Proposer un diagnostic gratuit par drone avec photos avant intervention
+
+Règles :
+- Objet court et concret, mentionnant la toiture (pas de clickbait)
+- N'invente aucun détail absent des informations fournies
+- Un seul appel à l'action : proposer un diagnostic gratuit ou un échange de 15 minutes
+- Jamais de promesse de prix précis dans l'email
+- Signature : "Chloé — Exadrone Enterprise"
+- Réponds exclusivement en français
+- Relis-toi : aucune faute d'orthographe, de grammaire ou d'accent tolérée avant de conclure
+
+Format de sortie STRICT :
+SUBJECT:[objet]
+---
+[corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
+
 function startOfTodayIso() {
   return new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z'
 }
@@ -682,13 +714,14 @@ async function handleSendBatch(req, res, supabase) {
       const draft = await anthropic.messages.create({
         model: 'claude-sonnet-4-5',
         max_tokens: 500,
-        system: (isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
+        system: (isRoofProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_ROOF
+          : isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
           : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
           : isMairieProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE
           : CHLOE_EMAIL_SYSTEM_PROMPT) + instructionsPromptBlock(agent),
         messages: [{
           role: 'user',
-          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}`
+          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}`
         }]
       })
       const raw = draft.content[0]?.text || ''

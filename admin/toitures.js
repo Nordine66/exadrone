@@ -1,0 +1,488 @@
+// Dashboard "Toitures" tab: pick a zone on the IGN satellite map → list every
+// roof ≥ 800 m² → AI dirt diagnosis + owner / occupants → follow-up and hand-off
+// to Chloé. Server side in lib/roofs.js (api/admin/dashboard.js, resource=roofs).
+// Depends on the dashboard's global API() and esc().
+(function () {
+  const root = document.getElementById('tab-toitures')
+  if (!root) return
+
+  const LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+  const LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+  const WMTS = (layer, format) => `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&TILEMATRIXSET=PM&FORMAT=${format}&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`
+  const MAX_ZONE = { lat: 0.06, lon: 0.08 }
+  const START = { center: [42.7335, 2.8745], zoom: 15 } // ZA Grand Saint-Charles, Perpignan
+  const CONCURRENCY = 2
+
+  const STATUSES = [
+    ['nouveau', 'Nouveau'], ['a_contacter', 'À contacter'], ['contacte', 'Contacté'], ['rdv', 'RDV pris'],
+    ['devis', 'Devis envoyé'], ['gagne', 'Gagné'], ['perdu', 'Perdu'], ['ignore', 'Ignoré']
+  ]
+  const STATUS_LABEL = Object.fromEntries(STATUSES)
+
+  const state = {
+    view: 'scan',          // 'scan' (current map zone) | 'saved' (every analysed roof)
+    scan: [],              // roofs of the last scan
+    saved: [],             // roofs from the database
+    filter: { priority: '', status: '', analyzedOnly: false },
+    running: false,
+    stop: false,
+    map: null,
+    layer: null,
+    polygons: new Map()
+  }
+
+  // ── Styles ────────────────────────────────────────────────────────────────
+  const css = document.createElement('style')
+  css.textContent = `
+    .tt-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    .tt-input{flex:1;min-width:220px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--font-body);font-size:.88rem;outline:none}
+    .tt-input:focus{border-color:rgba(59,130,246,.55)}
+    .tt-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;background:var(--surface2);color:var(--text);border:1px solid var(--border-strong);border-radius:9px;font-family:var(--font);font-weight:600;font-size:.8rem;cursor:pointer}
+    .tt-btn:hover{border-color:rgba(59,130,246,.55)}
+    .tt-btn:disabled{opacity:.45;cursor:not-allowed}
+    .tt-btn-danger{color:var(--red)}
+    .tt-seg{display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px}
+    .tt-seg button{background:none;border:none;color:var(--muted);font-family:var(--font);font-weight:600;font-size:.8rem;padding:7px 12px;border-radius:7px;cursor:pointer}
+    .tt-seg button.on{background:var(--surface3);color:var(--text)}
+    .tt-map{height:420px;border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden;margin-bottom:12px;background:var(--surface)}
+    .tt-status{font-size:.8rem;color:var(--muted);font-family:var(--font-mono);min-height:1.2em}
+    .tt-status[data-kind=error]{color:var(--red)}
+    .tt-status[data-kind=ok]{color:var(--green)}
+    .tt-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px}
+    .tt-actions select,.tt-field select{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:.8rem}
+    .tt-progress{flex:1;min-width:160px;height:6px;background:var(--surface3);border-radius:99px;overflow:hidden}
+    .tt-progress>div{height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#8b5cf6);transition:width .3s}
+    .tt-grid{display:grid;gap:14px}
+    .tt-card{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;transition:border-color .2s}
+    .tt-card.hl{border-color:rgba(59,130,246,.7);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+    .tt-photo{position:relative;width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--surface2)}
+    .tt-photo img,.tt-photo svg{position:absolute;inset:0;width:100%;height:100%}
+    .tt-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+    .tt-title{font-family:var(--font);font-weight:700;font-size:1rem}
+    .tt-sub{color:var(--muted);font-size:.8rem;margin-top:2px}
+    .tt-score{font-family:var(--font);font-weight:800;font-size:1.5rem;line-height:1}
+    .tt-score small{font-size:.75rem;color:var(--muted);font-weight:600}
+    .tt-badges{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+    .tt-diag{font-size:.86rem;line-height:1.5;color:var(--text);margin-bottom:10px}
+    .tt-section{border-top:1px solid var(--border);padding-top:9px;margin-top:9px;font-size:.82rem;line-height:1.5}
+    .tt-section h4{font-family:var(--font-mono);font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);margin-bottom:5px;font-weight:600}
+    .tt-who{margin-bottom:6px}
+    .tt-who b{font-weight:700}
+    .tt-who .tt-sub{margin:0}
+    .tt-links{display:flex;gap:12px;flex-wrap:wrap;font-size:.8rem;margin-top:8px}
+    .tt-prospect summary{cursor:pointer;list-style:none}
+    .tt-prospect summary::-webkit-details-marker{display:none}
+    .tt-prospect summary h4{display:inline;color:var(--blue)}
+    .tt-prospect summary h4::before{content:'▸ '}
+    .tt-prospect[open] summary h4::before{content:'▾ '}
+    .tt-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:6px}
+    .tt-field label{display:block;font-size:.68rem;color:var(--muted2);margin-bottom:3px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+    .tt-field input,.tt-field textarea,.tt-field select{width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:.82rem;font-family:var(--font-body)}
+    .tt-field textarea{min-height:52px;resize:vertical}
+    .tt-form-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+    .tt-empty{color:var(--muted);text-align:center;padding:36px;background:var(--surface);border:1px dashed var(--border-strong);border-radius:var(--radius-lg)}
+    .tt-pending{color:var(--muted);font-size:.84rem}
+    @media (max-width:760px){.tt-card{grid-template-columns:1fr}.tt-map{height:320px}}
+  `
+  document.head.appendChild(css)
+
+  root.innerHTML = `
+    <div class="tt-toolbar">
+      <input class="tt-input" id="tt-search" placeholder="Ville, adresse ou zone d'activités (ex. « Rivesaltes », « ZI Nord Narbonne »)…">
+      <button class="tt-btn" id="tt-go">Aller</button>
+      <div class="tt-seg" id="tt-view">
+        <button data-view="scan" class="on">Zone de la carte</button>
+        <button data-view="saved">Mes toitures</button>
+      </div>
+    </div>
+    <div class="tt-map" id="tt-map"></div>
+    <div class="tt-actions">
+      <button class="btn-primary btn-sm" id="tt-scan">Scanner la zone affichée</button>
+      <span class="tt-status" id="tt-zone"></span>
+    </div>
+    <div class="tt-actions" id="tt-batch" style="display:none">
+      <span id="tt-count" style="font-size:.84rem"></span>
+      <select id="tt-n">
+        <option value="5">5 plus grands toits</option>
+        <option value="10">10 plus grands</option>
+        <option value="20" selected>20 plus grands</option>
+        <option value="50">50 plus grands</option>
+        <option value="0">Tous</option>
+      </select>
+      <button class="btn-primary btn-sm" id="tt-analyze">Analyser</button>
+      <button class="tt-btn tt-btn-danger" id="tt-stop" style="display:none">Arrêter</button>
+      <div class="tt-progress"><div id="tt-bar"></div></div>
+    </div>
+    <div class="tt-toolbar">
+      <span class="tt-status" id="tt-status"></span>
+      <span style="flex:1"></span>
+      <select class="tt-filter" id="tt-f-priority">
+        <option value="">Toutes priorités</option><option value="HAUTE">Priorité haute</option><option value="MOYENNE">Priorité moyenne</option><option value="BASSE">Priorité basse</option>
+      </select>
+      <select class="tt-filter" id="tt-f-status">
+        <option value="">Tous statuts</option>${STATUSES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
+      </select>
+      <label style="font-size:.8rem;color:var(--muted);display:flex;gap:6px;align-items:center"><input type="checkbox" id="tt-f-analyzed"> Analysés seulement</label>
+    </div>
+    <div class="tt-grid" id="tt-list"><div class="tt-empty">Déplacez la carte sur une zone d'activités, puis cliquez sur « Scanner la zone affichée ».</div></div>
+  `
+  root.querySelectorAll('.tt-filter').forEach(s => { s.style.cssText = 'background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:.8rem' })
+
+  const $ = (id) => document.getElementById(id)
+  const setStatus = (msg, kind = '') => { const el = $('tt-status'); el.textContent = msg; el.dataset.kind = kind }
+
+  // ── Map ───────────────────────────────────────────────────────────────────
+  function loadLeaflet() {
+    if (window.L) return Promise.resolve()
+    return new Promise((resolve, reject) => {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'; link.href = LEAFLET_CSS
+      document.head.appendChild(link)
+      const s = document.createElement('script')
+      s.src = LEAFLET_JS; s.onload = resolve; s.onerror = () => reject(new Error('Carte indisponible'))
+      document.head.appendChild(s)
+    })
+  }
+
+  function zoneOfMap() {
+    const b = state.map.getBounds()
+    return { south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() }
+  }
+
+  function zoneTooBig(z) { return z.north - z.south > MAX_ZONE.lat || z.east - z.west > MAX_ZONE.lon }
+
+  function updateZoneLabel() {
+    const z = zoneOfMap()
+    const km = (deg, lat) => (deg * 111.32 * (lat ? 1 : Math.cos((z.north + z.south) / 2 * Math.PI / 180))).toFixed(1)
+    const size = `${km(z.east - z.west, false)} × ${km(z.north - z.south, true)} km`
+    const el = $('tt-zone')
+    if (zoneTooBig(z)) { el.textContent = `Zone affichée : ${size} — trop grande, zoomez (6 km max.)`; el.dataset.kind = 'error' }
+    else { el.textContent = `Zone affichée : ${size}`; el.dataset.kind = '' }
+    $('tt-scan').disabled = zoneTooBig(z) || state.running
+  }
+
+  async function initMap() {
+    if (state.map) { state.map.invalidateSize(); return }
+    await loadLeaflet()
+    const L = window.L
+    const ortho = L.tileLayer(WMTS('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg'), { maxZoom: 20, maxNativeZoom: 19, attribution: '© IGN' })
+    const plan = L.tileLayer(WMTS('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'), { maxZoom: 20, maxNativeZoom: 18, attribution: '© IGN' })
+    state.map = L.map('tt-map', { layers: [ortho] }).setView(START.center, START.zoom)
+    L.control.layers({ 'Satellite (IGN)': ortho, 'Plan (IGN)': plan }).addTo(state.map)
+    state.layer = L.layerGroup().addTo(state.map)
+    state.map.on('moveend', updateZoneLabel)
+    updateZoneLabel()
+  }
+
+  const scoreColor = (r) => r.score == null ? '#38bdf8' : r.score >= 7 ? '#f87171' : r.score >= 4 ? '#fb923c' : '#34d399'
+
+  function drawPolygons(roofs) {
+    if (!state.map) return
+    state.layer.clearLayers()
+    state.polygons.clear()
+    for (const r of roofs) {
+      const poly = window.L.polygon(r.rings.map(ring => ring.map(([lon, lat]) => [lat, lon])), {
+        color: scoreColor(r), weight: 2, fillOpacity: r.score == null ? 0.15 : 0.35
+      })
+      poly.bindTooltip(`${r.area_m2.toLocaleString('fr-FR')} m²${r.score != null ? ` — saleté ${r.score}/10` : ''}`)
+      poly.on('click', () => focusCard(r.osm_id))
+      poly.addTo(state.layer)
+      state.polygons.set(r.osm_id, poly)
+    }
+  }
+
+  function focusCard(osmId) {
+    const card = root.querySelector(`.tt-card[data-osm="${CSS.escape(osmId)}"]`)
+    if (!card) return
+    root.querySelectorAll('.tt-card.hl').forEach(c => c.classList.remove('hl'))
+    card.classList.add('hl')
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  // ── Search ────────────────────────────────────────────────────────────────
+  async function search() {
+    const q = $('tt-search').value.trim()
+    if (q.length < 3) return
+    try {
+      const res = await fetch(`https://data.geopf.fr/geocodage/search?q=${encodeURIComponent(q)}&limit=1`)
+      const f = (await res.json()).features?.[0]
+      if (!f) return setStatus('Lieu introuvable', 'error')
+      const [lon, lat] = f.geometry.coordinates
+      const zoom = f.properties.type === 'municipality' ? 14 : 16
+      state.map.setView([lat, lon], zoom)
+      setStatus(`${f.properties.label} — ajustez la carte puis lancez le scan.`)
+    } catch (e) {
+      setStatus('Recherche de lieu indisponible', 'error')
+    }
+  }
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const current = () => state.view === 'scan' ? state.scan : state.saved
+
+  function replaceRoof(roof) {
+    for (const list of [state.scan, state.saved]) {
+      const i = list.findIndex(r => r.osm_id === roof.osm_id)
+      if (i >= 0) list[i] = roof
+    }
+    if (roof.analyzed_at && !state.saved.some(r => r.osm_id === roof.osm_id)) state.saved.push(roof)
+  }
+
+  async function scan() {
+    const zone = zoneOfMap()
+    if (zoneTooBig(zone)) return
+    state.view = 'scan'; syncViewButtons()
+    $('tt-scan').disabled = true
+    setStatus('Recherche des bâtiments de 800 m² et plus dans la zone…')
+    try {
+      const data = await API('/api/admin/roofs?action=scan', { method: 'POST', body: JSON.stringify({ zone }) })
+      if (data.error) throw new Error(data.error + (data.hint ? ` — ${data.hint}` : ''))
+      state.scan = data.roofs
+      const analysed = data.roofs.filter(r => r.analyzed_at).length
+      setStatus(`${data.total.toLocaleString('fr-FR')} bâtiments dans la zone, ${data.roofs.length} toits de 800 m² et plus${analysed ? ` (${analysed} déjà analysés)` : ''}.`, 'ok')
+      render()
+    } catch (e) {
+      setStatus(e.message, 'error')
+    } finally {
+      updateZoneLabel()
+    }
+  }
+
+  async function loadSaved() {
+    setStatus('Chargement de vos toitures…')
+    const data = await API('/api/admin/roofs')
+    if (data.error) return setStatus(data.error + (data.hint ? ` — ${data.hint}` : ''), 'error')
+    state.saved = data.roofs
+    setStatus(`${data.roofs.length} toiture(s) analysée(s) enregistrée(s).`, 'ok')
+    render()
+  }
+
+  async function analyzeOne(roof, force = false) {
+    const data = await API('/api/admin/roofs?action=analyze', { method: 'POST', body: JSON.stringify({ building: roof, force }) })
+    if (data.error) throw new Error(data.error + (data.hint ? ` — ${data.hint}` : ''))
+    replaceRoof(data.roof)
+    return data
+  }
+
+  async function analyzeBatch() {
+    const n = Number($('tt-n').value)
+    const todo = state.scan.filter(r => !r.analyzed_at).slice(0, n || undefined)
+    if (!todo.length) return setStatus('Tous ces toits sont déjà analysés.', 'ok')
+    state.running = true; state.stop = false
+    $('tt-analyze').disabled = true; $('tt-stop').style.display = ''; updateZoneLabel()
+    let done = 0, failed = 0
+    const bar = $('tt-bar')
+    const queue = todo.slice()
+    async function worker() {
+      while (queue.length && !state.stop) {
+        const roof = queue.shift()
+        markPending(roof.osm_id, true)
+        try { await analyzeOne(roof) } catch (e) { failed++; console.error(roof.osm_id, e) }
+        done++
+        bar.style.width = `${Math.round(done / todo.length * 100)}%`
+        setStatus(`Analyse ${done}/${todo.length}${failed ? ` — ${failed} échec(s)` : ''}…`)
+        render()
+      }
+    }
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker))
+    state.running = false
+    $('tt-analyze').disabled = false; $('tt-stop').style.display = 'none'; updateZoneLabel()
+    setStatus(`${state.stop ? 'Arrêté' : 'Terminé'} : ${done - failed} toit(s) analysé(s)${failed ? `, ${failed} échec(s) (relancez « Analyser » pour réessayer)` : ''}. Les plus sales sont en haut.`, failed ? 'error' : 'ok')
+    render()
+  }
+
+  const pending = new Set()
+  function markPending(osmId, on) { on ? pending.add(osmId) : pending.delete(osmId); render() }
+
+  // ── Rendering ─────────────────────────────────────────────────────────────
+  function sorted(list) {
+    return list.slice().sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.area_m2 - a.area_m2)
+  }
+
+  function filtered(list) {
+    const f = state.filter
+    return list.filter(r =>
+      (!f.priority || r.priority === f.priority) &&
+      (!f.status || (r.status || 'nouveau') === f.status) &&
+      (!f.analyzedOnly || r.analyzed_at))
+  }
+
+  function companyBlock(c, fallbackName, extra = '') {
+    const name = c?.name || fallbackName
+    const leaders = (c?.leaders || []).map(l => `${esc(l.name)}${l.role ? ` <span class="tt-sub">(${esc(l.role)})</span>` : ''}`).join(', ')
+    return `<div class="tt-who"><b>${esc(name)}</b>${extra}
+      ${c?.siren ? ` · <a href="${esc(c.annuaire)}" target="_blank" rel="noopener">fiche entreprise</a>` : ''}
+      ${leaders ? `<div>Dirigeants : ${leaders}</div>` : ''}
+      ${c?.hq_address ? `<div class="tt-sub">Siège : ${esc(c.hq_address)}</div>` : ''}</div>`
+  }
+
+  function ownersHtml(r) {
+    if (!r.analyzed_at) return ''
+    const owners = r.owners || []
+    const parcels = (r.parcels || []).map(p => `${p.section} ${p.numero}`).join(', ')
+    const body = owners.length
+      ? owners.map(o => companyBlock(o.company, o.name, ` <span class="tt-sub">— ${esc(o.right || 'Propriétaire')}${o.forme ? `, ${esc(o.forme)}` : ''}</span>`)).join('')
+      : `<div class="tt-sub">Non trouvé dans le fichier des propriétaires-entreprises (particulier, entrepreneur individuel ou parcelle hors fichier). Voir les occupants ci-dessous.</div>`
+    return `<div class="tt-section"><h4>Propriétaire${parcels ? ` · parcelle(s) ${esc(parcels)}` : ''}</h4>${body}</div>`
+  }
+
+  function occupantsHtml(r) {
+    if (!r.analyzed_at) return ''
+    const occ = r.occupants || []
+    if (!occ.length) return `<div class="tt-section"><h4>Entreprises à cette adresse</h4><div class="tt-sub">Aucune entreprise déclarée à proximité immédiate.</div></div>`
+    return `<div class="tt-section"><h4>Entreprises à cette adresse (occupants possibles)</h4>${occ.slice(0, 4).map(o => companyBlock(o, o.name)).join('')}${occ.length > 4 ? `<div class="tt-sub">+ ${occ.length - 4} autre(s)</div>` : ''}</div>`
+  }
+
+  function prospectHtml(r) {
+    if (!r.id) return ''
+    const names = [...new Set([...(r.owners || []).map(o => o.company?.name || o.name), ...(r.occupants || []).map(o => o.name)].filter(Boolean))]
+    const listId = `tt-dl-${r.id}`
+    const open = (r.status && r.status !== 'nouveau') || r.contact_email || r.contact_name || r.notes
+    return `<details class="tt-section tt-prospect" ${open ? 'open' : ''}><summary><h4>Prospection — ${esc(STATUS_LABEL[r.status || 'nouveau'])}${r.prospect_id ? ' · transmis à Chloé' : ''}</h4></summary>
+      <div class="tt-form" data-id="${r.id}">
+        <div class="tt-field"><label>Statut</label><select data-k="status">${STATUSES.map(([v, l]) => `<option value="${v}" ${v === (r.status || 'nouveau') ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="tt-field"><label>Entreprise à démarcher</label><input data-k="contact_company" list="${listId}" value="${esc(r.contact_company || names[0] || '')}"><datalist id="${listId}">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+        <div class="tt-field"><label>Nom du contact</label><input data-k="contact_name" value="${esc(r.contact_name || '')}"></div>
+        <div class="tt-field"><label>Email</label><input data-k="contact_email" type="email" value="${esc(r.contact_email || '')}"></div>
+        <div class="tt-field"><label>Téléphone</label><input data-k="contact_phone" value="${esc(r.contact_phone || '')}"></div>
+        <div class="tt-field" style="grid-column:1/-1"><label>Notes</label><textarea data-k="notes">${esc(r.notes || '')}</textarea></div>
+      </div>
+      <div class="tt-form-actions">
+        <button class="tt-btn" data-act="save" data-id="${r.id}">Enregistrer</button>
+        ${r.prospect_id
+          ? '<span class="badge badge-new">Transmis à Chloé ✓</span>'
+          : `<button class="tt-btn" data-act="chloe" data-id="${r.id}" title="Ajoute ce contact aux prospects : Chloé lui envoie un premier email qui mentionne l'état de sa toiture">Envoyer à Chloé</button>`}
+        <span class="tt-status" data-msg="${r.id}"></span>
+      </div></details>`
+  }
+
+  function cardHtml(r) {
+    const photo = r.photo
+    const outline = (photo?.outline || []).map(ring => `<polyline points="${ring.map(p => p.join(',')).join(' ')}" fill="none" stroke="#ff3b3b" stroke-width="${Math.max(2, photo.px / 260)}"/>`).join('')
+    const title = r.name || r.address || (r.usage ? `Bâtiment (${r.usage})` : 'Bâtiment')
+    const where = [r.name ? r.address : null, r.commune && !(r.address || '').includes(r.commune) ? r.commune : null].filter(Boolean).join(' · ')
+    const company = (r.owners || [])[0]?.company?.name || (r.owners || [])[0]?.name || (r.occupants || [])[0]?.name || ''
+    const prioClass = { HAUTE: 'badge-hot', MOYENNE: 'badge-warm', BASSE: 'badge-cold' }[r.priority] || 'badge-cold'
+    const isPending = pending.has(r.osm_id)
+    return `<div class="tt-card" data-osm="${esc(r.osm_id)}">
+      <div class="tt-photo">${photo ? `<img src="${esc(photo.url)}" alt="Vue aérienne IGN" loading="lazy"><svg viewBox="0 0 ${photo.px} ${photo.px}" preserveAspectRatio="none">${outline}</svg>` : ''}</div>
+      <div>
+        <div class="tt-head">
+          <div>
+            <div class="tt-title">${esc(title)}</div>
+            <div class="tt-sub">${r.area_m2.toLocaleString('fr-FR')} m² au sol${where ? ` · ${esc(where)}` : ''}</div>
+          </div>
+          ${r.score != null ? `<div class="tt-score" style="color:${scoreColor(r)}">${r.score}<small>/10 saleté</small></div>` : ''}
+        </div>
+        ${r.analyzed_at ? `
+          <div class="tt-badges">
+            <span class="badge ${prioClass}">Priorité ${esc(r.priority)}</span>
+            ${r.lichen ? '<span class="badge badge-warm">Mousse / lichen</span>' : ''}
+            <span class="badge badge-cold">${esc(r.roof_type || '')}</span>
+            ${r.status && r.status !== 'nouveau' ? `<span class="badge badge-new">${esc(STATUS_LABEL[r.status] || r.status)}</span>` : ''}
+          </div>
+          <div class="tt-diag">${esc(r.diagnostic)}</div>`
+        : `<div class="tt-badges">${isPending
+          ? '<span class="tt-pending"><span class="spinner"></span> Analyse en cours (photo, IA, propriétaire)…</span>'
+          : `<button class="tt-btn" data-act="analyze" data-osm="${esc(r.osm_id)}">Analyser ce toit</button>`}</div>`}
+        ${ownersHtml(r)}
+        ${occupantsHtml(r)}
+        <div class="tt-links">
+          <a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank" rel="noopener">Google Maps</a>
+          <a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${r.lat},${r.lon}" target="_blank" rel="noopener">Street View</a>
+          ${company ? `<a href="https://www.google.com/search?q=${encodeURIComponent(`${company} ${r.commune || ''} téléphone`)}" target="_blank" rel="noopener">Trouver le téléphone</a>` : ''}
+          ${r.analyzed_at ? `<a href="#" data-act="reanalyze" data-osm="${esc(r.osm_id)}">Réanalyser</a>` : ''}
+        </div>
+        ${prospectHtml(r)}
+      </div>
+    </div>`
+  }
+
+  function render() {
+    const list = filtered(sorted(current()))
+    const all = current()
+    $('tt-batch').style.display = state.view === 'scan' && state.scan.length ? '' : 'none'
+    $('tt-scan').parentElement.style.display = state.view === 'scan' ? '' : 'none'
+    if (state.view === 'scan' && state.scan.length) {
+      const left = state.scan.filter(r => !r.analyzed_at).length
+      $('tt-count').textContent = `${state.scan.length} toits · ${left} à analyser`
+    }
+    drawPolygons(all)
+    // Keep what Nordine is typing when a background analysis re-renders the list
+    const focused = document.activeElement?.closest?.('.tt-card')
+    if (focused && root.contains(focused)) return
+    $('tt-list').innerHTML = list.length
+      ? list.map(cardHtml).join('')
+      : `<div class="tt-empty">${all.length ? 'Aucun toit ne correspond aux filtres.' : state.view === 'saved' ? 'Aucune toiture analysée pour le moment.' : "Déplacez la carte sur une zone d'activités, puis cliquez sur « Scanner la zone affichée »."}</div>`
+  }
+
+  function syncViewButtons() {
+    root.querySelectorAll('#tt-view button').forEach(b => b.classList.toggle('on', b.dataset.view === state.view))
+  }
+
+  // ── Events ────────────────────────────────────────────────────────────────
+  $('tt-go').addEventListener('click', search)
+  $('tt-search').addEventListener('keydown', e => { if (e.key === 'Enter') search() })
+  $('tt-scan').addEventListener('click', scan)
+  $('tt-analyze').addEventListener('click', analyzeBatch)
+  $('tt-stop').addEventListener('click', () => { state.stop = true; setStatus('Arrêt après les analyses en cours…') })
+  $('tt-f-priority').addEventListener('change', e => { state.filter.priority = e.target.value; render() })
+  $('tt-f-status').addEventListener('change', e => { state.filter.status = e.target.value; render() })
+  $('tt-f-analyzed').addEventListener('change', e => { state.filter.analyzedOnly = e.target.checked; render() })
+  $('tt-view').addEventListener('click', e => {
+    const v = e.target.closest('button')?.dataset.view
+    if (!v || v === state.view) return
+    state.view = v; syncViewButtons()
+    if (v === 'saved') loadSaved(); else render()
+  })
+
+  function formValues(id) {
+    const form = root.querySelector(`.tt-form[data-id="${id}"]`)
+    return Object.fromEntries([...form.querySelectorAll('[data-k]')].map(el => [el.dataset.k, el.value.trim()]))
+  }
+
+  $('tt-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-act]')
+    if (!btn) return
+    e.preventDefault()
+    const act = btn.dataset.act
+    if (act === 'analyze' || act === 'reanalyze') {
+      const roof = current().find(r => r.osm_id === btn.dataset.osm)
+      if (!roof || pending.has(roof.osm_id)) return
+      if (act === 'reanalyze' && !confirm("Relancer l'analyse IA de ce toit ? (nouvel appel facturé)")) return
+      markPending(roof.osm_id, true)
+      try { await analyzeOne(roof, act === 'reanalyze'); setStatus('Toit analysé.', 'ok') } catch (err) { setStatus(err.message, 'error') }
+      markPending(roof.osm_id, false)
+      return
+    }
+    const id = btn.dataset.id
+    const msg = root.querySelector(`[data-msg="${id}"]`)
+    btn.disabled = true
+    try {
+      const saved = await API(`/api/admin/roofs?id=${id}`, { method: 'PATCH', body: JSON.stringify(formValues(id)) })
+      if (saved.error) throw new Error(saved.error)
+      replaceRoof(saved.roof)
+      if (act === 'chloe') {
+        const sent = await API(`/api/admin/roofs?action=prospect&id=${id}`, { method: 'POST', body: '{}' })
+        if (sent.error) throw new Error(sent.error + (sent.hint ? ` — ${sent.hint}` : ''))
+        replaceRoof(sent.roof)
+        msg.textContent = 'Ajouté aux prospects : Chloé enverra le premier email lors de sa prochaine tournée.'
+      } else {
+        msg.textContent = 'Enregistré.'
+      }
+      msg.dataset.kind = 'ok'
+      document.activeElement?.blur?.()
+      setTimeout(render, 1200)
+    } catch (err) {
+      msg.textContent = err.message
+      msg.dataset.kind = 'error'
+    } finally {
+      btn.disabled = false
+    }
+  })
+
+  window.Toitures = {
+    open() {
+      initMap().catch(e => setStatus(e.message, 'error'))
+    }
+  }
+})()

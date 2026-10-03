@@ -1,0 +1,7 @@
+requests
+shapely
+pillow
+anthropic
+pandas
+openpyxl
+python-dotenv
