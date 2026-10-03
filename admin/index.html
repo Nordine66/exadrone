@@ -49,6 +49,11 @@
     ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:99px}
     ::-webkit-scrollbar-thumb:hover{background:var(--border-strong)}
 
+    /* Cost markers: every action that spends Anthropic credits carries a "€" pill */
+    .cost-pill,.free-pill{display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:.64rem;font-weight:700;font-family:var(--font-mono);letter-spacing:.02em;white-space:nowrap;vertical-align:middle;line-height:1.5}
+    .cost-pill{background:rgba(251,191,36,.16);color:#fbbf24;border:1px solid rgba(251,191,36,.4)}
+    .free-pill{background:rgba(52,211,153,.12);color:var(--green);border:1px solid rgba(52,211,153,.3)}
+    .cost-note{font-size:.72rem;color:var(--muted);padding:0 16px 10px;display:flex;align-items:center;gap:4px}
     .eyebrow{font-family:var(--font-mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2)}
 
     /* Auth gate */
@@ -536,7 +541,7 @@
 Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" style="margin-top:12px"></textarea>
             <div class="csv-actions">
               <button class="btn-primary btn-sm" id="csv-import-btn">Importer</button>
-              <button class="btn-primary btn-sm" id="send-batch-btn" style="background:linear-gradient(135deg,#10b981,#34d399);box-shadow:0 6px 18px -8px rgba(16,185,129,.6)">Envoyer le prochain lot</button>
+              <button class="btn-primary btn-sm" id="send-batch-btn" style="background:linear-gradient(135deg,#10b981,#34d399);box-shadow:0 6px 18px -8px rgba(16,185,129,.6)">Envoyer le prochain lot <span class="cost-pill" title="Chloé rédige chaque email avec l'IA : utilise vos crédits Anthropic (montant estimé)">€ &lt; 1 ct / email</span></button>
             </div>
             <div class="csv-import-status" id="csv-import-status"></div>
           </div>
@@ -610,7 +615,7 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
             <div class="generate-bar">
               <button class="btn-primary" id="generate-btn">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                Générer un nouvel article
+                Générer un nouvel article <span class="cost-pill" title="Utilise vos crédits Anthropic (montant estimé)">€ ≈ 5-15 ct</span>
               </button>
               <span class="topics-remaining" id="topics-remaining-label">
                 <span class="spinner" style="width:13px;height:13px;border-width:1.5px"></span>
@@ -762,6 +767,7 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
     </button>
   </div>
+  <div class="cost-note"><span class="cost-pill" style="margin:0">€ ≈ 1-5 ct</span> par message : chaque réponse de l'agent utilise vos crédits Anthropic</div>
 </div>
 
 <script>
@@ -952,7 +958,7 @@ function renderAgentCards() {
       <div class="agent-stats">${renderAgentStats(a)}</div>
       <button class="agent-chat-btn" onclick="openChat('${a.slug}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-        Discuter avec ${esc(a.name)}
+        Discuter avec ${esc(a.name)} <span class="cost-pill">€</span>
       </button>
     </div>`).join('')
 }
@@ -1394,7 +1400,7 @@ document.getElementById('send-batch-btn').addEventListener('click', () => {
     loadProspects()
     loadAgents()
   }).catch(() => { statusEl.textContent = 'Erreur réseau.' })
-    .finally(() => { btn.disabled = false; btn.textContent = 'Envoyer le prochain lot' })
+    .finally(() => { btn.disabled = false; btn.innerHTML = `Envoyer le prochain lot ${costPill('< 1 ct / email')}` })
 })
 
 document.querySelectorAll('.retag-quick-btn').forEach(btn => {
@@ -1550,6 +1556,10 @@ document.getElementById('refresh-btn').addEventListener('click', () => {
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// "€" marker for actions that spend Anthropic credits (estimated amount), and
+// its "Gratuit" counterpart — shared with admin/devis-editor.js and admin/toitures.js
+function costPill(estimate) { return `<span class="cost-pill" title="Utilise vos crédits Anthropic (montant estimé)">€ ${esc(estimate)}</span>` }
+function freePill() { return '<span class="free-pill" title="Aucun coût">Gratuit</span>' }
 function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
 function fmtDate(iso) { if (!iso) return '—'; return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
 function scoreLabel(s) { return s === 'hot' ? '🔥 Chaud' : s === 'warm' ? '🌡️ Tiède' : '❄️ Froid' }

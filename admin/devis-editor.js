@@ -161,8 +161,8 @@
       card('🤖 Assistant IA — décrivez le devis', `
         <textarea id="dv-brief" rows="6" placeholder="Ex. : Devis pour la mairie de Seysses, nettoyage toiture et façade de la salle polyvalente (toiture 820 m² mesurée sur Google Earth) et du boulodrome (332 m²), 5,90 €/m² toiture, 6,90 €/m² façade, total sous 10 000 € HT avec une vraie remise, 2 journées, garantie de résultat…"></textarea>
         <div class="csv-actions" style="margin-top:8px">
-          <button class="btn-primary btn-sm" id="dv-ai-new">✨ Générer un nouveau devis</button>
-          <button class="toggle-btn" id="dv-ai-edit">✏️ Modifier le devis affiché</button>
+          <button class="btn-primary btn-sm" id="dv-ai-new">✨ Générer un nouveau devis <span class="cost-pill" title="Utilise vos crédits Anthropic (montant estimé)">€ ≈ 10-15 ct</span></button>
+          <button class="toggle-btn" id="dv-ai-edit">✏️ Modifier le devis affiché <span class="cost-pill" title="Utilise vos crédits Anthropic (montant estimé)">€ ≈ 10-15 ct</span></button>
         </div>
         <small class="dv-hint">L'IA reprend la structure de nos devis (garantie de résultat, lots, conditions mairie, fiches produits). Les photos restent celles que vous ajoutez. Comptez 30 à 90 secondes.</small>`, true) +
       card('🏛️ Client & objet', `
@@ -328,7 +328,8 @@
       touch()
       setStatus(`Remise ajustée : ${T.money(discount)} HT → ${T.money(target)} TTC.`, 'ok')
     }
-    if (e.target.id === 'dv-ai-new' || e.target.id === 'dv-ai-edit') runAi(e.target.id === 'dv-ai-edit')
+    const aiBtn = e.target.closest('#dv-ai-new, #dv-ai-edit')
+    if (aiBtn) runAi(aiBtn.id === 'dv-ai-edit')
   })
 
   function touch() { state.dirty = true; schedulePreview() }

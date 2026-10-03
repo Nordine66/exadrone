@@ -101,7 +101,7 @@
     <div class="tt-toolbar">
       <input class="tt-input" id="tt-search" placeholder="Ville, adresse ou zone d'activités (ex. « Rivesaltes », « ZI Nord Narbonne »)…">
       <button class="tt-btn" id="tt-go" title="Centrer la carte sur ce lieu">Aller</button>
-      <button class="btn-primary btn-sm" id="tt-city" title="Tous les toits de 500 m² et plus de la commune">Scanner toute la ville</button>
+      <button class="btn-primary btn-sm" id="tt-city" title="Tous les toits de 500 m² et plus de la commune">Scanner toute la ville ${freePill()}</button>
       <div class="tt-seg" id="tt-mode" title="Ce que vous voulez démarcher : la note, le tri, les filtres et l'argumentaire de Chloé s'adaptent">
         <button data-mode="toiture">Toitures sales</button>
         <button data-mode="solaire">Panneaux solaires</button>
@@ -112,10 +112,11 @@
         <button data-view="outreach">Démarchage</button>
       </div>
     </div>
+    <div class="tt-mini" style="margin:-4px 0 10px">${costPill('…')} = utilise vos crédits Anthropic (montant estimé, débité seulement quand vous cliquez) · ${freePill()} = aucun coût</div>
     <div id="tt-main">
     <div class="tt-map" id="tt-map"></div>
     <div class="tt-actions">
-      <button class="btn-primary btn-sm" id="tt-scan">Scanner la zone affichée</button>
+      <button class="btn-primary btn-sm" id="tt-scan">Scanner la zone affichée ${freePill()}</button>
       <span class="tt-status" id="tt-zone"></span>
     </div>
     <div class="tt-actions" id="tt-batch" style="display:none">
@@ -159,14 +160,14 @@
           <select id="tt-o-min"><option value="4">4/10</option><option value="5">5/10</option><option value="6" selected>6/10</option><option value="7">7/10</option><option value="8">8/10</option></select></label>
         <label style="font-size:.82rem;color:var(--muted);display:flex;gap:6px;align-items:center"><input type="checkbox" id="tt-o-hide-sent" checked> Masquer ceux déjà transmis</label>
         <span style="flex:1"></span>
-        <button class="tt-btn" id="tt-o-export" title="Fichier Excel / Google Sheets avec toutes les infos gratuites pour trouver les emails">1. Exporter le fichier de recherche</button>
-        <button class="tt-btn" id="tt-o-import" title="Réimporte le fichier une fois les colonnes Email / Contact remplies">2. Importer les emails trouvés</button>
+        <button class="tt-btn" id="tt-o-export" title="Fichier Excel / Google Sheets avec toutes les infos gratuites pour trouver les emails">1. Exporter le fichier de recherche ${freePill()}</button>
+        <button class="tt-btn" id="tt-o-import" title="Réimporte le fichier une fois les colonnes Email / Contact remplies">2. Importer les emails trouvés ${freePill()}</button>
         <input type="file" id="tt-o-file" accept=".csv,text/csv" style="display:none">
         <button class="btn-primary btn-sm" id="tt-o-send">3. Envoyer à Chloé</button>
       </div>
       <div class="tt-actions" style="padding:8px 14px">
         <span class="tt-mini" style="margin:0">Faire remplir le fichier par une IA gratuite (avec accès au web) :</span>
-        <button class="tt-btn" id="tt-o-prompt">Copier les consignes pour l'IA</button>
+        <button class="tt-btn" id="tt-o-prompt">Copier les consignes pour l'IA ${freePill()}</button>
         <span style="flex:1"></span>
         <span class="tt-mini" style="margin:0">Option payante :</span>
         <button class="tt-btn" id="tt-o-search">Recherche auto par IA</button>
@@ -378,12 +379,12 @@
     $('tt-count').textContent = `${state.city ? `${state.city.nom} (${state.city.dep}) · ` : ''}${n} toits de 500 m² et +${farms ? ` (dont ${farms} centrale(s) solaire(s) au sol)` : ''} · ${screened} triés · ${analysed} analysés en détail${isSolar() && screened ? ` · ${withPanels} avec panneaux` : ''}${screened ? ` · ${dirty} notés 6/10 et + (${scoreWord()})` : ''}`
     for (const o of $('tt-n').options) if (o.dataset.label) o.textContent = `${isSolar() ? 'Panneaux' : 'Toits'} ${o.dataset.label}`
     $('tt-screen').disabled = !toScreen || state.running
-    $('tt-screen').textContent = toScreen ? `Trier les ${toScreen} toits` : 'Tous les toits sont triés'
-    $('tt-screen-cost').textContent = toScreen ? `≈ ${euros(Math.ceil(toScreen / 9) * COST_SCREEN)} (estimation)` : ''
+    $('tt-screen').innerHTML = toScreen ? `Trier les ${toScreen} toits ${costPill(`≈ ${euros(Math.ceil(toScreen / 9) * COST_SCREEN)}`)}` : 'Tous les toits sont triés'
+    $('tt-screen-cost').textContent = ''
     const todo = analysisTodo()
     $('tt-analyze').disabled = !todo.length || state.running
-    $('tt-analyze').textContent = todo.length ? `Analyser ${todo.length} toit(s)` : 'Analyser'
-    $('tt-analyze-cost').textContent = todo.length ? `≈ ${euros(todo.length * COST_ANALYSIS)} (estimation)` : ''
+    $('tt-analyze').innerHTML = todo.length ? `Analyser ${todo.length} toit(s) ${costPill(`≈ ${euros(todo.length * COST_ANALYSIS)}`)}` : 'Analyser'
+    $('tt-analyze-cost').textContent = ''
   }
 
   function pointInRings(lon, lat, rings) {
@@ -598,7 +599,7 @@
 
   function foundHtml(r) {
     const cs = r.contact_search
-    const btn = contactPending.has(r.id) ? '' : `<button class="tt-btn" data-act="contact" data-id="${r.id}">${cs ? "Relancer la recherche IA (payant)" : "Recherche IA de l'email (payant)"}</button>`
+    const btn = contactPending.has(r.id) ? '' : `<button class="tt-btn" data-act="contact" data-id="${r.id}">${cs ? 'Relancer la recherche IA' : "Recherche IA de l'email"} ${costPill('≈ 5-20 ct')}</button>`
     if (!cs) return `<div class="tt-form-actions" style="margin:4px 0 6px">${btn} ${emailBadge(r)}</div>`
     return `<div class="tt-found">
       <b>${esc(cs.company || '—')}</b>${cs.website ? ` · <a href="${esc(cs.website)}" target="_blank" rel="noopener">${esc(cs.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a>` : ''}
@@ -627,7 +628,7 @@
         <button class="tt-btn" data-act="save" data-id="${r.id}">Enregistrer</button>
         ${r.prospect_id
           ? '<span class="badge badge-new">Transmis à Chloé ✓</span>'
-          : `<button class="tt-btn" data-act="chloe" data-id="${r.id}" title="Ajoute ce contact aux prospects : Chloé lui envoie un premier email qui mentionne l'état de sa toiture">Envoyer à Chloé</button>`}
+          : `<button class="tt-btn" data-act="chloe" data-id="${r.id}" title="Ajoute ce contact aux prospects : Chloé lui envoie un premier email qui mentionne l'état de sa toiture">Envoyer à Chloé ${costPill('< 1 ct')}</button>`}
         <span class="tt-status" data-msg="${r.id}"></span>
       </div></details>`
   }
@@ -645,7 +646,7 @@
   function solarHtml(r) {
     if (r.solar == null) {
       return isSolar() && !pending.has(r.osm_id)
-        ? `<div class="tt-section"><h4>Panneaux solaires</h4><div class="tt-sub">Pas encore évalués pour ce toit (analysé avant l'ajout du solaire).</div><button class="tt-btn" data-act="analyze" data-osm="${esc(r.osm_id)}" style="margin-top:6px">Évaluer les panneaux (nouvelle analyse)</button></div>`
+        ? `<div class="tt-section"><h4>Panneaux solaires</h4><div class="tt-sub">Pas encore évalués pour ce toit (analysé avant l'ajout du solaire).</div><button class="tt-btn" data-act="analyze" data-osm="${esc(r.osm_id)}" style="margin-top:6px">Évaluer les panneaux (nouvelle analyse) ${costPill('≈ 2-3 ct')}</button></div>`
         : ''
     }
     if (!r.solar) return isSolar() ? '<div class="tt-section"><h4>Panneaux solaires</h4><div class="tt-sub">Aucun panneau détecté.</div></div>' : ''
@@ -687,14 +688,14 @@
           ${solarHtml(r)}`
         : `<div class="tt-badges">${r.kind === 'centrale' ? '<span class="badge badge-new">Centrale solaire au sol</span>' : ''}${screenBadge(r)}${isPending
           ? '<span class="tt-pending"><span class="spinner"></span> Analyse en cours (photo, IA, propriétaire)…</span>'
-          : `<button class="tt-btn" data-act="analyze" data-osm="${esc(r.osm_id)}">Analyser ce toit</button>`}</div>`}
+          : `<button class="tt-btn" data-act="analyze" data-osm="${esc(r.osm_id)}">Analyser ce toit ${costPill('≈ 2-3 ct')}</button>`}</div>`}
         ${ownersHtml(r)}
         ${occupantsHtml(r)}
         <div class="tt-links">
           <a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank" rel="noopener">Google Maps</a>
           <a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${r.lat},${r.lon}" target="_blank" rel="noopener">Street View</a>
           ${company ? `<a href="https://www.google.com/search?q=${encodeURIComponent(`${company} ${r.commune || ''} téléphone`)}" target="_blank" rel="noopener">Trouver le téléphone</a>` : ''}
-          ${r.analyzed_at ? `<a href="#" data-act="reanalyze" data-osm="${esc(r.osm_id)}">Réanalyser</a>` : ''}
+          ${r.analyzed_at ? `<a href="#" data-act="reanalyze" data-osm="${esc(r.osm_id)}">Réanalyser ${costPill('≈ 2-3 ct')}</a>` : ''}
         </div>
         ${prospectHtml(r)}
       </div>
@@ -745,9 +746,9 @@
     }
     for (const id of [...selected]) if (!rows.some(r => r.id === id && sendable(r))) selected.delete(id)
     const missing = rows.filter(r => !r.prospect_id && !r.contact_search && !r.contact_email).length
-    $('tt-o-search').textContent = missing ? `Recherche auto par IA — payant (${missing})` : 'Recherche auto par IA — payant'
+    $('tt-o-search').innerHTML = missing ? `Recherche auto par IA (${missing}) ${costPill(`≈ ${euros(missing * 0.05)} à ${euros(missing * 0.2)}`)}` : `Recherche auto par IA ${costPill('≈ 5-20 ct / entreprise')}`
     $('tt-o-search').disabled = !missing || state.running
-    $('tt-o-send').textContent = `3. Envoyer à Chloé (${selected.size})`
+    $('tt-o-send').innerHTML = `3. Envoyer à Chloé (${selected.size}) ${costPill('< 1 ct / email')}`
     $('tt-o-send').disabled = !selected.size || state.running
 
     const focused = document.activeElement?.closest?.('#tt-o-rows')
@@ -765,7 +766,7 @@
         <td style="min-width:150px"><input type="text" data-k="contact_name" value="${esc(r.contact_name || '')}" placeholder="Nom (facultatif)">
           ${r.contact_search?.contact_role ? `<div class="tt-mini">${esc(r.contact_search.contact_role)}</div>` : ''}</td>
         <td style="min-width:220px"><input type="email" data-k="contact_email" value="${esc(r.contact_email || '')}" placeholder="email@entreprise.fr">
-          <div class="tt-mini">${emailBadge(r)}${!r.prospect_id && !contactPending.has(r.id) ? ` · <a href="#" data-act="contact" data-id="${r.id}">${r.contact_search ? 'relancer IA (payant)' : 'recherche IA (payant)'}</a>` : ''}</div></td>
+          <div class="tt-mini">${emailBadge(r)}${!r.prospect_id && !contactPending.has(r.id) ? ` · <a href="#" data-act="contact" data-id="${r.id}">${r.contact_search ? 'relancer IA' : 'recherche IA'} ${costPill('≈ 5-20 ct')}</a>` : ''}</div></td>
         <td style="min-width:120px">${r.prospect_id ? '<span class="badge badge-new">Transmis à Chloé</span>' : esc(STATUS_LABEL[r.status || 'nouveau'])}
           ${r.contact_phone ? `<div class="tt-mini">${esc(r.contact_phone)}</div>` : ''}</td>
       </tr>`
