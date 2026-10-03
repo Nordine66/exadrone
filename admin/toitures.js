@@ -54,6 +54,8 @@
     .tt-progress{flex:1;min-width:160px;height:6px;background:var(--surface3);border-radius:99px;overflow:hidden}
     .tt-progress>div{height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#8b5cf6);transition:width .3s}
     .tt-grid{display:grid;gap:14px}
+    .tt-num{width:92px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:.8rem}
+    .tt-chk{font-size:.8rem;color:var(--text);display:flex;gap:5px;align-items:center;cursor:pointer}
     .tt-card{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;transition:border-color .2s}
     .tt-card.hl{border-color:rgba(59,130,246,.7);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
     .tt-photo{position:relative;width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--surface2)}
@@ -113,6 +115,18 @@
       </div>
     </div>
     <div class="tt-mini" style="margin:-4px 0 10px">${costPill('…')} = utilise vos crédits Anthropic (montant estimé, débité seulement quand vous cliquez) · ${freePill()} = aucun coût</div>
+    <div class="tt-actions" id="tt-filters" style="padding:10px 14px">
+      <b style="font-size:.8rem">Surface</b>
+      <label class="tt-mini" style="margin:0;display:flex;gap:6px;align-items:center">de <input type="number" id="tt-min" class="tt-num" min="200" step="100" value="500"> à <input type="number" id="tt-max" class="tt-num" min="0" step="500" placeholder="sans limite"> m²</label>
+      <span style="width:1px;height:22px;background:var(--border-strong)"></span>
+      <b style="font-size:.8rem">Propriétaire</b>
+      <label class="tt-chk"><input type="checkbox" data-b2b="collectivite"> Collectivités</label>
+      <label class="tt-chk"><input type="checkbox" data-b2b="entreprise"> Entreprises</label>
+      <label class="tt-chk"><input type="checkbox" data-b2b="bailleur"> Bailleurs sociaux / copropriétés</label>
+      <label class="tt-chk"><input type="checkbox" data-b2b="inconnu"> Inconnus / particuliers</label>
+      <label class="tt-chk"><input type="checkbox" data-b2b="residentiel"> Logements</label>
+      <span class="tt-mini" id="tt-q-status" style="margin:0"></span>
+    </div>
     <div id="tt-main">
     <div class="tt-map" id="tt-map"></div>
     <div class="tt-actions">
@@ -257,11 +271,41 @@
   const scoreColor = (r) => isSolar() && noPanels(r) ? '#64748b' : shownScore(r) == null ? '#38bdf8' : shownScore(r) >= 7 ? '#f87171' : shownScore(r) >= 4 ? '#fb923c' : '#34d399'
   const scoreWord = () => isSolar() ? 'panneaux' : 'saleté'
 
+  // ── Scope: surface range + kind of owner (B2B) ─────────────────────────────
+  const B2B_LABEL = { collectivite: 'Collectivité', entreprise: 'Entreprise', bailleur: 'Bailleur social', copropriete: 'Copropriété', inconnu: 'Propriétaire inconnu', residentiel: 'Logements' }
+  const DEFAULT_SCOPE = { min: 500, max: null, b2b: ['collectivite', 'entreprise'] }
+  state.scope = (() => {
+    try { return { ...DEFAULT_SCOPE, ...JSON.parse(localStorage.getItem('tt-scope') || '{}') } } catch (e) { return { ...DEFAULT_SCOPE } }
+  })()
+  const saveScope = () => { try { localStorage.setItem('tt-scope', JSON.stringify(state.scope)) } catch (e) { /* private mode */ } }
+  const RANK = { collectivite: 4, entreprise: 3, bailleur: 2, copropriete: 1 }
+  // Who is behind the building: free qualification first, else the detailed
+  // analysis' owners / occupants, else the OSM tags (null = not known yet)
+  function b2bOf(r) {
+    if (r.b2b) return r.b2b
+    // Roofs analysed before owner types were stored: recognise public owners by name
+    const owners = (r.owners || []).map(o => o.owner_class || (/^(COMMUNE|DEPARTEMENT|REGION|ETAT)\b/i.test(o.name || '') ? 'collectivite' : 'entreprise'))
+    if (owners.length) return owners.sort((a, b) => RANK[b] - RANK[a])[0]
+    if ((r.occupants || []).length) return 'entreprise'
+    return r.osm_class || (r.analyzed_at ? 'inconnu' : null)
+  }
+  const b2bLabel = (r) => r.b2b_label || (r.owners || [])[0]?.company?.name || (r.owners || [])[0]?.name || null
+  const areaOk = (r) => r.area_m2 >= (state.scope.min || 0) && (!state.scope.max || r.area_m2 <= state.scope.max)
+  function classOk(r, pendingOk) {
+    const cls = b2bOf(r)
+    if (cls == null) return pendingOk
+    return state.scope.b2b.includes(cls === 'copropriete' ? 'bailleur' : cls)
+  }
+  // Shown: pending rows stay visible while the free qualification runs
+  const inScope = (r) => areaOk(r) && classOk(r, true)
+  // Paid batches only ever take roofs whose owner type is known and selected
+  const payable = (r) => areaOk(r) && classOk(r, false)
+
   function drawPolygons(roofs) {
     if (!state.map) return
     state.layer.clearLayers()
     state.polygons.clear()
-    for (const r of roofs) {
+    for (const r of roofs.filter(inScope)) {
       const poly = window.L.polygon(r.rings.map(ring => ring.map(([lon, lat]) => [lat, lon])), {
         color: scoreColor(r), weight: 2, fillOpacity: detailScore(r) != null ? 0.35 : 0.15, dashArray: detailScore(r) == null && screenScore(r) != null ? '4 3' : null
       })
@@ -301,10 +345,16 @@
   // ── Data ──────────────────────────────────────────────────────────────────
   const current = () => state.view === 'scan' ? state.scan : state.saved
 
+  // Server rows don't carry the scan-time fields (OSM class, free B2B
+  // qualification): keep them from the row being replaced.
+  const CLIENT_FIELDS = ['osm_class', 'b2b', 'b2b_label']
   function replaceRoof(roof) {
     for (const list of [state.scan, state.saved]) {
       const i = list.findIndex(r => r.osm_id === roof.osm_id)
-      if (i >= 0) list[i] = roof
+      if (i < 0) continue
+      const previous = list[i]
+      list[i] = { ...roof }
+      for (const k of CLIENT_FIELDS) if (list[i][k] == null && previous[k] != null) list[i][k] = previous[k]
     }
     if (roof.analyzed_at && !state.saved.some(r => r.osm_id === roof.osm_id)) state.saved.push(roof)
   }
@@ -318,12 +368,14 @@
     $('tt-scan').disabled = true
     setStatus('Recherche des bâtiments de 500 m² et plus dans la zone…')
     try {
-      const data = await API('/api/admin/roofs?action=scan', { method: 'POST', body: JSON.stringify({ zone }) })
+      const data = await API('/api/admin/roofs?action=scan', { method: 'POST', body: JSON.stringify({ zone, min_area: state.scope.min, max_area: state.scope.max }) })
       if (data.error) throw new Error(data.error + (data.hint ? ` — ${data.hint}` : ''))
       state.scan = data.roofs
+      state.scanMin = state.scope.min
       const analysed = data.roofs.filter(r => r.analyzed_at).length
-      setStatus(`${data.total.toLocaleString('fr-FR')} bâtiments dans la zone, ${data.roofs.length} toits de 500 m² et plus${analysed ? ` (${analysed} déjà analysés)` : ''}.`, 'ok')
+      setStatus(`${data.total.toLocaleString('fr-FR')} bâtiments dans la zone, ${data.roofs.length} toits dans la plage de surface${analysed ? ` (${analysed} déjà analysés)` : ''}. Qualification B2B gratuite en cours…`, 'ok')
       render()
+      qualifyAll()
     } catch (e) {
       setStatus(e.message, 'error')
     } finally {
@@ -357,7 +409,7 @@
 
   function analysisTodo() {
     const v = $('tt-n').value
-    const pool = state.scan.filter(r => !analysedForMode(r) && !(isSolar() && noPanels(r)))
+    const pool = state.scan.filter(r => payable(r) && !analysedForMode(r) && !(isSolar() && noPanels(r)))
     if (v.startsWith('s')) {
       const min = Number(v.slice(1))
       // Solar farms are always worth a look in solar mode, even unscreened
@@ -369,14 +421,17 @@
   }
 
   function updateBatchBar() {
-    const n = state.scan.length
-    const analysed = state.scan.filter(analysedForMode).length
-    const screened = state.scan.filter(screenedForMode).length
-    const toScreen = state.scan.filter(r => !screenedForMode(r)).length
-    const dirty = state.scan.filter(r => (shownScore(r) ?? 0) >= 6).length
-    const farms = state.scan.filter(r => r.kind === 'centrale').length
-    const withPanels = state.scan.filter(r => r.kind === 'centrale' || r.solar === true || (r.solar == null && r.screen_solar === true)).length
-    $('tt-count').textContent = `${state.city ? `${state.city.nom} (${state.city.dep}) · ` : ''}${n} toits de 500 m² et +${farms ? ` (dont ${farms} centrale(s) solaire(s) au sol)` : ''} · ${screened} triés · ${analysed} analysés en détail${isSolar() && screened ? ` · ${withPanels} avec panneaux` : ''}${screened ? ` · ${dirty} notés 6/10 et + (${scoreWord()})` : ''}`
+    const scope = state.scan.filter(payable)
+    const pendingQ = state.scan.filter(r => areaOk(r) && b2bOf(r) == null).length
+    const n = scope.length
+    const analysed = scope.filter(analysedForMode).length
+    const screened = scope.filter(screenedForMode).length
+    const toScreen = scope.filter(r => !screenedForMode(r)).length
+    const dirty = scope.filter(r => (shownScore(r) ?? 0) >= 6).length
+    const farms = scope.filter(r => r.kind === 'centrale').length
+    const withPanels = scope.filter(r => r.kind === 'centrale' || r.solar === true || (r.solar == null && r.screen_solar === true)).length
+    const range = `${state.scope.min || 0}${state.scope.max ? ` à ${state.scope.max}` : ' m² et +'}${state.scope.max ? ' m²' : ''}`
+    $('tt-count').textContent = `${state.city ? `${state.city.nom} (${state.city.dep}) · ` : ''}${n} toits ${state.scope.b2b.map(c => B2B_LABEL[c].toLowerCase()).join(' / ')} de ${range}${pendingQ ? ` (+ ${pendingQ} en cours de qualification)` : ''}${farms ? ` (dont ${farms} centrale(s) solaire(s) au sol)` : ''} · ${screened} triés · ${analysed} analysés en détail${isSolar() && screened ? ` · ${withPanels} avec panneaux` : ''}${screened ? ` · ${dirty} notés 6/10 et + (${scoreWord()})` : ''}`
     for (const o of $('tt-n').options) if (o.dataset.label) o.textContent = `${isSolar() ? 'Panneaux' : 'Toits'} ${o.dataset.label}`
     $('tt-screen').disabled = !toScreen || state.running
     $('tt-screen').innerHTML = toScreen ? `Trier les ${toScreen} toits ${costPill(`≈ ${euros(Math.ceil(toScreen / 9) * COST_SCREEN)}`)}` : 'Tous les toits sont triés'
@@ -441,7 +496,7 @@
       if (state.stop) break
       let data = null
       for (let attempt = 0; attempt < 2 && !data; attempt++) {
-        const r = await API('/api/admin/roofs?action=scan', { method: 'POST', body: JSON.stringify({ zone }) }).catch(e => ({ error: e.message }))
+        const r = await API('/api/admin/roofs?action=scan', { method: 'POST', body: JSON.stringify({ zone, min_area: state.scope.min, max_area: state.scope.max }) }).catch(e => ({ error: e.message }))
         if (!r.error) data = r
         else if (r.hint) { setStatus(`${r.error} — ${r.hint}`, 'error'); state.stop = true }
       }
@@ -460,13 +515,46 @@
     $('tt-city').disabled = false; $('tt-stop').style.display = 'none'; updateZoneLabel()
     const n = state.scan.length
     const toScreen = state.scan.filter(r => !screenedForMode(r)).length
-    setStatus(`${commune.nom} : ${n} toits de 500 m² et + trouvés${failed ? ` (${failed} secteur(s) en échec : relancez pour compléter)` : ''}. ${toScreen ? `Étape 1 : « Trier les ${toScreen} toits » (≈ ${euros(Math.ceil(toScreen / 9) * COST_SCREEN)}), puis analysez en détail les plus sales.` : 'Tous déjà triés : passez à l\'analyse détaillée.'}`, failed ? 'error' : 'ok')
+    setStatus(`${commune.nom} : ${n} toits trouvés dans la plage de surface${failed ? ` (${failed} secteur(s) en échec : relancez pour compléter)` : ''}. Qualification B2B gratuite en cours (collectivités / entreprises), puis étape 1 : tri rapide des toits retenus.`, failed ? 'error' : 'ok')
     $('tt-n').value = toScreen < n ? 's6' : '20'
+    state.scanMin = state.scope.min
+    render()
+    qualifyAll()
+  }
+
+  // Free: who is behind each building (cadastre owner group / company register)
+  let qualifyRun = 0
+  async function qualifyAll() {
+    const run = ++qualifyRun
+    for (const r of state.scan) if (!r.b2b && r.osm_class === 'residentiel') r.b2b = 'residentiel'
+    const todo = state.scan.filter(r => b2bOf(r) == null || (!r.b2b && !r.analyzed_at && r.osm_class))
+    const status = $('tt-q-status')
+    if (!todo.length) { status.textContent = ''; return }
+    const batches = []
+    for (let i = 0; i < todo.length; i += 12) batches.push(todo.slice(i, i + 12))
+    let done = 0, last = 0
+    async function worker() {
+      while (batches.length && run === qualifyRun) {
+        const batch = batches.shift()
+        const data = await API('/api/admin/roofs?action=qualify', { method: 'POST', body: JSON.stringify({ buildings: batch.map(r => ({ ...strip(r), osm_class: r.osm_class })) }) }).catch(() => null)
+        for (const q of data?.results || []) {
+          const r = state.scan.find(x => x.osm_id === q.osm_id)
+          if (r) Object.assign(r, { b2b: q.b2b, b2b_label: q.b2b_label })
+        }
+        done += batch.length
+        status.innerHTML = `Qualification B2B ${freePill()} ${done}/${todo.length}…`
+        if (Date.now() - last > 1500) { last = Date.now(); render() }
+      }
+    }
+    await Promise.all([worker(), worker()])
+    if (run !== qualifyRun) return
+    const c = (k) => state.scan.filter(r => areaOk(r) && b2bOf(r) === k).length
+    status.textContent = `${c('collectivite')} collectivités · ${c('entreprise')} entreprises · ${c('bailleur') + c('copropriete')} bailleurs / copros · ${c('inconnu')} inconnus · ${c('residentiel')} logements`
     render()
   }
 
   async function screenAll() {
-    const todo = state.scan.filter(r => !screenedForMode(r)).sort((a, b) => b.area_m2 - a.area_m2)
+    const todo = state.scan.filter(r => payable(r) && !screenedForMode(r)).sort((a, b) => b.area_m2 - a.area_m2)
     if (!todo.length) return
     const grids = []
     for (let i = 0; i < todo.length; i += 9) grids.push(todo.slice(i, i + 9))
@@ -495,7 +583,7 @@
     await Promise.all(Array.from({ length: CONCURRENCY }, worker))
     state.running = false
     $('tt-stop').style.display = 'none'; updateZoneLabel()
-    const dirty = state.scan.filter(r => (shownScore(r) ?? 0) >= 6).length
+    const dirty = state.scan.filter(r => payable(r) && (shownScore(r) ?? 0) >= 6).length
     $('tt-n').value = 's6'
     setStatus(`${state.stop ? 'Tri arrêté' : 'Tri terminé'} : ${dirty} ${isSolar() ? 'site(s) aux panneaux notés' : 'toit(s) notés'} 6/10 et plus${failed ? `, ${failed} planche(s) en échec (relancez le tri pour les compléter)` : ''}. Étape 2 : analysez-les en détail pour avoir le diagnostic, le propriétaire et les occupants.`, failed ? 'error' : 'ok')
     render()
@@ -553,6 +641,7 @@
   function filtered(list) {
     const f = state.filter
     return list.filter(r =>
+      inScope(r) &&
       !(isSolar() && noPanels(r)) &&
       (!f.priority || (isSolar() ? r.solar_priority : r.priority) === f.priority) &&
       (!f.status || (r.status || 'nouveau') === f.status) &&
@@ -689,6 +778,7 @@
         : `<div class="tt-badges">${r.kind === 'centrale' ? '<span class="badge badge-new">Centrale solaire au sol</span>' : ''}${screenBadge(r)}${isPending
           ? '<span class="tt-pending"><span class="spinner"></span> Analyse en cours (photo, IA, propriétaire)…</span>'
           : `<button class="tt-btn" data-act="analyze" data-osm="${esc(r.osm_id)}">Analyser ce toit ${costPill('≈ 2-3 ct')}</button>`}</div>`}
+        ${b2bOf(r) ? `<div class="tt-badges" style="margin:4px 0 0"><span class="badge ${b2bOf(r) === 'collectivite' ? 'badge-new' : b2bOf(r) === 'entreprise' ? 'badge-warm' : 'badge-cold'}">${esc(B2B_LABEL[b2bOf(r)])}${b2bLabel(r) && !r.analyzed_at ? ` · ${esc(b2bLabel(r))}` : ''}</span></div>` : ''}
         ${ownersHtml(r)}
         ${occupantsHtml(r)}
         <div class="tt-links">
@@ -727,7 +817,7 @@
   function outreachRows() {
     const min = Number($('tt-o-min').value)
     const hideSent = $('tt-o-hide-sent').checked
-    return sorted(state.saved).filter(r => analysedForMode(r) && (!isSolar() || r.solar) && (detailScore(r) ?? 0) >= min &&
+    return sorted(state.saved).filter(r => inScope(r) && analysedForMode(r) && (!isSolar() || r.solar) && (detailScore(r) ?? 0) >= min &&
       r.status !== 'ignore' && r.status !== 'perdu' && (!hideSent || !r.prospect_id))
   }
 
@@ -1001,6 +1091,25 @@ Règles impératives :
   $('tt-f-priority').addEventListener('change', e => { state.filter.priority = e.target.value; render() })
   $('tt-f-status').addEventListener('change', e => { state.filter.status = e.target.value; render() })
   $('tt-f-analyzed').addEventListener('change', e => { state.filter.analyzedOnly = e.target.checked; render() })
+  function syncScopeControls() {
+    $('tt-min').value = state.scope.min || ''
+    $('tt-max').value = state.scope.max || ''
+    root.querySelectorAll('[data-b2b]').forEach(c => { c.checked = state.scope.b2b.includes(c.dataset.b2b) })
+  }
+  syncScopeControls()
+  function onScopeChange() {
+    const min = Math.max(200, Number($('tt-min').value) || 500)
+    const max = Number($('tt-max').value) > 0 ? Number($('tt-max').value) : null
+    state.scope = { min, max: max && max < min ? min : max, b2b: [...root.querySelectorAll('[data-b2b]:checked')].map(c => c.dataset.b2b) }
+    saveScope(); syncScopeControls()
+    outreachTouched = false; selected.clear()
+    if (state.scan.length && state.scanMin && min < state.scanMin) setStatus(`Surface minimale abaissée à ${min} m² : relancez le scan pour inclure les toits plus petits (les résultats actuels partent de ${state.scanMin} m²).`, 'error')
+    render()
+  }
+  $('tt-min').addEventListener('change', onScopeChange)
+  $('tt-max').addEventListener('change', onScopeChange)
+  root.querySelectorAll('[data-b2b]').forEach(c => c.addEventListener('change', onScopeChange))
+
   function syncModeButtons() {
     root.querySelectorAll('#tt-mode button').forEach(b => b.classList.toggle('on', b.dataset.mode === state.mode))
   }

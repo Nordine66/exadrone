@@ -5,7 +5,7 @@ const { logActivity } = require('../../lib/activity')
 const { EMAIL_RE, excludeEmail, includeEmail } = require('../../lib/exclusions')
 const { findDuplicates } = require('../../lib/agent-tools')
 const DEVIS_EXAMPLE = require('../../lib/devis-example')
-const { scanZone, analyzeBuilding, findContact, screenBuildings, roofEmailPhoto, photoFor } = require('../../lib/roofs')
+const { scanZone, analyzeBuilding, findContact, screenBuildings, qualifyBuildings, roofEmailPhoto, photoFor } = require('../../lib/roofs')
 
 // Consolidates agents/leads/prospects/stats into one function to stay under
 // Vercel Hobby's 12-serverless-function limit. Original URLs (/api/admin/agents,
@@ -605,7 +605,7 @@ async function handleRoofs(req, res, supabase) {
   if (action === 'scan') {
     let result
     try {
-      result = await scanZone(req.body?.zone)
+      result = await scanZone(req.body?.zone, req.body?.min_area, req.body?.max_area)
     } catch (e) {
       return res.status(400).json({ error: e.message })
     }
@@ -654,6 +654,13 @@ async function handleRoofs(req, res, supabase) {
       rows = data || []
     }
     return res.status(200).json({ roofs: [...done.values(), ...rows].map(withPhoto) })
+  }
+
+  // Free B2B qualification (cadastre owner group / company register), 12 per call
+  if (action === 'qualify') {
+    const buildings = Array.isArray(req.body?.buildings) ? req.body.buildings.slice(0, 12) : []
+    if (!buildings.length) return res.status(400).json({ error: 'Aucun bâtiment' })
+    return res.status(200).json({ results: await qualifyBuildings(buildings) })
   }
 
   if (action === 'analyze') {

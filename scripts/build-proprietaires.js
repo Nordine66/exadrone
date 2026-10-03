@@ -23,7 +23,7 @@ const MIN_LAND_PARCEL_M2 = 5000
 
 // Column indexes of the DGFiP CSV (';'-separated, UTF-8, one row per parcel
 // subdivision and per owner right).
-const C = { dep: 0, com: 2, prefixe: 4, section: 5, numero: 6, contenance: 13, culture: 15, droit: 17, siren: 19, forme: 22, denomination: 23 }
+const C = { dep: 0, com: 2, prefixe: 4, section: 5, numero: 6, contenance: 13, culture: 15, droit: 17, siren: 19, groupe: 20, forme: 22, denomination: 23 }
 
 async function readFile(file, owners) {
   const rl = readline.createInterface({ input: fs.createReadStream(file, 'utf8'), crlfDelay: Infinity })
@@ -40,8 +40,10 @@ async function readFile(file, owners) {
     const siren = r[C.siren].trim()
     const list = owners[idu] || (owners[idu] = [])
     if (list.some(o => o[0] === siren)) continue
-    // [siren, dénomination, forme juridique abrégée, code droit (P = propriétaire…)]
-    list.push([siren, r[C.denomination].trim(), r[C.forme].trim(), r[C.droit].trim().charAt(0)])
+    // [siren, dénomination, forme juridique abrégée, code droit (P = propriétaire…),
+    //  groupe DGFiP (1 État, 2 Région, 3 Département, 4 Commune, 5 HLM, 7 copropriété,
+    //  9 établissement public, 0/6/8 sociétés et autres personnes morales)]
+    list.push([siren, r[C.denomination].trim(), r[C.forme].trim(), r[C.droit].trim().charAt(0), r[C.groupe].trim().charAt(0)])
     kept++
   }
   console.log(`${path.basename(file)} : ${kept} droits retenus`)
