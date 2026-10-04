@@ -608,6 +608,8 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
               <button class="btn-primary btn-sm" id="manual-send" style="background:linear-gradient(135deg,#10b981,#34d399);box-shadow:0 6px 18px -8px rgba(16,185,129,.6)" disabled>Envoyer maintenant (0)</button>
               <button class="filter-btn" id="manual-prio" disabled>⭐ Mettre en priorité</button>
               <button class="filter-btn" id="manual-unprio" disabled>Retirer la priorité</button>
+              <button class="filter-btn" id="manual-solar" disabled title="Chloé enverra l'email panneaux solaires (avec chiffres) au lieu de l'email toiture">☀️ Offre panneaux solaires</button>
+              <button class="filter-btn" id="manual-roof" disabled title="Chloé enverra l'email toiture (démoussage)">🏠 Offre toiture</button>
               <button class="filter-btn" id="manual-clear" disabled>Tout décocher</button>
             </div>
             <div class="csv-import-status" id="manual-status"></div>
@@ -1551,7 +1553,7 @@ const manualStatus = (msg) => { document.getElementById('manual-status').textCon
 function manualRefreshButtons() {
   const n = manualSel.size
   document.getElementById('manual-send').textContent = `Envoyer maintenant (${n})`
-  for (const id of ['manual-send', 'manual-prio', 'manual-unprio', 'manual-clear']) document.getElementById(id).disabled = !n || manualBusy
+  for (const id of ['manual-send', 'manual-prio', 'manual-unprio', 'manual-solar', 'manual-roof', 'manual-clear']) document.getElementById(id).disabled = !n || manualBusy
   const all = document.getElementById('manual-all')
   all.checked = manualRows.length > 0 && manualRows.every(p => manualSel.has(p.id))
 }
@@ -1626,6 +1628,21 @@ async function manualSetPriority(on) {
   tabCache.prospects = 0
   loadManual()
 }
+async function manualSetOffer(offer) {
+  if (!manualSel.size || manualBusy) return
+  manualBusy = true; manualRefreshButtons()
+  manualStatus('Changement d\'offre…')
+  try {
+    const data = await API('/api/admin/prospects', { method: 'PATCH', body: JSON.stringify({ ids: [...manualSel], offer }) })
+    if (data.error) throw new Error(data.error)
+    manualStatus(`✓ ${data.updated} prospect(s) passés en offre ${offer === 'solaire' ? 'panneaux solaires' : 'toiture'}.${data.skipped?.length ? ' Non modifiés : ' + data.skipped.join(' ; ') : ''}`)
+  } catch (e) { manualStatus('Erreur : ' + e.message) }
+  manualBusy = false
+  tabCache.prospects = 0
+  loadManual()
+}
+document.getElementById('manual-solar').addEventListener('click', () => manualSetOffer('solaire'))
+document.getElementById('manual-roof').addEventListener('click', () => manualSetOffer('toiture'))
 document.getElementById('manual-prio').addEventListener('click', () => manualSetPriority(true))
 document.getElementById('manual-unprio').addEventListener('click', () => manualSetPriority(false))
 

@@ -306,7 +306,35 @@ async function handleProspects(req, res, supabase) {
 async function handleProspectsPatch(req, res, supabase) {
   if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
 
-  const { industryTag, ids, priority } = req.body || {}
+  const { industryTag, ids, priority, offer } = req.body || {}
+
+  // « Envoi manuel » tab: switch the pitch (panneaux solaires / toiture) of waiting prospects
+  if (Array.isArray(ids) && offer) {
+    if (!['solaire', 'toiture'].includes(offer)) return res.status(400).json({ error: 'offer : solaire ou toiture' })
+    const list = [...new Set(ids.filter(id => typeof id === 'string'))].slice(0, 200)
+    if (!list.length) return res.status(400).json({ error: 'Aucun prospect sélectionné' })
+    const { data: rows, error } = await supabase.from('prospects').select('id, company_name').in('id', list).eq('status', 'pending')
+    if (error) return res.status(500).json({ error: error.message })
+    let updated = 0
+    const skipped = []
+    for (const row of rows || []) {
+      const { data: roof } = await supabase.from('roof_leads').select('*').eq('prospect_id', row.id).maybeSingle()
+      const solar = offer === 'solaire'
+      let fields
+      if (roof) {
+        if (solar && !roof.solar) { skipped.push(`${row.company_name} (pas de panneaux détectés sur ce bâtiment)`); continue }
+        fields = roofPitch(roof, solar)
+      } else {
+        fields = { industry: solar ? 'Panneaux solaires' : 'Toiture industrielle' }
+      }
+      const { error: e2 } = await supabase.from('prospects').update(fields).eq('id', row.id).eq('status', 'pending')
+      if (e2) { skipped.push(`${row.company_name} (${e2.message})`); continue }
+      if (roof) await supabase.from('roof_leads').update({ prospect_offer: offer }).eq('id', roof.id)
+      updated++
+    }
+    await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: `Nordine (dashboard) : ${updated} prospect(s) en attente passés en offre « ${offer === 'solaire' ? 'panneaux solaires' : 'toiture'} »` })
+    return res.status(200).json({ updated, skipped })
+  }
 
   // « Envoi manuel » tab: put hand-picked waiting prospects first (or back)
   if (Array.isArray(ids)) {
@@ -844,6 +872,25 @@ async function handleRoofs(req, res, supabase) {
   return res.status(400).json({ error: 'action requise : scan, analyze, contact, prospect ou prospect-bulk' })
 }
 
+// What Chloé's first email is built from for a roof handed over from the Toitures tab:
+// the sector / batch tags select the pitch (roof or PV panels), the context carries the diagnosis.
+function roofPitch(roof, solarOffer) {
+  const where = roof.address ? ` situé${roof.kind === 'centrale' ? 'e' : ''} ${roof.address}` : ''
+  const context = solarOffer ? [
+    roof.kind === 'centrale'
+      ? `Centrale solaire au sol d'environ ${roof.area_m2} m²${where}${roof.solar_area_m2 ? `, environ ${roof.solar_area_m2} m² de panneaux` : ''}.`
+      : `Bâtiment de ${roof.area_m2} m² d'emprise au sol${where}, avec environ ${roof.solar_area_m2 || '?'} m² de panneaux photovoltaïques en toiture.`,
+    roof.solar_diagnostic ? `Constat sur la vue aérienne IGN : ${roof.solar_diagnostic}` : null,
+    roof.contact_search?.contact_role && roof.contact_name ? `Destinataire : ${roof.contact_name}, ${roof.contact_search.contact_role}.` : null
+  ].filter(Boolean).join(' ') : [
+    `Bâtiment de ${roof.area_m2} m² d'emprise au sol${where}${roof.roof_type && roof.roof_type !== 'indéterminé' ? `, toiture en ${roof.roof_type}` : ''}.`,
+    roof.diagnostic ? `Constat sur la vue aérienne IGN : ${roof.diagnostic}` : null,
+    roof.lichen ? 'Présence de mousses / lichens visible.' : null,
+    roof.contact_search?.contact_role && roof.contact_name ? `Destinataire : ${roof.contact_name}, ${roof.contact_search.contact_role}.` : null
+  ].filter(Boolean).join(' ')
+  return { context, industry: solarOffer ? 'Panneaux solaires' : 'Toiture industrielle', csv_batch: solarOffer ? 'solaire-detecte' : 'toitures' }
+}
+
 // offer: 'toiture' (roof cleaning pitch) or 'solaire' (PV panel cleaning pitch)
 async function roofToProspect(supabase, id, offer = 'toiture') {
   const solarOffer = offer === 'solaire'
@@ -863,29 +910,17 @@ async function roofToProspect(supabase, id, offer = 'toiture') {
   if (unsub?.length) return { error: 'Adresse dans les exclusions (désinscrite ou « pas intéressé »).' }
   if (existing?.length) return { error: 'Adresse déjà dans les prospects.' }
 
-  const where = roof.address ? ` situé${roof.kind === 'centrale' ? 'e' : ''} ${roof.address}` : ''
-  const context = solarOffer ? [
-    roof.kind === 'centrale'
-      ? `Centrale solaire au sol d'environ ${roof.area_m2} m²${where}${roof.solar_area_m2 ? `, environ ${roof.solar_area_m2} m² de panneaux` : ''}.`
-      : `Bâtiment de ${roof.area_m2} m² d'emprise au sol${where}, avec environ ${roof.solar_area_m2 || '?'} m² de panneaux photovoltaïques en toiture.`,
-    roof.solar_diagnostic ? `Constat sur la vue aérienne IGN : ${roof.solar_diagnostic}` : null,
-    roof.contact_search?.contact_role && roof.contact_name ? `Destinataire : ${roof.contact_name}, ${roof.contact_search.contact_role}.` : null
-  ].filter(Boolean).join(' ') : [
-    `Bâtiment de ${roof.area_m2} m² d'emprise au sol${where}${roof.roof_type && roof.roof_type !== 'indéterminé' ? `, toiture en ${roof.roof_type}` : ''}.`,
-    roof.diagnostic ? `Constat sur la vue aérienne IGN : ${roof.diagnostic}` : null,
-    roof.lichen ? 'Présence de mousses / lichens visible.' : null,
-    roof.contact_search?.contact_role && roof.contact_name ? `Destinataire : ${roof.contact_name}, ${roof.contact_search.contact_role}.` : null
-  ].filter(Boolean).join(' ')
+  const pitch = roofPitch(roof, solarOffer)
 
   const { data: prospect, error: e2 } = await supabase.from('prospects').insert({
     company_name: company,
     contact_name: roof.contact_name || null,
     email,
-    industry: solarOffer ? 'Panneaux solaires' : 'Toiture industrielle',
+    industry: pitch.industry,
     website: roof.website || null,
-    csv_batch: solarOffer ? 'solaire-detecte' : 'toitures',
+    csv_batch: pitch.csv_batch,
     status: 'pending',
-    context
+    context: pitch.context
   }).select('id').single()
   if (e2) return { error: e2.message, hint: ROOF_MIGRATION_HINT(e2.message) }
   const { data: updated } = await supabase.from('roof_leads')
