@@ -598,8 +598,10 @@ Angle imposé — entretien du patrimoine bâti communal :
 - Peut s'inscrire dans un marché public d'entretien ou être commandé en gré à gré en dessous du seuil de mise en concurrence
 
 Règles :
-- Formule d'appel : « Madame, Monsieur le Maire, »
-- Objet court et sobre, sans emphase, mentionnant l'entretien des bâtiments ou toitures communales
+- L'email arrive à l'accueil de la mairie : il doit être transmis au service technique.
+- Formule d'appel : « Bonjour, » puis, en première phrase seule dans son paragraphe : « Pourriez-vous transmettre ce message au responsable des services techniques ? Merci beaucoup. »
+- Le reste de l'email s'adresse au responsable des services techniques (vouvoiement, sans nommer personne)
+- Objet TRÈS court (moins de 40 caractères), sobre, sur l'entretien des toitures ou bâtiments communaux (ex. « Démoussage des toitures communales ») — le système le préfixe automatiquement par « À l'attention des services techniques — », ne l'écris pas toi-même
 - Une accroche personnalisée liée à la commune si l'information est disponible, sinon une accroche générique sur les bâtiments communaux — n'invente aucun bâtiment ni détail précis sur la commune
 - Un seul appel à l'action clair : proposer un échange de 15 minutes ou un devis gratuit
 - Jamais de promesse de prix précis dans l'email
@@ -611,6 +613,10 @@ Format de sortie STRICT :
 SUBJECT:[objet]
 ---
 [corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
+
+// Same order as the prompt choice in sendOne: the mairie pitch only when no
+// more specific one (roof, solar, heritage) applies.
+const usesMairiePitch = (prospect) => !isRoofProspect(prospect) && !isSolarProspect(prospect) && !isHeritageProspect(prospect) && isMairieProspect(prospect)
 
 // Roofs handed over from the dashboard "Toitures" tab (industry "Toiture
 // industrielle", batch "toitures"). Their prospects.context carries the aerial
@@ -898,7 +904,7 @@ async function sendBatch(supabase, settings, agent) {
         system: (isRoofProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_ROOF
           : isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
           : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
-          : isMairieProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE
+          : usesMairiePitch(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE
           : CHLOE_EMAIL_SYSTEM_PROMPT) + instructionsPromptBlock(agent),
         messages: [{
           role: 'user',
@@ -907,7 +913,10 @@ async function sendBatch(supabase, settings, agent) {
       })
       const raw = draft.content[0]?.text || ''
       const subjectMatch = raw.match(/^SUBJECT:(.+)$/m)
-      const subject = (subjectMatch?.[1] || `Exadrone Enterprise — ${prospect.company_name}`).trim()
+      let subject = (subjectMatch?.[1] || `Exadrone Enterprise — ${prospect.company_name}`).trim()
+      // Mairie emails land at the front desk: the subject says at once who
+      // it is for, so it gets forwarded (Hugo's relances keep it via "Re:").
+      if (usesMairiePitch(prospect) && !/services techniques/i.test(subject)) subject = `À l'attention des services techniques — ${subject}`
       const draftHtml = raw.split('---').slice(1).join('---').trim() || `<p>Bonjour ${prospect.contact_name || ''},</p>`
       const bodyHtml = photoUrl ? insertRoofPhoto(draftHtml, photoUrl) : draftHtml
       const fullHtml = bodyHtml + chloeSignatureHtml() + outreachFooterHtml(prospect.email)
