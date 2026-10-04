@@ -263,7 +263,7 @@ async function handleProspects(req, res, supabase) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
 
-  const { status, q, priority } = req.query || {}
+  const { status, q, priority, recent } = req.query || {}
   const { from, to } = pageRange(req.query)
 
   // « Envoi manuel » tab: search among the prospects (status filter kept)
@@ -276,13 +276,14 @@ async function handleProspects(req, res, supabase) {
   // send order (next to go first), the contacted ones by date of contact,
   // everything else newest import first. queue_pos / contacted_at arrive with
   // migration 010 — fall back to created_at until it is run.
-  const order = status === 'pending' ? ['queue_pos', true]
+  const order = recent ? ['created_at', false]
+    : status === 'pending' ? ['queue_pos', true]
     : ['contacted', 'followup1_sent', 'followup2_sent', 'replied'].includes(status) ? ['contacted_at', false]
     : ['created_at', false]
   const run = ([column, ascending]) => {
     let query = supabase.from('prospects').select('*', { count: 'exact' })
     // Waiting list: the ones marked priority first (migration 011)
-    if (status === 'pending' && withPriority) query = query.order('priority', { ascending: false })
+    if (status === 'pending' && withPriority && !recent) query = query.order('priority', { ascending: false })
     query = query.order(column, { ascending, nullsFirst: false }).range(from, to)
     if (status) query = query.eq('status', status)
     if (priority && withPriority) query = query.gt('priority', 0)

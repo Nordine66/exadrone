@@ -618,6 +618,7 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
               <div class="table-filters">
                 <button class="filter-btn manual-view-btn active" data-view="all">File d'envoi</button>
                 <button class="filter-btn manual-view-btn" data-view="priority">⭐ Prioritaires</button>
+                <button class="filter-btn manual-view-btn" data-view="recent">🕒 Derniers importés</button>
               </div>
             </div>
             <div class="table-scroll">
@@ -1560,14 +1561,14 @@ function loadManual() {
   const seq = ++manualSeq
   const url = q.length >= 2
     ? `/api/admin/prospects?status=pending&q=${encodeURIComponent(q)}`
-    : `/api/admin/prospects?status=pending&limit=${PAGE_SIZE}&offset=${manualOffset}${manualView === 'priority' ? '&priority=1' : ''}`
+    : `/api/admin/prospects?status=pending&limit=${PAGE_SIZE}&offset=${manualOffset}${manualView === 'priority' ? '&priority=1' : manualView === 'recent' ? '&recent=1' : ''}`
   document.getElementById('manual-body').innerHTML = '<tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr>'
   API(url).then(data => {
     if (seq !== manualSeq) return
     if (data.error) { document.getElementById('manual-body').innerHTML = `<tr><td colspan="6" class="empty-state">${esc(data.error)}</td></tr>`; return }
     markFresh('manual')
     manualRows = data.prospects || []
-    document.getElementById('manual-title').textContent = q.length >= 2 ? `Résultats pour « ${q} »` : manualView === 'priority' ? `Prospects prioritaires (${(data.total || 0).toLocaleString('fr-FR')})` : `Prospects en attente (${(data.total || 0).toLocaleString('fr-FR')}) — dans l'ordre d'envoi`
+    document.getElementById('manual-title').textContent = q.length >= 2 ? `Résultats pour « ${q} »` : manualView === 'priority' ? `Prospects prioritaires (${(data.total || 0).toLocaleString('fr-FR')})` : manualView === 'recent' ? `Derniers prospects importés en attente (${(data.total || 0).toLocaleString('fr-FR')}) — les plus récents en premier` : `Prospects en attente (${(data.total || 0).toLocaleString('fr-FR')}) — dans l'ordre d'envoi`
     if (q.length >= 2) document.getElementById('manual-pager').innerHTML = ''
     else renderPager('manual-pager', manualOffset, manualRows.length, data.total || 0, offset => { manualOffset = offset; loadManual() })
     document.getElementById('manual-body').innerHTML = manualRows.length ? manualRows.map(p => `
