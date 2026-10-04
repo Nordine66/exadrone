@@ -947,10 +947,10 @@ async function sendBatch(supabase, settings, agent, { ids = null } = {}) {
           : isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
           : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
           : usesMairiePitch(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE
-          : CHLOE_EMAIL_SYSTEM_PROMPT) + (prospect.context && /Note de Nordine/.test(prospect.context) ? '\n\nLe contexte du prospect contient une « Note de Nordine » : elle est PRIORITAIRE sur tout le reste de ces consignes (type d\'installation, interlocuteur, éléments à mentionner ou à éviter). Applique-la scrupuleusement et ne la cite jamais telle quelle dans l\'email.' : '') + instructionsPromptBlock(agent),
+          : CHLOE_EMAIL_SYSTEM_PROMPT) + ((prospect.chloe_note || (prospect.context && /Note de Nordine/.test(prospect.context))) ? '\n\nLe contexte du prospect contient une « Note de Nordine » ou une « Consigne de Nordine » : elle est PRIORITAIRE sur tout le reste de ces consignes (type d\'installation, interlocuteur, éléments à mentionner ou à éviter). Applique-la scrupuleusement et ne la cite jamais telle quelle dans l\'email.' : '') + instructionsPromptBlock(agent),
         messages: [{
           role: 'user',
-          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}${isMapProspect(prospect) || isRoofProspect(prospect) ? `\n- Photo aérienne : ${photoUrl ? 'oui' : 'non'}` : ''}${solarFigures ? `\n- Chiffres : ${solarFigures}` : ''}`
+          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}${prospect.chloe_note ? `\n- Consigne de Nordine (prioritaire, à respecter) : ${prospect.chloe_note}` : ''}${isMapProspect(prospect) || isRoofProspect(prospect) ? `\n- Photo aérienne : ${photoUrl ? 'oui' : 'non'}` : ''}${solarFigures ? `\n- Chiffres : ${solarFigures}` : ''}`
         }]
       })
       const raw = draft.content[0]?.text || ''

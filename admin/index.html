@@ -604,6 +604,11 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
             <h2 class="csv-upload-title">✉️ Envoyer ceux que je veux</h2>
             <p class="csv-hint">Ordre d'envoi de Chloé : <b>1.</b> les prospects ⭐ prioritaires (vos imports, ceux que vous cochez ici), <b>2.</b> les toitures choisies dans l'onglet Toitures, <b>3.</b> la file d'attente dans l'ordre d'import. Cochez des prospects puis « Envoyer maintenant » (40 maximum à la fois, hors limite quotidienne mais compté dans le total du jour) ou « ⭐ Mettre en priorité » pour qu'ils partent en tête au prochain lot. Les adresses déjà contactées ou exclues ne sont jamais renvoyées.</p>
             <input type="text" id="manual-search" class="auth-input" style="max-width:420px;margin-bottom:0" placeholder="Rechercher un prospect en attente (commune, nom, email)…">
+            <textarea id="manual-note" class="csv-textarea" style="margin-top:12px;min-height:70px" placeholder="Consigne pour Chloé (facultatif) : quelques lignes sur ce qu'elle doit dire à ces prospects. Ex. « Ce sont des panneaux solaires, parle du rendement et propose un diagnostic gratuit. Ne mentionne pas la toiture. »"></textarea>
+            <div class="csv-actions" style="flex-wrap:wrap;margin-top:8px">
+              <button class="filter-btn" id="manual-note-save" disabled>📝 Donner cette consigne aux prospects cochés</button>
+              <button class="filter-btn" id="manual-note-clear" disabled>Retirer la consigne</button>
+            </div>
             <div class="csv-actions" style="flex-wrap:wrap;margin-top:12px">
               <button class="btn-primary btn-sm" id="manual-send" style="background:linear-gradient(135deg,#10b981,#34d399);box-shadow:0 6px 18px -8px rgba(16,185,129,.6)" disabled>Envoyer maintenant (0)</button>
               <button class="filter-btn" id="manual-prio" disabled>⭐ Mettre en priorité</button>
@@ -1553,7 +1558,7 @@ const manualStatus = (msg) => { document.getElementById('manual-status').textCon
 function manualRefreshButtons() {
   const n = manualSel.size
   document.getElementById('manual-send').textContent = `Envoyer maintenant (${n})`
-  for (const id of ['manual-send', 'manual-prio', 'manual-unprio', 'manual-solar', 'manual-roof', 'manual-clear']) document.getElementById(id).disabled = !n || manualBusy
+  for (const id of ['manual-send', 'manual-prio', 'manual-unprio', 'manual-solar', 'manual-roof', 'manual-clear', 'manual-note-save', 'manual-note-clear']) document.getElementById(id).disabled = !n || manualBusy
   const all = document.getElementById('manual-all')
   all.checked = manualRows.length > 0 && manualRows.every(p => manualSel.has(p.id))
 }
@@ -1578,7 +1583,7 @@ function loadManual() {
         <td><input type="checkbox" class="manual-chk" data-id="${esc(p.id)}" ${manualSel.has(p.id) ? 'checked' : ''}></td>
         <td><div class="td-company">${esc(p.company_name)}</div><div class="td-muted">${esc(p.contact_name || '')}</div></td>
         <td>${esc(p.email)}</td>
-        <td>${sectorBadge(p.industry)}</td>
+        <td>${sectorBadge(p.industry)}${p.chloe_note ? `<div class="td-muted" title="${esc(p.chloe_note)}">📝 ${esc(p.chloe_note.length > 60 ? p.chloe_note.slice(0, 60) + '…' : p.chloe_note)}</div>` : ''}</td>
         <td>${p.priority > 0 ? '<span class="badge badge-hot">⭐ Prioritaire</span>' : '<span class="td-muted">file normale</span>'}</td>
         <td class="td-date">${fmtDate(p.created_at)}</td>
       </tr>`).join('') : '<tr><td colspan="6" class="empty-state">Aucun prospect en attente ne correspond.</td></tr>'
@@ -1641,6 +1646,21 @@ async function manualSetOffer(offer) {
   tabCache.prospects = 0
   loadManual()
 }
+async function manualSetNote(text) {
+  if (!manualSel.size || manualBusy) return
+  if (text && text.length < 5) return manualStatus('Écrivez une consigne un peu plus précise.')
+  manualBusy = true; manualRefreshButtons()
+  manualStatus('Enregistrement de la consigne…')
+  try {
+    const data = await API('/api/admin/prospects', { method: 'PATCH', body: JSON.stringify({ ids: [...manualSel], note: text }) })
+    if (data.error) throw new Error(data.error + (data.hint ? ' — ' + data.hint : ''))
+    manualStatus(`✓ Consigne ${text ? 'enregistrée' : 'retirée'} pour ${data.updated} prospect(s) : Chloé la suivra dans son email.`)
+  } catch (e) { manualStatus('Erreur : ' + e.message) }
+  manualBusy = false
+  loadManual()
+}
+document.getElementById('manual-note-save').addEventListener('click', () => manualSetNote(document.getElementById('manual-note').value.trim()))
+document.getElementById('manual-note-clear').addEventListener('click', () => manualSetNote(''))
 document.getElementById('manual-solar').addEventListener('click', () => manualSetOffer('solaire'))
 document.getElementById('manual-roof').addEventListener('click', () => manualSetOffer('toiture'))
 document.getElementById('manual-prio').addEventListener('click', () => manualSetPriority(true))

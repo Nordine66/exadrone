@@ -307,7 +307,18 @@ async function handleProspects(req, res, supabase) {
 async function handleProspectsPatch(req, res, supabase) {
   if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
 
-  const { industryTag, ids, priority, offer } = req.body || {}
+  const { industryTag, ids, priority, offer, note } = req.body || {}
+
+  // « Envoi manuel » tab: instruction for Chloé on the ticked prospects (empty = remove it)
+  if (Array.isArray(ids) && typeof note === 'string') {
+    const list = [...new Set(ids.filter(id => typeof id === 'string'))].slice(0, 500)
+    if (!list.length) return res.status(400).json({ error: 'Aucun prospect sélectionné' })
+    const text = note.trim().slice(0, 1500)
+    const { data, error } = await supabase.from('prospects').update({ chloe_note: text || null }).in('id', list).eq('status', 'pending').select('id')
+    if (error) return res.status(500).json({ error: error.message, hint: /chloe_note/.test(error.message) ? 'Exécutez la migration 012 dans Supabase (colonne chloe_note).' : undefined })
+    await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: `Nordine (dashboard) : consigne ${text ? 'donnée à Chloé' : 'retirée'} pour ${data?.length || 0} prospect(s)` })
+    return res.status(200).json({ updated: data?.length || 0 })
+  }
 
   // « Envoi manuel » tab: switch the pitch (panneaux solaires / toiture) of waiting prospects
   if (Array.isArray(ids) && offer) {
