@@ -22,3 +22,6 @@ prospects_mairies_66.csv
 prospects_mairies_66_import.csv
 prospects_mairies_*.csv
 .env*
+
+# Annuaire national des mairies (téléchargé par scripts/prepare_mairies_chloe.py)
+mairies_france_integrale.csv

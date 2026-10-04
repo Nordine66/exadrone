@@ -111,6 +111,11 @@
     .badge-warm{background:rgba(251,146,60,.12);color:var(--orange);border:1px solid rgba(251,146,60,.25)}
     .badge-cold{background:rgba(148,163,184,.08);color:var(--slate);border:1px solid rgba(148,163,184,.18)}
     .badge-new{background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2)}
+    .badge-sector{background:rgba(148,163,184,.08);color:var(--muted);border:1px solid rgba(148,163,184,.18)}
+    .badge-mairie{background:rgba(96,165,250,.12);color:#93c5fd;border:1px solid rgba(96,165,250,.3)}
+    .pager{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px;border-top:1px solid var(--border);font-size:.78rem;color:var(--muted);font-family:var(--font-mono)}
+    .pager:empty{display:none}
+    .pager .filter-btn:disabled{opacity:.35;cursor:default}
 
     /* Legacy tab bar (kept for compatibility, hidden — nav now lives in sidebar) */
     .tabs{display:none}
@@ -211,6 +216,8 @@
     .toggle-btn{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font-body)}
     .toggle-btn:hover{border-color:var(--border-strong)}
     .toggle-btn.pause-all[data-on="true"]{border-color:rgba(248,113,113,.4);color:var(--red);background:rgba(248,113,113,.08)}
+    .toggle-btn.auto-send[data-on="false"]{border-color:rgba(248,113,113,.4);color:var(--red);background:rgba(248,113,113,.08)}
+    .toggle-btn.auto-send[data-on="true"]{border-color:rgba(52,211,153,.35);color:var(--green);background:rgba(52,211,153,.07)}
     .toggle-btn.test-mode[data-on="true"]{border-color:rgba(251,146,60,.4);color:var(--orange);background:rgba(251,146,60,.08)}
     .banner{padding:11px 16px;border-radius:10px;font-size:.82rem;margin-bottom:16px;display:none;font-weight:500}
     .banner.show{display:block}
@@ -452,10 +459,12 @@
         <!-- AGENTS TAB -->
         <div class="tab-content active" id="tab-agents">
           <div class="banner banner-paused" id="paused-banner">⏸ Tous les agents sont en pause — aucun envoi, aucune génération automatique n'aura lieu.</div>
+          <div class="banner banner-paused" id="auto-off-banner">✋ Envois automatiques désactivés — Chloé et Hugo n'envoient plus rien d'eux-mêmes. Le bouton « Envoyer le prochain lot » (onglet Prospects) reste disponible.</div>
           <div class="banner banner-test" id="test-banner">🧪 Mode test actif — tous les emails sortants (Chloé, Hugo, contact) sont redirigés vers votre boîte de réception.</div>
 
           <div class="global-controls">
             <button class="toggle-btn pause-all" id="pause-all-btn" data-on="false">⏸ Pause tous les agents</button>
+            <button class="toggle-btn auto-send" id="auto-send-btn" data-on="true">🤖 Envois automatiques : ON</button>
             <button class="toggle-btn test-mode" id="test-mode-btn" data-on="true">🧪 Mode test : ON</button>
           </div>
 
@@ -535,7 +544,7 @@
         <div class="tab-content" id="tab-prospects">
           <div class="csv-upload-card">
             <h2 class="csv-upload-title">📤 Importer des prospects (Chloé)</h2>
-            <p class="csv-hint">Colonnes CSV attendues : <code>company_name, contact_name, email</code> (obligatoires), <code>industry, website</code> (facultatifs). Les emails déjà présents ou désinscrits sont ignorés automatiquement. Astuce : mentionnez « solaire »/« photovoltaïque », « monuments historiques » ou « collectivité, mairie » dans <code>industry</code> pour que Chloé utilise l'argumentaire correspondant sur ce lot.</p>
+            <p class="csv-hint">Colonnes CSV attendues : <code>company_name, contact_name, email</code> (obligatoires), <code>industry, website</code> (facultatifs). Toute adresse déjà présente (prospects, emails déjà envoyés, exclusions, propriétaires de l'onglet Toitures) est ignorée automatiquement. Chloé envoie dans l'ordre du fichier : le CSV des mairies est déjà trié du Nord au Sud. Astuce : mentionnez « solaire »/« photovoltaïque », « monuments historiques » ou « collectivité, mairie » dans <code>industry</code> pour que Chloé utilise l'argumentaire correspondant sur ce lot.</p>
             <input type="file" id="csv-file-input" class="file-input" accept=".csv,text/csv">
             <textarea class="csv-textarea" id="csv-textarea" placeholder="company_name,contact_name,email,industry,website
 Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" style="margin-top:12px"></textarea>
@@ -576,10 +585,11 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
             </div>
             <div class="table-scroll">
               <table>
-                <thead><tr><th>Entreprise / Contact</th><th>Email</th><th>Secteur</th><th>Statut</th><th>Importé le</th></tr></thead>
-                <tbody id="prospects-body"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
+                <thead><tr><th>Entreprise / Contact</th><th>Email</th><th>Secteur</th><th>Statut</th><th>Contacté le</th><th>Importé le</th></tr></thead>
+                <tbody id="prospects-body"><tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr></tbody>
               </table>
             </div>
+            <div class="pager" id="prospects-pager"></div>
           </div>
         </div>
 
@@ -657,6 +667,7 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
                 <tbody id="emails-body"><tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody>
               </table>
             </div>
+            <div class="pager" id="emails-pager"></div>
           </div>
         </div>
 
@@ -938,6 +949,14 @@ function renderGlobalControls() {
   const testBtn = document.getElementById('test-mode-btn')
   testBtn.dataset.on = String(globalSettings.test_mode)
   testBtn.textContent = globalSettings.test_mode ? '🧪 Mode test : ON' : '🧪 Mode test : OFF'
+  const autoOn = globalSettings.auto_send !== false
+  const autoBtn = document.getElementById('auto-send-btn')
+  autoBtn.dataset.on = String(autoOn)
+  autoBtn.textContent = autoOn ? '🤖 Envois automatiques : ON' : '✋ Envois automatiques : OFF'
+  autoBtn.title = autoOn
+    ? 'Chloé envoie son lot chaque matin et Hugo fait les relances. Cliquez pour reprendre la main.'
+    : 'Rien ne part tout seul. Cliquez pour relancer les envois de chaque matin.'
+  document.getElementById('auto-off-banner').classList.toggle('show', !autoOn)
   document.getElementById('paused-banner').classList.toggle('show', !!globalSettings.paused_all)
   document.getElementById('test-banner').classList.toggle('show', !!globalSettings.test_mode)
 }
@@ -987,6 +1006,16 @@ function editDailyLimit(slug, current) {
 
 document.getElementById('pause-all-btn').addEventListener('click', () => {
   API('/api/admin/agents', { method: 'PATCH', body: JSON.stringify({ target: 'settings', paused_all: !globalSettings.paused_all }) }).then(() => loadAgents())
+})
+document.getElementById('auto-send-btn').addEventListener('click', () => {
+  const turningOn = globalSettings.auto_send === false
+  if (!confirm(turningOn
+    ? 'Réactiver les envois automatiques ? Chloé enverra son lot chaque matin et Hugo fera les relances.'
+    : 'Désactiver les envois automatiques ? Plus rien ne partira tout seul ; vous pourrez toujours envoyer un lot à la main depuis l\'onglet Prospects.')) return
+  API('/api/admin/agents', { method: 'PATCH', body: JSON.stringify({ target: 'settings', auto_send: turningOn }) }).then(data => {
+    if (data && data.error) alert(data.error)
+    loadAgents()
+  })
 })
 document.getElementById('test-mode-btn').addEventListener('click', () => {
   const turningOff = globalSettings.test_mode
@@ -1115,21 +1144,44 @@ chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKe
 chatInput.addEventListener('input', () => { chatInput.style.height = 'auto'; chatInput.style.height = Math.min(chatInput.scrollHeight, 100) + 'px' })
 
 // ── Prospects (Chloé) ─────────────────────────────────────────────────────────
+// Lists are paged by 50 rows: the table stays fast with thousands of mairies.
+const PAGE_SIZE = 50
 let currentProspectFilter = ''
+let prospectsOffset = 0
+
+// "Collectivité, mairie" gets its own colour so the mairies stand out.
+function sectorBadge(industry) {
+  if (!industry) return '—'
+  const mairie = /mairie|collectivit/i.test(industry)
+  return `<span class="badge ${mairie ? 'badge-mairie' : 'badge-sector'}">${esc(industry)}</span>`
+}
+
+// "1–50 sur 3 412" with previous / next buttons; onPage(newOffset) reloads.
+function renderPager(id, offset, shown, total, onPage) {
+  const el = document.getElementById(id)
+  if (!total || total <= PAGE_SIZE) { el.innerHTML = ''; return }
+  el.innerHTML = `
+    <button class="filter-btn" ${offset === 0 ? 'disabled' : ''} data-page="${Math.max(0, offset - PAGE_SIZE)}">← Précédent</button>
+    <span>${offset + 1}–${offset + shown} sur ${total.toLocaleString('fr-FR')}</span>
+    <button class="filter-btn" ${offset + shown >= total ? 'disabled' : ''} data-page="${offset + PAGE_SIZE}">Suivant →</button>`
+  el.querySelectorAll('[data-page]').forEach(btn => btn.addEventListener('click', () => onPage(Number(btn.dataset.page))))
+}
 
 function loadProspects() {
-  const url = '/api/admin/prospects?limit=100' + (currentProspectFilter ? '&status=' + currentProspectFilter : '')
-  document.getElementById('prospects-body').innerHTML = '<tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr>'
+  const url = `/api/admin/prospects?limit=${PAGE_SIZE}&offset=${prospectsOffset}` + (currentProspectFilter ? '&status=' + currentProspectFilter : '')
+  document.getElementById('prospects-body').innerHTML = '<tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr>'
   API(url).then(data => {
     markFresh('prospects')
     const list = data.prospects || []
-    if (!list.length) { document.getElementById('prospects-body').innerHTML = '<tr><td colspan="5" class="empty-state">Aucun prospect trouvé.</td></tr>'; return }
+    renderPager('prospects-pager', prospectsOffset, list.length, data.total || 0, offset => { prospectsOffset = offset; loadProspects() })
+    if (!list.length) { document.getElementById('prospects-body').innerHTML = '<tr><td colspan="6" class="empty-state">Aucun prospect trouvé.</td></tr>'; return }
     document.getElementById('prospects-body').innerHTML = list.map(p => `
       <tr>
         <td><div class="td-company">${esc(p.company_name)}</div><div class="td-muted">${esc(p.contact_name || '')}</div></td>
         <td>${esc(p.email)}</td>
-        <td>${esc(p.industry || '—')}</td>
+        <td>${sectorBadge(p.industry)}</td>
         <td><span class="badge badge-new">${esc(prospectStatusLabel(p.status))}</span></td>
+        <td class="td-date">${p.contacted_at ? fmtDate(p.contacted_at) : '—'}</td>
         <td class="td-date">${fmtDate(p.created_at)}</td>
       </tr>`).join('')
   })
@@ -1145,16 +1197,21 @@ document.querySelectorAll('.prospect-filter-btn').forEach(btn => {
     document.querySelectorAll('.prospect-filter-btn').forEach(b => b.classList.remove('active'))
     btn.classList.add('active')
     currentProspectFilter = btn.dataset.status
+    prospectsOffset = 0
     loadProspects()
   })
 })
 
 // ── Exclusions relances (Hugo) ───────────────────────────────────────────────────
-// Whole prospect list is loaded once, then searched locally on every
-// keystroke — instant, and accent/case-insensitive ("pezilla" finds
-// "Mairie de Pézilla").
+// The search runs on the server (a few rows per keystroke, never the whole
+// prospect list) and is accent/case-insensitive ("pezilla" finds "Mairie de
+// Pézilla"). exclProspects holds the names behind the excluded addresses
+// plus the latest search results.
 let exclProspects = []
+let exclMatches = []
 let exclEmails = new Map() // email -> unsubscribed_at
+let exclSearchTimer = null
+let exclSearchSeq = 0
 const normalizeSearch = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 const EXCL_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -1166,8 +1223,22 @@ function loadExclusions() {
     exclProspects = data.prospects || []
     exclEmails = new Map((data.excluded || []).map(u => [u.email, u.unsubscribed_at]))
     renderExclusionList()
-    renderExclusionSearch()
+    searchExclusions()
   })
+}
+
+function searchExclusions() {
+  clearTimeout(exclSearchTimer)
+  const raw = document.getElementById('excl-search').value
+  if (normalizeSearch(raw).length < 2) { exclMatches = []; renderExclusionSearch(); return }
+  exclSearchTimer = setTimeout(() => {
+    const seq = ++exclSearchSeq
+    API('/api/admin/exclusions?q=' + encodeURIComponent(raw.trim())).then(data => {
+      if (seq !== exclSearchSeq) return // a newer keystroke already answered
+      exclMatches = data.prospects || []
+      renderExclusionSearch()
+    })
+  }, 250)
 }
 
 function renderExclusionSearch() {
@@ -1175,9 +1246,7 @@ function renderExclusionSearch() {
   const q = normalizeSearch(raw)
   const box = document.getElementById('excl-results')
   if (q.length < 2) { box.innerHTML = ''; return }
-  const matches = exclProspects.filter(p =>
-    normalizeSearch(`${p.company_name} ${p.contact_name || ''} ${p.email}`).includes(q)
-  ).slice(0, 30)
+  const matches = exclMatches
   let html = matches.map(p => {
     const excluded = exclEmails.has(p.email)
     return `
@@ -1221,7 +1290,7 @@ function renderExclusionList() {
   }).join('')
 }
 
-document.getElementById('excl-search').addEventListener('input', renderExclusionSearch)
+document.getElementById('excl-search').addEventListener('input', searchExclusions)
 
 document.getElementById('excl-results').addEventListener('click', e => {
   const btn = e.target.closest('[data-excl-email]')
@@ -1232,8 +1301,8 @@ document.getElementById('excl-results').addEventListener('click', e => {
   API('/api/admin/exclusions', { method: 'POST', body: JSON.stringify({ email }) }).then(data => {
     if (data.error) { alert('Erreur : ' + data.error); btn.disabled = false; btn.textContent = 'Exclure'; return }
     exclEmails = new Map([[email, new Date().toISOString()], ...exclEmails])
-    const p = exclProspects.find(x => x.email === email)
-    if (p) p.status = 'unsubscribed'
+    const p = exclMatches.find(x => x.email === email)
+    if (p) { p.status = 'unsubscribed'; exclProspects.push(p) }
     tabCache.prospects = 0; tabCache.agents = 0
     renderExclusionList()
     renderExclusionSearch()
@@ -1255,15 +1324,17 @@ document.getElementById('excl-body').addEventListener('click', e => {
 
 // ── Emails envoyés (Chloé + Hugo) ────────────────────────────────────────────────
 let currentEmailFilter = ''
+let emailsOffset = 0
 const AGENT_LABELS = { chloe: 'Chloé', hugo: 'Hugo' }
 const EMAIL_STATUS_LABELS = { sent: 'Envoyé', bounced: 'Erreur (bounce)', failed: 'Échec' }
 
 function loadEmails() {
-  const url = '/api/admin/emails?limit=100' + (currentEmailFilter ? '&agent=' + currentEmailFilter : '')
+  const url = `/api/admin/emails?limit=${PAGE_SIZE}&offset=${emailsOffset}` + (currentEmailFilter ? '&agent=' + currentEmailFilter : '')
   document.getElementById('emails-body').innerHTML = '<tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr>'
   API(url).then(data => {
     markFresh('emails')
     const list = data.emails || []
+    renderPager('emails-pager', emailsOffset, list.length, data.total || 0, offset => { emailsOffset = offset; loadEmails() })
     if (!list.length) { document.getElementById('emails-body').innerHTML = '<tr><td colspan="8" class="empty-state">Aucun email envoyé pour le moment.</td></tr>'; return }
     window.__emailsData = {}
     document.getElementById('emails-body').innerHTML = list.map(e => {
@@ -1273,7 +1344,7 @@ function loadEmails() {
       return `
       <tr>
         <td><div class="td-company">${esc(p.company_name || '—')}</div><div class="td-muted">${esc(p.email || '')}</div></td>
-        <td>${esc(p.industry || '—')}</td>
+        <td>${sectorBadge(p.industry)}</td>
         <td><span class="badge badge-new">${esc(AGENT_LABELS[e.agent_slug] || e.agent_slug)}</span></td>
         <td>${esc(step)}</td>
         <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.subject || '—')}</td>
@@ -1304,6 +1375,7 @@ document.querySelectorAll('.email-filter-btn').forEach(btn => {
     document.querySelectorAll('.email-filter-btn').forEach(b => b.classList.remove('active'))
     btn.classList.add('active')
     currentEmailFilter = btn.dataset.agent
+    emailsOffset = 0
     loadEmails()
   })
 })

@@ -2,3 +2,8 @@ drone scroll.mp4
 
 # Outil Python local de prospection (ne pas déployer)
 prospection-toitures/
+
+# Données de prospection locales (ne pas publier sur le site)
+mairies_france_integrale.csv
+prospects_mairies_*.csv
+scripts/

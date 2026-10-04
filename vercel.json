@@ -25,7 +25,11 @@
     },
     {
       "path": "/api/agents/tasks?agent=outreach&action=send-batch",
-      "schedule": "15 8 * * *"
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&pass=2",
+      "schedule": "30 7 * * *"
     },
     {
       "path": "/api/agents/tasks?agent=followup",

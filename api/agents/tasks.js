@@ -22,33 +22,74 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const normEmail = (email) => String(email || '').trim().toLowerCase()
 
-// Every address that already received a successfully sent email at this
-// sequence step (0 = Chloé's first contact, 1-2 = Hugo's relances), compared
-// case-insensitively. Built from the send log itself rather than prospect
-// statuses, so a prospect re-imported or reset to "pending" can never get the
-// same email twice. Paged by 1000 (PostgREST's per-request row cap).
-async function sentEmailSet(supabase, step) {
+// Every address that already received a successfully sent email — at one
+// sequence step (0 = Chloé's first contact, 1-2 = Hugo's relances) or at any
+// step when `step` is null — compared case-insensitively. Built from the send
+// log itself (the address it really went to, plus the prospect's current one)
+// rather than prospect statuses, so a prospect re-imported or reset to
+// "pending" can never get the same email twice. Paged by 1000 (PostgREST's
+// per-request row cap).
+async function sentEmailSet(supabase, step = null) {
   const set = new Set()
+  let columns = 'recipient_email, prospects(email)'
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase
-      .from('outreach_emails').select('prospects(email)')
-      .eq('status', 'sent').eq('sequence_step', step)
-      .range(from, from + 999)
+    let query = supabase.from('outreach_emails').select(columns).eq('status', 'sent')
+    if (step !== null) query = query.eq('sequence_step', step)
+    const { data, error } = await query.range(from, from + 999)
+    // recipient_email arrives with migration 005.
+    if (error && columns !== 'prospects(email)' && /recipient_email/.test(error.message)) { columns = 'prospects(email)'; from -= 1000; continue }
     if (error) throw new Error(`Send log fetch error: ${error.message}`)
-    ;(data || []).forEach(row => { if (row.prospects?.email) set.add(normEmail(row.prospects.email)) })
+    ;(data || []).forEach(row => {
+      if (row.recipient_email) set.add(normEmail(row.recipient_email))
+      if (row.prospects?.email) set.add(normEmail(row.prospects.email))
+    })
     if (!data || data.length < 1000) break
   }
   return set
 }
 
+// All values of one email column of a table, normalized, paged by 1000.
+async function emailColumnSet(supabase, table, column) {
+  const set = new Set()
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from(table).select(column).not(column, 'is', null).range(from, from + 999)
+    if (error) throw new Error(`${table} fetch error: ${error.message}`)
+    ;(data || []).forEach(row => set.add(normEmail(row[column])))
+    if (!data || data.length < 1000) break
+  }
+  return set
+}
+
+// Addresses owned by a building of the "Toitures" tab, mapped to the prospect
+// created from it (null while not handed to Chloé yet). A CSV row must never
+// reach an owner already being handled there.
+async function roofContactMap(supabase) {
+  const map = new Map()
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('roof_leads').select('contact_email, prospect_id')
+      .not('contact_email', 'is', null).range(from, from + 999)
+    if (error) throw new Error(`roof_leads fetch error: ${error.message}`)
+    ;(data || []).forEach(row => { const email = normEmail(row.contact_email); if (email) map.set(email, row.prospect_id) })
+    if (!data || data.length < 1000) break
+  }
+  return map
+}
+
 // Atomically moves a prospect from one status to the next and reports whether
-// THIS run won it. Two overlapping runs (the 8:15 cron and a click on "Envoyer
-// le prochain lot", or a double click) both read the same pending rows; only
-// one conditional update can succeed per row, so only one of them sends.
-async function claimProspect(supabase, id, fromStatus, toStatus) {
-  const { data, error } = await supabase
-    .from('prospects').update({ status: toStatus })
+// THIS run won it. Two overlapping runs (the morning cron and a click on
+// "Envoyer le prochain lot", or a double click) both read the same pending
+// rows; only one conditional update can succeed per row, so only one of them
+// sends. `extra` carries contacted_at for Chloé's first email.
+async function claimProspect(supabase, id, fromStatus, toStatus, extra = {}) {
+  let { data, error } = await supabase
+    .from('prospects').update({ status: toStatus, ...extra })
     .eq('id', id).eq('status', fromStatus).select('id')
+  // contacted_at arrives with migration 010 — never let it block a claim.
+  if (error && extra.contacted_at && /contacted_at/.test(error.message)) {
+    ;({ data, error } = await supabase
+      .from('prospects').update({ status: toStatus })
+      .eq('id', id).eq('status', fromStatus).select('id'))
+  }
   if (error) throw new Error(`Claim error: ${error.message}`)
   return !!(data && data.length)
 }
@@ -91,6 +132,11 @@ function isAuthorized(req) {
   const validAdmin = adminToken && adminToken === process.env.ADMIN_SECRET
   return validCron || validAdmin
 }
+
+// Calls made by the Vercel crons (not by a click in the dashboard).
+const isCronCall = (req) => (req.headers['authorization'] || '') === `Bearer ${process.env.CRON_SECRET}`
+// settings.auto_send arrives with migration 010; missing means on.
+const autoSendOff = (req, settings) => isCronCall(req) && settings.auto_send === false
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
@@ -288,6 +334,7 @@ async function handleFollowup(req, res) {
 
   if (settings.paused_all) return res.status(200).json({ followup1: 0, followup2: 0, reason: 'Tous les agents sont en pause' })
   if (agent?.status === 'paused') return res.status(200).json({ followup1: 0, followup2: 0, reason: 'Hugo est en pause' })
+  if (autoSendOff(req, settings)) return res.status(200).json({ followup1: 0, followup2: 0, reason: 'Envois automatiques désactivés' })
 
   const delayDays = agent?.config?.followup_delay_days ?? 4
   const cutoff = new Date(Date.now() - delayDays * 24 * 60 * 60 * 1000)
@@ -512,22 +559,25 @@ function isMairieProspect(prospect) {
 }
 
 // Used for the "Collectivité, mairie" batch (see isMairieProspect). Angle leans on
-// bâtiments communaux (mairie, école, gymnase, salle des fêtes), sécurité des agents
-// municipaux et cadre des marchés publics — plus institutionnel que le pitch BTP
-// générique, moins pointu que celui des monuments historiques.
-const CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE = `Tu es Chloé, chargée de développement commercial chez Exadrone Enterprise, spécialiste du nettoyage par drone de façades, toitures et bardages pour les mairies et collectivités territoriales (bâtiments communaux : mairie, école, gymnase, salle des fêtes, médiathèque).
+// the public buildings a commune actually has to maintain (gymnase, école,
+// église/monument, toitures communales), démoussage, sécurité des agents
+// municipaux et cadre des marchés publics — plus institutionnel que le pitch
+// BTP générique, moins pointu que celui des monuments historiques.
+const CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE = `Tu es Chloé, chargée de développement commercial chez Exadrone Enterprise, spécialiste de l'entretien par drone (nettoyage et démoussage) des toitures, façades et bardages des bâtiments communaux.
 
-Rédige un email de prospection B2B à froid, court (120 à 160 mots), personnalisé à partir des informations fournies sur le prospect. Ton institutionnel, respectueux du service public, factuel — pas de superlatifs, pas de ton commercial agressif.
+Rédige un email de prospection à froid, court (120 à 160 mots), adressé à une mairie (le maire et ses services techniques). Ton institutionnel, respectueux du service public, factuel — pas de superlatifs, pas de ton commercial agressif.
 
-Angle imposé — bâtiments communaux :
-- Aucun agent municipal ne travaille en hauteur : le drone supprime l'échafaudage, la nacelle et le risque d'accident du travail sur les interventions d'entretien
-- Intervention rapide, sans fermeture prolongée du bâtiment ni gêne pour les usagers (école, mairie, salle des fêtes)
+Angle imposé — entretien du patrimoine bâti communal :
+- Les bâtiments concernés : gymnases et salles de sport, écoles, église ou monument historique de la commune, et plus largement toutes les toitures publiques (mairie, salle des fêtes, médiathèque) — cite-en deux ou trois, naturellement, sans en faire une liste
+- Démoussage et nettoyage par drone : mousses et lichens retirés sans que personne ne monte sur le toit, sans piétiner tuiles ou ardoises fragiles, ce qui prolonge la durée de vie de la couverture
+- Aucun agent municipal ne travaille en hauteur : ni échafaudage, ni nacelle, ni risque d'accident du travail
+- Intervention rapide, sans fermeture prolongée du bâtiment ni gêne pour les usagers (élèves, associations sportives, fidèles)
 - Peut s'inscrire dans un marché public d'entretien ou être commandé en gré à gré en dessous du seuil de mise en concurrence
-- Entretien préventif avant l'hiver ou avant un événement communal, pour préserver l'image du bâtiment public
 
 Règles :
-- Objet court et sobre, sans emphase
-- Une accroche personnalisée liée à la commune/collectivité si l'information est disponible, sinon une accroche générique sur les bâtiments communaux
+- Formule d'appel : « Madame, Monsieur le Maire, »
+- Objet court et sobre, sans emphase, mentionnant l'entretien des bâtiments ou toitures communales
+- Une accroche personnalisée liée à la commune si l'information est disponible, sinon une accroche générique sur les bâtiments communaux — n'invente aucun bâtiment ni détail précis sur la commune
 - Un seul appel à l'action clair : proposer un échange de 15 minutes ou un devis gratuit
 - Jamais de promesse de prix précis dans l'email
 - Signature : "Chloé — Exadrone Enterprise"
@@ -656,16 +706,23 @@ async function handleImport(req, res, supabase) {
     return res.status(200).json({ imported: 0, duplicates: 0, rejected })
   }
 
-  const emails = candidates.map(c => c.email)
-  const [{ data: existingProspects }, { data: existingUnsubs }] = await Promise.all([
-    supabase.from('prospects').select('email').in('email', emails),
-    supabase.from('unsubscribes').select('email').in('email', emails)
-  ])
-  const blocked = new Set([
-    ...(existingProspects || []).map(p => p.email),
-    ...(existingUnsubs || []).map(u => u.email)
-  ])
-  const toInsert = candidates.filter(c => !blocked.has(c.email))
+  // Cross-check every registry before inserting: prospects (any status),
+  // the send log (any step), the exclusions / unsubscribes list and the
+  // owners of the "Toitures" tab. Whole columns are read rather than an
+  // .in() list, which would exceed the URL limit on a national file.
+  let blocked
+  try {
+    const sets = await Promise.all([
+      emailColumnSet(supabase, 'prospects', 'email'),
+      sentEmailSet(supabase),
+      emailColumnSet(supabase, 'unsubscribes', 'email'),
+      roofContactMap(supabase)
+    ])
+    blocked = (email) => sets.some(set => set.has(email))
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
+  }
+  const toInsert = candidates.filter(c => !blocked(c.email))
 
   let inserted = 0
   if (toInsert.length) {
@@ -687,69 +744,126 @@ async function handleImport(req, res, supabase) {
   })
 }
 
+// Pending prospects in send order: import order (queue_pos, migration 010 —
+// the national mairies file is imported sorted North → South), falling back
+// to created_at if the migration hasn't been run yet.
+async function fetchPending(supabase, filter, limit) {
+  const run = (column) => filter(supabase.from('prospects').select('*').eq('status', 'pending'))
+    .order(column, { ascending: true }).limit(limit)
+  let { data, error } = await run('queue_pos')
+  if (error && /queue_pos/.test(error.message)) ({ data, error } = await run('created_at'))
+  if (error) throw new Error(error.message)
+  return data || []
+}
+
+// Only one batch at a time (the two morning crons, a click on "Envoyer le
+// prochain lot"): otherwise two runs would both see the same "remaining"
+// count and go over the daily limit. The lock expires on its own after the
+// function's 300 s maximum, so a crashed run can't block the next morning.
+async function acquireBatchLock(supabase) {
+  const now = new Date()
+  const until = new Date(now.getTime() + 6 * 60 * 1000).toISOString()
+  const { data, error } = await supabase.from('agents').update({ batch_lock_until: until })
+    .eq('slug', 'chloe').or(`batch_lock_until.is.null,batch_lock_until.lt."${now.toISOString()}"`).select('slug')
+  if (error) {
+    // batch_lock_until arrives with migration 010.
+    console.error('Batch lock unavailable:', error.message)
+    return true
+  }
+  return !!(data && data.length)
+}
+
+async function releaseBatchLock(supabase) {
+  const { error } = await supabase.from('agents').update({ batch_lock_until: null }).eq('slug', 'chloe')
+  if (error) console.error('Batch lock release failed:', error.message)
+}
+
+// Each email is written by Claude (5-10 s), and the function stops at 300 s:
+// a few are drafted in parallel, and no new one is started after the budget
+// so the run always ends cleanly. Anything left stays "pending" for the
+// catch-up cron.
+const DRAFT_CONCURRENCY = 4
+const BATCH_TIME_BUDGET_MS = 230 * 1000
+
 async function handleSendBatch(req, res, supabase) {
   const [settings, agent] = await Promise.all([getSettings(supabase), getAgent(supabase, 'chloe')])
 
   if (settings.paused_all) return res.status(200).json({ sent: 0, reason: 'Tous les agents sont en pause' })
   if (agent?.status === 'paused') return res.status(200).json({ sent: 0, reason: 'Chloé est en pause' })
+  if (autoSendOff(req, settings)) return res.status(200).json({ sent: 0, reason: 'Envois automatiques désactivés' })
 
+  if (!(await acquireBatchLock(supabase))) {
+    return res.status(200).json({ sent: 0, reason: "Un lot est déjà en cours d'envoi — réessayez dans quelques minutes." })
+  }
+  try {
+    return res.status(200).json(await sendBatch(supabase, settings, agent))
+  } catch (e) {
+    console.error('Chloé batch error:', e)
+    return res.status(500).json({ error: e.message })
+  } finally {
+    await releaseBatchLock(supabase)
+  }
+}
+
+async function sendBatch(supabase, settings, agent) {
+  const deadline = Date.now() + BATCH_TIME_BUDGET_MS
   const dailyLimit = agent?.config?.daily_limit ?? 50
   const todayStart = startOfTodayIso()
   const { count: sentToday } = await supabase
     .from('outreach_emails').select('id', { count: 'exact', head: true })
-    .eq('agent_slug', 'chloe').eq('sequence_step', 0).gte('sent_at', todayStart)
+    .eq('agent_slug', 'chloe').eq('sequence_step', 0).eq('status', 'sent').gte('sent_at', todayStart)
 
   const remaining = Math.max(0, dailyLimit - (sentToday || 0))
-  if (remaining === 0) return res.status(200).json({ sent: 0, reason: 'Limite quotidienne atteinte' })
+  if (remaining === 0) return { sent: 0, reason: 'Limite quotidienne atteinte' }
 
   // Roofs Nordine picked in the "Toitures" tab jump the queue: they were
   // qualified by hand, the CSV backlog can wait a day.
-  const { data: roofProspects, error: roofError } = await supabase
-    .from('prospects').select('*').eq('status', 'pending').in('csv_batch', MAP_BATCHES)
-    .order('created_at', { ascending: true }).limit(remaining)
-  if (roofError) return res.status(500).json({ error: roofError.message })
-  const { data: otherProspects, error: fetchError } = remaining > roofProspects.length
-    ? await supabase.from('prospects').select('*').eq('status', 'pending').or(`csv_batch.is.null,csv_batch.not.in.(${MAP_BATCHES.join(',')})`)
-      .order('created_at', { ascending: true }).limit(remaining - roofProspects.length)
-    : { data: [], error: null }
-  if (fetchError) return res.status(500).json({ error: fetchError.message })
-  const prospects = [...roofProspects, ...(otherProspects || [])]
-  if (!prospects.length) return res.status(200).json({ sent: 0, reason: 'Aucun prospect en attente' })
+  const roofProspects = await fetchPending(supabase, q => q.in('csv_batch', MAP_BATCHES), remaining)
+  const otherProspects = remaining > roofProspects.length
+    ? await fetchPending(supabase, q => q.or(`csv_batch.is.null,csv_batch.not.in.(${MAP_BATCHES.join(',')})`), remaining - roofProspects.length)
+    : []
+  const prospects = [...roofProspects, ...otherProspects]
+  if (!prospects.length) return { sent: 0, reason: 'Aucun prospect en attente' }
 
-  const { data: freshUnsubs } = await supabase
-    .from('unsubscribes').select('email').in('email', prospects.map(p => p.email))
-  const unsubscribedSet = new Set((freshUnsubs || []).map(u => u.email))
+  // Fresh registries, read once for the whole batch: exclusions, every email
+  // ever sent (any step), and the owners handled in the "Toitures" tab.
+  const [unsubscribedSet, alreadyContacted, roofContacts] = await Promise.all([
+    emailColumnSet(supabase, 'unsubscribes', 'email'),
+    sentEmailSet(supabase),
+    roofContactMap(supabase)
+  ])
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  const results = { sent: 0, failed: 0, skippedUnsubscribed: 0, skippedDuplicate: 0, skippedAlreadyClaimed: 0 }
+  const results = { sent: 0, failed: 0, skippedUnsubscribed: 0, skippedDuplicate: 0, skippedAlreadyClaimed: 0, notStarted: 0 }
   const recipients = []
   // Bcc Nordine on the first real send of each batch so he sees a live example
   // of what Chloé is sending without slowing down or duplicating the rest.
   let bccPending = !!process.env.NOTIFICATION_EMAIL
-
-  // Addresses that already got a first email (any prospect row, any past run)
-  // plus the ones handled earlier in this run: an address is contacted once.
-  const alreadyContacted = await sentEmailSet(supabase, 0)
+  // Addresses handled earlier in this run: an address is contacted once.
   const seenThisRun = new Set()
 
-  for (const prospect of prospects) {
+  async function sendOne(prospect) {
     const email = normEmail(prospect.email)
-    if (unsubscribedSet.has(prospect.email) || unsubscribedSet.has(email)) {
+    if (unsubscribedSet.has(email)) {
       await supabase.from('prospects').update({ status: 'unsubscribed' }).eq('id', prospect.id)
       results.skippedUnsubscribed++
-      continue
+      return
     }
 
-    if (alreadyContacted.has(email) || seenThisRun.has(email)) {
+    // Already emailed (any step, any row), already taken by this run, or the
+    // address of a building owner handled from the "Toitures" tab: moved out
+    // of the queue without sending. Hugo never relances it (no email logged).
+    const roofOwner = roofContacts.has(email) && roofContacts.get(email) !== prospect.id
+    if (alreadyContacted.has(email) || seenThisRun.has(email) || roofOwner) {
       await supabase.from('prospects').update({ status: 'contacted' }).eq('id', prospect.id).eq('status', 'pending')
       results.skippedDuplicate++
-      continue
+      return
     }
     seenThisRun.add(email)
 
-    if (!(await claimProspect(supabase, prospect.id, 'pending', 'contacted'))) {
+    if (!(await claimProspect(supabase, prospect.id, 'pending', 'contacted', { contacted_at: new Date().toISOString() }))) {
       results.skippedAlreadyClaimed++
-      continue
+      return
     }
 
     let sent = false
@@ -776,6 +890,10 @@ async function handleSendBatch(req, res, supabase) {
       const fullHtml = bodyHtml + chloeSignatureHtml() + outreachFooterHtml(prospect.email)
       const emailMessageId = `<${crypto.randomUUID()}@exadrone-enterprise.com>`
 
+      // Never Bcc the inbox the email is already going to (test mode
+      // redirects to NOTIFICATION_EMAIL; resend-send.js drops it there too).
+      const bcc = bccPending && normEmail(process.env.NOTIFICATION_EMAIL) !== email ? process.env.NOTIFICATION_EMAIL : undefined
+      if (bcc) bccPending = false
       const sendResult = await sendManagedEmail({
         settings,
         from: FROM_ADDRESS,
@@ -784,12 +902,9 @@ async function handleSendBatch(req, res, supabase) {
         html: fullHtml,
         replyTo: REPLY_TO,
         headers: { 'Message-ID': emailMessageId },
-        // Never Bcc the inbox the email is already going to (test mode
-        // redirects to NOTIFICATION_EMAIL; resend-send.js drops it there too).
-        bcc: bccPending && normEmail(process.env.NOTIFICATION_EMAIL) !== email ? process.env.NOTIFICATION_EMAIL : undefined
+        bcc
       })
       sent = true
-      bccPending = false
 
       await insertOutreachEmail(supabase, {
         prospect_id: prospect.id,
@@ -807,7 +922,11 @@ async function handleSendBatch(req, res, supabase) {
     } catch (e) {
       console.error(`Chloé send error for ${email}:`, e)
       // Hand the prospect back to the queue only if nothing went out.
-      if (!sent) await supabase.from('prospects').update({ status: 'pending' }).eq('id', prospect.id).eq('status', 'contacted')
+      if (!sent) {
+        const back = (fields) => supabase.from('prospects').update(fields).eq('id', prospect.id).eq('status', 'contacted')
+        const { error } = await back({ status: 'pending', contacted_at: null })
+        if (error) await back({ status: 'pending' })
+      }
       await insertOutreachEmail(supabase, {
         prospect_id: prospect.id,
         agent_slug: 'chloe',
@@ -819,11 +938,19 @@ async function handleSendBatch(req, res, supabase) {
     }
   }
 
+  // Prospects are taken in queue order by a few workers sharing one cursor.
+  let next = 0
+  const worker = async () => {
+    while (next < prospects.length && Date.now() < deadline) await sendOne(prospects[next++])
+  }
+  await Promise.all(Array.from({ length: DRAFT_CONCURRENCY }, worker))
+  results.notStarted = prospects.length - next
+
   await logActivity(supabase, {
     agent: 'chloe', kind: 'outreach_batch',
-    summary: `Lot de prospection${settings.test_mode ? ' (mode test, redirigé vers Nordine)' : ''} : ${results.sent} email(s) envoyé(s), ${results.failed} échec(s), ${results.skippedDuplicate} doublon(s) évité(s), ${results.skippedUnsubscribed} désinscrit(s) ignoré(s)${recipients.length ? ` — ${recipients.slice(0, 15).join(', ')}${recipients.length > 15 ? '…' : ''}` : ''}`,
+    summary: `Lot de prospection${settings.test_mode ? ' (mode test, redirigé vers Nordine)' : ''} : ${results.sent} email(s) envoyé(s), ${results.failed} échec(s), ${results.skippedDuplicate} doublon(s) évité(s), ${results.skippedUnsubscribed} désinscrit(s) ignoré(s)${results.notStarted ? `, ${results.notStarted} reporté(s) au prochain passage (temps écoulé)` : ''}${recipients.length ? ` — ${recipients.slice(0, 15).join(', ')}${recipients.length > 15 ? '…' : ''}` : ''}`,
     meta: { ...results, recipients }
   })
 
-  return res.status(200).json(results)
+  return results
 }

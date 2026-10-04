@@ -207,7 +207,7 @@ async function handleAgents(req, res, supabase) {
 }
 
 async function handleAgentsPatch(req, res, supabase) {
-  const { target, slug, status, config, paused_all, test_mode } = req.body || {}
+  const { target, slug, status, config, paused_all, test_mode, auto_send } = req.body || {}
 
   if (target === 'agent') {
     if (!slug) return res.status(400).json({ error: 'slug requis' })
@@ -235,17 +235,26 @@ async function handleAgentsPatch(req, res, supabase) {
     const update = {}
     if (typeof paused_all === 'boolean') update.paused_all = paused_all
     if (typeof test_mode === 'boolean') update.test_mode = test_mode
+    if (typeof auto_send === 'boolean') update.auto_send = auto_send
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Aucune modification fournie' })
     const { error } = await supabase.from('settings').update(update).eq('id', true)
-    if (error) return res.status(500).json({ error: error.message })
+    if (error) return res.status(500).json({ error: /auto_send/.test(error.message) ? 'Lancez d\'abord la migration 010 dans Supabase (SQL Editor).' : error.message })
     await logActivity(supabase, {
       kind: 'admin_action',
-      summary: `Nordine (dashboard) : ${typeof paused_all === 'boolean' ? (paused_all ? 'tous les agents mis en pause' : 'tous les agents réactivés') : ''}${typeof test_mode === 'boolean' ? `mode test ${test_mode ? 'activé (emails redirigés vers Nordine)' : 'désactivé (vrais envois)'}` : ''}`
+      summary: `Nordine (dashboard) : ${typeof paused_all === 'boolean' ? (paused_all ? 'tous les agents mis en pause' : 'tous les agents réactivés') : ''}${typeof test_mode === 'boolean' ? `mode test ${test_mode ? 'activé (emails redirigés vers Nordine)' : 'désactivé (vrais envois)'}` : ''}${typeof auto_send === 'boolean' ? `envois automatiques ${auto_send ? 'réactivés (Chloé et Hugo chaque matin)' : 'désactivés (envois manuels uniquement)'}` : ''}`
     })
     return res.status(200).json({ success: true })
   }
 
   return res.status(400).json({ error: 'target requis : agent ou settings' })
+}
+
+// Dashboard lists are paged (50 rows by default, 100 at most) so a table of
+// thousands of prospects or emails never loads in one go.
+function pageRange(query = {}) {
+  const limit = Math.min(Math.max(parseInt(query.limit, 10) || 50, 1), 100)
+  const offset = Math.max(parseInt(query.offset, 10) || 0, 0)
+  return { from: offset, to: offset + limit - 1 }
 }
 
 // ── prospects ─────────────────────────────────────────────────────────────────
@@ -254,17 +263,28 @@ async function handleProspects(req, res, supabase) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
 
-  const { status, limit = '100', offset = '0' } = req.query || {}
+  const { status } = req.query || {}
+  const { from, to } = pageRange(req.query)
 
-  let query = supabase
-    .from('prospects')
-    .select('*, outreach_emails(sequence_step, sent_at, status)', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(Number(offset), Number(offset) + Number(limit) - 1)
+  // Each tab in the order that answers its question: "En attente" in Chloé's
+  // send order (next to go first), the contacted ones by date of contact,
+  // everything else newest import first. queue_pos / contacted_at arrive with
+  // migration 010 — fall back to created_at until it is run.
+  const order = status === 'pending' ? ['queue_pos', true]
+    : ['contacted', 'followup1_sent', 'followup2_sent', 'replied'].includes(status) ? ['contacted_at', false]
+    : ['created_at', false]
+  const run = ([column, ascending]) => {
+    let query = supabase
+      .from('prospects')
+      .select('*', { count: 'exact' })
+      .order(column, { ascending, nullsFirst: false })
+      .range(from, to)
+    if (status) query = query.eq('status', status)
+    return query
+  }
 
-  if (status) query = query.eq('status', status)
-
-  const { data, error, count } = await query
+  let { data, error, count } = await run(order)
+  if (error && /queue_pos|contacted_at/.test(error.message)) ({ data, error, count } = await run(['created_at', false]))
   if (error) return res.status(500).json({ error: error.message })
 
   return res.status(200).json({ prospects: data || [], total: count || 0 })
@@ -298,13 +318,14 @@ async function handleEmails(req, res, supabase) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
 
-  const { agent, status, limit = '50', offset = '0' } = req.query || {}
+  const { agent, status } = req.query || {}
+  const { from, to } = pageRange(req.query)
 
   let query = supabase
     .from('outreach_emails')
     .select('id, subject, body_html, agent_slug, sequence_step, status, sent_at, prospects(company_name, contact_name, email, industry)', { count: 'exact' })
     .order('sent_at', { ascending: false })
-    .range(Number(offset), Number(offset) + Number(limit) - 1)
+    .range(from, to)
 
   if (agent) query = query.eq('agent_slug', agent)
   if (status) query = query.eq('status', status)
@@ -366,29 +387,54 @@ async function handleAnalytics(req, res, supabase) {
   })
 }
 
+// Search box of the "Exclusions relances" tab, run on the server so the page
+// never loads thousands of prospects. Accent- and case-insensitive ("pezilla"
+// finds "Mairie de Pézilla"): letters that may carry an accent become a
+// one-character wildcard in the database query, then the candidates are
+// checked exactly once accents are stripped.
+const stripAccents = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+
+async function searchProspects(supabase, raw) {
+  const q = stripAccents(raw)
+  if (q.length < 2) return []
+  const pattern = q.replace(/[^a-z0-9@.-]/g, '_').replace(/[aceiouy]/g, '_')
+  const { data, error } = await supabase.from('prospects')
+    .select('id, company_name, contact_name, email, industry, status')
+    .or(['company_name', 'contact_name', 'email'].map(c => `${c}.ilike."*${pattern}*"`).join(','))
+    .order('company_name', { ascending: true })
+    .limit(300)
+  if (error) throw new Error(error.message)
+  return (data || [])
+    .filter(p => stripAccents(`${p.company_name} ${p.contact_name || ''} ${p.email}`).includes(q))
+    .slice(0, 30)
+}
+
 // ── exclusions (manual "pas intéressé" list — stops Hugo's relances) ──────────
 // Logic shared with the agents' chat tools, see lib/exclusions.js.
 async function handleExclusions(req, res, supabase) {
   if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
 
   if (req.method === 'GET') {
-    // Whole prospect list (small: a few hundred CSV rows) so the dashboard can
-    // search it instantly and accent-insensitively on the client. Paged by
-    // 1000 because that's PostgREST's per-request row cap on Supabase.
-    const prospects = []
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await supabase
-        .from('prospects')
-        .select('id, company_name, contact_name, email, industry, status')
-        .order('company_name', { ascending: true })
-        .range(from, from + 999)
-      if (error) return res.status(500).json({ error: error.message })
-      prospects.push(...(data || []))
-      if (!data || data.length < 1000) break
+    const q = String(req.query?.q || '')
+    if (q.trim()) {
+      try {
+        return res.status(200).json({ prospects: await searchProspects(supabase, q) })
+      } catch (e) {
+        return res.status(500).json({ error: e.message })
+      }
     }
+
+    // Excluded addresses, plus the prospect behind each one for its name.
     const { data: excluded, error } = await supabase
       .from('unsubscribes').select('email, unsubscribed_at').order('unsubscribed_at', { ascending: false })
     if (error) return res.status(500).json({ error: error.message })
+    const emails = (excluded || []).map(u => u.email)
+    const prospects = []
+    for (let i = 0; i < emails.length; i += 100) {
+      const { data } = await supabase.from('prospects')
+        .select('id, company_name, contact_name, email, industry, status').in('email', emails.slice(i, i + 100))
+      prospects.push(...(data || []))
+    }
     return res.status(200).json({ prospects, excluded: excluded || [] })
   }
 
