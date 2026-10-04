@@ -836,9 +836,8 @@ async function sendBatch(supabase, settings, agent) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const results = { sent: 0, failed: 0, skippedUnsubscribed: 0, skippedDuplicate: 0, skippedAlreadyClaimed: 0, notStarted: 0 }
   const recipients = []
-  // Bcc Nordine on the first real send of each batch so he sees a live example
-  // of what Chloé is sending without slowing down or duplicating the rest.
-  let bccPending = !!process.env.NOTIFICATION_EMAIL
+  // No copy to Nordine's inbox: every email Chloé sends is readable in the
+  // dashboard "Emails envoyés" tab (his choice, 2026-10-04).
   // Addresses handled earlier in this run: an address is contacted once.
   const seenThisRun = new Set()
 
@@ -890,10 +889,6 @@ async function sendBatch(supabase, settings, agent) {
       const fullHtml = bodyHtml + chloeSignatureHtml() + outreachFooterHtml(prospect.email)
       const emailMessageId = `<${crypto.randomUUID()}@exadrone-enterprise.com>`
 
-      // Never Bcc the inbox the email is already going to (test mode
-      // redirects to NOTIFICATION_EMAIL; resend-send.js drops it there too).
-      const bcc = bccPending && normEmail(process.env.NOTIFICATION_EMAIL) !== email ? process.env.NOTIFICATION_EMAIL : undefined
-      if (bcc) bccPending = false
       const sendResult = await sendManagedEmail({
         settings,
         from: FROM_ADDRESS,
@@ -901,8 +896,7 @@ async function sendBatch(supabase, settings, agent) {
         subject,
         html: fullHtml,
         replyTo: REPLY_TO,
-        headers: { 'Message-ID': emailMessageId },
-        bcc
+        headers: { 'Message-ID': emailMessageId }
       })
       sent = true
 
