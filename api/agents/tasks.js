@@ -336,13 +336,13 @@ Règles :
 function followupSubcontractPrompt(step) {
   return `Tu es Chloé, d'Exadrone Enterprise (nettoyage de panneaux photovoltaïques par drone). Tu rédiges la RELANCE n°${step} d'un email de prospection resté sans réponse. Le prospect est une entreprise de l'énergie solaire (développeur, exploitant, installateur, société de maintenance / O&M, asset manager).
 
-Contexte important : le premier email parlait de la perte de production due à l'encrassement comme si le prospect devait faire nettoyer ses propres panneaux. Ce n'était pas le bon angle : ce prospect construit, gère ou entretient des parcs et des toitures solaires pour lui-même ou pour des clients. Notre vraie proposition : devenir son SOUS-TRAITANT nettoyage par drone.
+Contexte : le premier email parlait de la perte de production due à l'encrassement. Ce prospect construit, gère ou entretient des parcs et des toitures solaires pour lui-même ou pour des clients : le bon angle est de devenir son SOUS-TRAITANT nettoyage par drone. La relance apporte donc un nouvel angle marketing, comme une idée complémentaire. Ne mentionne JAMAIS d'erreur, de malentendu ni d'excuse, ne dis pas « je me suis mal exprimée » et ne critique pas le premier email : avance simplement.
 
 ${step === 1 ? `Relance n°1 (70 à 110 mots) :
-- Une première phrase simple qui recadre, sans excuses lourdes : « Mon précédent message parlait de l'entretien de parcs solaires ; je me suis mal exprimée : nous proposons plutôt d'être le sous-traitant nettoyage par drone de vos parcs et de vos contrats de maintenance. »
-- L'intérêt pour eux : aucun investissement en matériel ni en personnel, un renfort sur les pics de saison (printemps, pollen), un seul prestataire pour plusieurs sites en France, ponctuel ou en accord-cadre ; ils gardent la relation client, nous faisons le nettoyage ; personne ne marche sur les panneaux (ni micro-fissure ni garantie en jeu)
+- Accroche sur un angle neuf, côté métier du prospect : un seul prestataire drone pour tous leurs sites évite d'investir dans du matériel, de former des équipes ou de multiplier les sous-traitants locaux, et libère leurs techniciens pour la maintenance électrique
+- Le bénéfice : ils gardent la relation client et le contrat, nous faisons le nettoyage ; une capacité qui monte en puissance sur les pics de saison (printemps, pollen) ; ponctuel ou en accord-cadre ; personne ne marche sur les panneaux (ni micro-fissure ni garantie en jeu)
 - Un seul appel à l'action : un échange de 15 minutes pour voir comment l'intégrer à leurs parcs en gestion` : `Relance n°2, la dernière (50 à 80 mots) :
-- Ton léger, sans insister : rappelle en une phrase que nous proposons d'être leur sous-traitant nettoyage par drone pour leurs parcs en gestion
+- Ton léger, sans insister : une phrase sur ce que nous apportons comme sous-traitant nettoyage par drone (renfort sans investissement, un prestataire pour plusieurs sites)
 - Un seul appel à l'action : un échange de 15 minutes, ou répondre « pas concerné » suffit`}
 
 Règles :
