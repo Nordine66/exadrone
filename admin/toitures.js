@@ -131,6 +131,7 @@
     <div class="tt-map" id="tt-map"></div>
     <div class="tt-actions">
       <button class="btn-primary btn-sm" id="tt-scan">Scanner la zone affichée ${freePill()}</button>
+      <button class="tt-btn" id="tt-clear" title="Efface les résultats de la recherche en cours">Effacer</button>
       <span class="tt-status" id="tt-zone"></span>
     </div>
     <div class="tt-actions" id="tt-batch" style="display:none">
@@ -203,6 +204,68 @@
   root.querySelectorAll('.tt-filter').forEach(s => { s.style.cssText = 'background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:.8rem' })
 
   const $ = (id) => document.getElementById(id)
+  // Robust call to the admin API: timeout, readable errors (a Vercel timeout
+  // answers with HTML, not JSON) and automatic retries for safe, free calls.
+  const TRANSIENT = /indisponible|réessayez|timeout|trop de temps|surcharg|fetch|network|réseau/i
+  async function api(path, opts = {}) {
+    const { retries = 0, timeout = 100000, ...fetchOpts } = opts
+    let result
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      if (attempt) await new Promise(r => setTimeout(r, 1500 * attempt))
+      const ctl = new AbortController()
+      const timer = setTimeout(() => ctl.abort(), timeout)
+      try {
+        result = await API(path, { ...fetchOpts, signal: ctl.signal })
+      } catch (e) {
+        result = { error: e.name === 'AbortError' ? 'Le serveur a mis trop de temps à répondre (réessayez)' : e instanceof SyntaxError ? 'Réponse du serveur interrompue (délai dépassé), réessayez' : `Connexion interrompue : ${e.message}` }
+      } finally { clearTimeout(timer) }
+      if (!result?.error || result.hint || !TRANSIENT.test(result.error)) break
+    }
+    return result
+  }
+
+  // The scan survives a page reload / a tab change (IndexedDB, best effort)
+  const store = {
+    db() {
+      return this._db || (this._db = new Promise((resolve) => {
+        try {
+          const req = indexedDB.open('exa-toitures', 1)
+          req.onupgradeneeded = () => req.result.createObjectStore('kv')
+          req.onsuccess = () => resolve(req.result)
+          req.onerror = () => resolve(null)
+        } catch (e) { resolve(null) }
+      }))
+    },
+    async get(key) {
+      const db = await this.db()
+      if (!db) return null
+      return new Promise(resolve => { try { const r = db.transaction('kv').objectStore('kv').get(key); r.onsuccess = () => resolve(r.result || null); r.onerror = () => resolve(null) } catch (e) { resolve(null) } })
+    },
+    async set(key, value) {
+      const db = await this.db()
+      if (!db) return
+      try { db.transaction('kv', 'readwrite').objectStore('kv').put(value, key) } catch (e) { /* quota / private mode */ }
+    }
+  }
+  let saveTimer = null
+  function scheduleSave() {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      if (!state.scan.length) return store.set('scan-v1', null)
+      const c = state.map?.getCenter()
+      store.set('scan-v1', { scan: state.scan, city: state.city || null, scanMin: state.scanMin || null, view: c ? { center: [c.lat, c.lng], zoom: state.map.getZoom() } : null })
+    }, 1500)
+  }
+  async function restoreScan() {
+    if (state.scan.length) return
+    const saved = await store.get('scan-v1')
+    if (!saved?.scan?.length || state.scan.length) return
+    state.scan = saved.scan; state.city = saved.city; state.scanMin = saved.scanMin
+    if (saved.view && state.map) state.map.setView(saved.view.center, saved.view.zoom)
+    setStatus(`${saved.scan.length} toits de votre dernière recherche ont été restaurés.`, 'ok')
+    render(); qualifyAll()
+  }
+
   const setStatus = (msg, kind = '') => { const el = $('tt-status'); el.textContent = msg; el.dataset.kind = kind }
 
   // ── Map ───────────────────────────────────────────────────────────────────
@@ -303,9 +366,14 @@
 
   function drawPolygons(roofs) {
     if (!state.map) return
+    // Skip the (flickering, heavy) redraw when nothing visible changed
+    const shown = roofs.filter(inScope)
+    const sig = `${state.mode}|${state.view}|${shown.map(r => `${r.osm_id}:${detailScore(r)}:${screenScore(r)}:${noPanels(r) ? 1 : 0}`).join(',')}`
+    if (sig === state.polySig) return
+    state.polySig = sig
     state.layer.clearLayers()
     state.polygons.clear()
-    for (const r of roofs.filter(inScope)) {
+    for (const r of shown) {
       const poly = window.L.polygon(r.rings.map(ring => ring.map(([lon, lat]) => [lat, lon])), {
         color: scoreColor(r), weight: 2, fillOpacity: detailScore(r) != null ? 0.35 : 0.15, dashArray: detailScore(r) == null && screenScore(r) != null ? '4 3' : null
       })
@@ -363,17 +431,24 @@
     const zone = zoneOfMap()
     if (zoneTooBig(zone)) return
     state.view = 'scan'; syncViewButtons()
-    state.city = null
-    if (state.cityLayer) { state.cityLayer.remove(); state.cityLayer = null }
     $('tt-scan').disabled = true
     setStatus('Recherche des bâtiments de 500 m² et plus dans la zone…')
     try {
-      const data = await API('/api/admin/roofs?action=scan', { method: 'POST', body: JSON.stringify({ zone, min_area: state.scope.min, max_area: state.scope.max }) })
+      const data = await api('/api/admin/roofs?action=scan', { method: 'POST', retries: 2, timeout: 110000, body: JSON.stringify({ zone, min_area: state.scope.min, max_area: state.scope.max }) })
       if (data.error) throw new Error(data.error + (data.hint ? ` — ${data.hint}` : ''))
-      state.scan = data.roofs
-      state.scanMin = state.scope.min
+      // Results accumulate from one zone to the next (use « Effacer » to start over)
+      const have = new Map(state.scan.map(r => [r.osm_id, r]))
+      let added = 0
+      for (const roof of data.roofs) {
+        const old = have.get(roof.osm_id)
+        if (!old) { state.scan.push(roof); added++; continue }
+        const keep = Object.fromEntries(CLIENT_FIELDS.map(k => [k, old[k]]))
+        Object.assign(old, roof)
+        for (const k of CLIENT_FIELDS) if (old[k] == null && keep[k] != null) old[k] = keep[k]
+      }
+      state.scanMin = state.scanMin ? Math.min(state.scanMin, state.scope.min) : state.scope.min
       const analysed = data.roofs.filter(r => r.analyzed_at).length
-      setStatus(`${data.total.toLocaleString('fr-FR')} bâtiments dans la zone, ${data.roofs.length} toits dans la plage de surface${analysed ? ` (${analysed} déjà analysés)` : ''}. Qualification B2B gratuite en cours…`, 'ok')
+      setStatus(`${data.total.toLocaleString('fr-FR')} bâtiments dans la zone, ${data.roofs.length} toits dans la plage de surface (${added} nouveaux, ${state.scan.length} au total)${analysed ? ` · ${analysed} déjà analysés` : ''}. Qualification B2B gratuite en cours…`, 'ok')
       render()
       qualifyAll()
     } catch (e) {
@@ -383,9 +458,20 @@
     }
   }
 
+  function clearScan() {
+    if (state.running) return
+    if (state.scan.length > 20 && !confirm(`Effacer les ${state.scan.length} toits de la recherche en cours ? (les toits déjà analysés restent enregistrés)`)) return
+    qualifyRun++
+    state.scan = []; state.city = null; state.scanMin = null
+    if (state.cityLayer) { state.cityLayer.remove(); state.cityLayer = null }
+    $('tt-q-status').textContent = ''
+    setStatus('Recherche effacée.')
+    updateZoneLabel(); render()
+  }
+
   async function loadSaved() {
     setStatus('Chargement de vos toitures…')
-    const data = await API('/api/admin/roofs')
+    const data = await api('/api/admin/roofs')
     if (data.error) return setStatus(data.error + (data.hint ? ` — ${data.hint}` : ''), 'error')
     state.saved = data.roofs
     setStatus(`${data.roofs.length} toiture(s) analysée(s) enregistrée(s).`, 'ok')
@@ -393,7 +479,7 @@
   }
 
   async function analyzeOne(roof, force = false) {
-    const data = await API('/api/admin/roofs?action=analyze', { method: 'POST', body: JSON.stringify({ building: roof, force }) })
+    const data = await api('/api/admin/roofs?action=analyze', { method: 'POST', body: JSON.stringify({ building: roof, force }) })
     if (data.error) throw new Error(data.error + (data.hint ? ` — ${data.hint}` : ''))
     replaceRoof(data.roof)
     return data
@@ -483,20 +569,20 @@
     }
 
     state.city = { nom: commune.nom, dep: commune.codeDepartement, code: commune.code }
-    state.scan = []
+    qualifyRun++
     if (state.cityLayer) state.cityLayer.remove()
     state.cityLayer = window.L.geoJSON(commune.contour, { style: { color: '#a78bfa', weight: 2, fill: false, dashArray: '6 4' }, interactive: false }).addTo(state.map)
     state.map.fitBounds(state.cityLayer.getBounds())
 
     state.running = true; state.stop = false
     $('tt-city').disabled = true; $('tt-stop').style.display = ''; updateZoneLabel()
-    const seen = new Set()
+    const seen = new Set(state.scan.map(r => r.osm_id))
     let failed = 0, done = 0
     for (const zone of tiles) {
       if (state.stop) break
       let data = null
-      for (let attempt = 0; attempt < 2 && !data; attempt++) {
-        const r = await API('/api/admin/roofs?action=scan', { method: 'POST', body: JSON.stringify({ zone, min_area: state.scope.min, max_area: state.scope.max }) }).catch(e => ({ error: e.message }))
+      for (let attempt = 0; attempt < 1 && !data; attempt++) {
+        const r = await api('/api/admin/roofs?action=scan', { method: 'POST', retries: 2, timeout: 110000, body: JSON.stringify({ zone, min_area: state.scope.min, max_area: state.scope.max }) }).catch(e => ({ error: e.message }))
         if (!r.error) data = r
         else if (r.hint) { setStatus(`${r.error} — ${r.hint}`, 'error'); state.stop = true }
       }
@@ -536,7 +622,13 @@
     async function worker() {
       while (batches.length && run === qualifyRun) {
         const batch = batches.shift()
-        const data = await API('/api/admin/roofs?action=qualify', { method: 'POST', body: JSON.stringify({ buildings: batch.map(r => ({ ...strip(r), osm_class: r.osm_class })) }) }).catch(() => null)
+        const data = await api('/api/admin/roofs?action=qualify', { method: 'POST', retries: 1, body: JSON.stringify({ buildings: batch.map(r => ({ ...strip(r), osm_class: r.osm_class })) }) }).catch(() => null)
+        if (!data || data.error) {
+          // Put the batch back once instead of leaving its roofs "en cours" forever
+          if (!batch.retried) { batch.retried = true; batches.push(batch) }
+          else done += batch.length
+          continue
+        }
         for (const q of data?.results || []) {
           const r = state.scan.find(x => x.osm_id === q.osm_id)
           if (r) Object.assign(r, { b2b: q.b2b, b2b_label: q.b2b_label })
@@ -566,7 +658,7 @@
     async function worker() {
       while (queue.length && !state.stop) {
         const grid = queue.shift()
-        const data = await API('/api/admin/roofs?action=screen', { method: 'POST', body: JSON.stringify({ buildings: grid.map(strip) }) }).catch(e => ({ error: e.message }))
+        const data = await api('/api/admin/roofs?action=screen', { method: 'POST', body: JSON.stringify({ buildings: grid.map(strip) }) }).catch(e => ({ error: e.message }))
         if (data.error) {
           failed++
           setStatus(data.error + (data.hint ? ` — ${data.hint}` : ''), 'error')
@@ -621,7 +713,7 @@
   async function searchContact(roof, force = false) {
     contactPending.add(roof.id); render()
     try {
-      const data = await API(`/api/admin/roofs?action=contact&id=${roof.id}`, { method: 'POST', body: JSON.stringify({ force }) })
+      const data = await api(`/api/admin/roofs?action=contact&id=${roof.id}`, { method: 'POST', body: JSON.stringify({ force }) })
       if (data.error) throw new Error(data.error + (data.hint ? ` — ${data.hint}` : ''))
       replaceRoof(data.roof)
       return data.roof
@@ -792,7 +884,13 @@
     </div>`
   }
 
+  let renderTimer = null
   function render() {
+    if (renderTimer) return
+    renderTimer = setTimeout(() => { renderTimer = null; renderNow() }, 120)
+  }
+  function renderNow() {
+    scheduleSave()
     $('tt-main').style.display = state.view === 'outreach' ? 'none' : ''
     $('tt-outreach').style.display = state.view === 'outreach' ? '' : 'none'
     if (state.view === 'outreach') return renderOutreach()
@@ -956,7 +1054,7 @@
     }).filter(r => r.id && (r.contact_email || r.contact_name || r.contact_phone || r.website))
     if (!payload.length) return setOStatus("Aucune ligne remplie dans le fichier (colonnes Email / Nom du contact / Téléphone / Site web).", 'error')
     setOStatus(`Import de ${payload.length} ligne(s)…`)
-    const data = await API('/api/admin/roofs?action=contacts-import', { method: 'POST', body: JSON.stringify({ rows: payload }) })
+    const data = await api('/api/admin/roofs?action=contacts-import', { method: 'POST', body: JSON.stringify({ rows: payload }) })
     if (data.error) return setOStatus(data.error + (data.hint ? ` — ${data.hint}` : ''), 'error')
     const before = new Map(state.saved.map(r => [r.id, r.contact_email || '']))
     for (const roof of data.updated) replaceRoof(roof)
@@ -1012,7 +1110,7 @@ Règles impératives :
     if (!confirm(`Transmettre ${ids.length} ${isSolar() ? 'site(s) avec panneaux solaires' : 'toiture(s)'} à Chloé (argumentaire « ${isSolar() ? 'nettoyage de panneaux solaires' : 'nettoyage de toiture'} ») ?\n\nElle enverra à chacune un premier email personnalisé sur l'état de sa toiture, en priorité lors de sa prochaine tournée (chaque matin, ou bouton « Envoyer le prochain lot » dans Prospects). Hugo fera ensuite les relances.`)) return
     $('tt-o-send').disabled = true
     const status = $('tt-o-status')
-    const data = await API('/api/admin/roofs?action=prospect-bulk', { method: 'POST', body: JSON.stringify({ ids, offer: state.mode }) })
+    const data = await api('/api/admin/roofs?action=prospect-bulk', { method: 'POST', body: JSON.stringify({ ids, offer: state.mode }) })
     if (data.error) { status.textContent = data.error; status.dataset.kind = 'error'; return render() }
     for (const r of data.results) { if (r.roof) replaceRoof(r.roof); if (r.ok) selected.delete(r.id) }
     const errors = data.results.filter(r => !r.ok)
@@ -1059,7 +1157,7 @@ Règles impératives :
     const roof = state.saved.find(r => r.id === id)
     const patch = { [t.dataset.k]: t.value.trim() }
     if (t.dataset.k === 'contact_email' && roof && !roof.contact_company && bestCompany(roof).name) patch.contact_company = bestCompany(roof).name
-    const saved = await API(`/api/admin/roofs?id=${id}`, { method: 'PATCH', body: JSON.stringify(patch) })
+    const saved = await api(`/api/admin/roofs?id=${id}`, { method: 'PATCH', body: JSON.stringify(patch) })
     if (saved.error) { status.textContent = saved.error; status.dataset.kind = 'error'; return }
     replaceRoof(saved.roof)
     status.textContent = 'Enregistré.'; status.dataset.kind = 'ok'
@@ -1083,6 +1181,7 @@ Règles impératives :
   $('tt-search').addEventListener('keydown', e => { if (e.key === 'Enter') search() })
   $('tt-search').placeholder = "Ville (ex. « Narbonne », « Saint-Cyprien 66 ») ou adresse…"
   $('tt-scan').addEventListener('click', scan)
+  $('tt-clear').addEventListener('click', clearScan)
   $('tt-analyze').addEventListener('click', analyzeBatch)
   $('tt-screen').addEventListener('click', screenAll)
   $('tt-city').addEventListener('click', cityScan)
@@ -1159,11 +1258,11 @@ Règles impératives :
     const msg = root.querySelector(`[data-msg="${id}"]`)
     btn.disabled = true
     try {
-      const saved = await API(`/api/admin/roofs?id=${id}`, { method: 'PATCH', body: JSON.stringify(formValues(id)) })
+      const saved = await api(`/api/admin/roofs?id=${id}`, { method: 'PATCH', body: JSON.stringify(formValues(id)) })
       if (saved.error) throw new Error(saved.error)
       replaceRoof(saved.roof)
       if (act === 'chloe') {
-        const sent = await API(`/api/admin/roofs?action=prospect&id=${id}`, { method: 'POST', body: JSON.stringify({ offer: state.mode }) })
+        const sent = await api(`/api/admin/roofs?action=prospect&id=${id}`, { method: 'POST', body: JSON.stringify({ offer: state.mode }) })
         if (sent.error) throw new Error(sent.error + (sent.hint ? ` — ${sent.hint}` : ''))
         replaceRoof(sent.roof)
         msg.textContent = 'Ajouté aux prospects : Chloé enverra le premier email lors de sa prochaine tournée.'
@@ -1183,7 +1282,7 @@ Règles impératives :
 
   window.Toitures = {
     open() {
-      initMap().catch(e => setStatus(e.message, 'error'))
+      initMap().then(restoreScan).catch(e => setStatus(e.message, 'error'))
     }
   }
 })()
