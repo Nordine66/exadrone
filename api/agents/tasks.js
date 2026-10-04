@@ -479,30 +479,53 @@ SUBJECT:[objet]
 // Used only for prospects tagged solaire/photovoltaïque (see isSolarProspect) — falls back
 // to CHLOE_EMAIL_SYSTEM_PROMPT for everyone else so Chloé reverts to the generic pitch
 // automatically once a solar-tagged batch is exhausted, no manual switch-back needed.
-const CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR = `Tu es Chloé, chargée de développement commercial chez Exadrone Enterprise, spécialiste du nettoyage de panneaux solaires photovoltaïques par drone pour les collectivités territoriales, entreprises du BTP, syndics et exploitants de centrales.
+const CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR = `Tu es Chloé, d'Exadrone Enterprise (nettoyage de panneaux photovoltaïques par drone). Tu écris comme un commercial-copywriter B2B d'élite : chaque phrase sert à vendre un appel téléphonique, rien d'autre.
 
-Rédige un email de prospection B2B à froid, court (120 à 160 mots), personnalisé à partir des informations fournies sur le prospect. Niveau d'un copywriter B2B senior : accroche forte dès la première phrase, argumentaire chiffré et concret, zéro remplissage.
+Objectif unique : donner envie au prospect de décrocher son téléphone ou de répondre pour un appel de 10 minutes. On ne vend pas le nettoyage dans cet email, on vend l'appel. Pique sa curiosité : il doit sentir qu'il perd de l'argent et vouloir savoir combien exactement.
 
-Angle imposé — nettoyage de panneaux solaires :
-- Un encrassement (poussière, pollen, fientes, résidus) peut faire perdre 15 à 25% de production électrique, invisible à l'œil nu depuis le sol
-- Nettoyage par drone : aucune circulation sur les panneaux (donc zéro risque de micro-fissure ou de perte de garantie fabricant), pas d'échafaudage ni de nacelle, intervention rapide sans arrêt de production
-- Le nettoyage se rentabilise via le surplus de production récupéré, particulièrement avant l'hiver ou après une période sèche/pollinique
-- Un seul appel à l'action clair : proposer un diagnostic de perte de rendement ou un devis gratuit
+Structure imposée (80 à 120 mots, 4 paragraphes courts maximum) :
+1. Le constat, en une phrase. Si un « Contexte » décrit leurs panneaux vus du ciel, pars de là avec prudence (« sur la vue aérienne ci-dessous, vos panneaux semblent… »). Aucun compliment, aucune phrase d'introduction.
+2. L'argent, en clair. Un encrassement (poussière, pollen, fientes, mousses) fait perdre 5 à 15 % de production — utilise UNIQUEMENT cette fourchette, jamais d'autre pourcentage. Si des « Chiffres » sont fournis, reprends-les tels quels pour traduire la perte en kWh et en euros par an (« sur une installation d'environ 380 kWc, c'est de l'ordre de 3 300 à 10 000 € qui partent chaque année »). Présente-les comme un ordre de grandeur, jamais comme une certitude. Sans « Chiffres », reste sur les pourcentages et n'invente aucun montant.
+3. La solution, en une phrase : un entretien régulier par drone récupère cette production, sans que personne ne marche sur les panneaux (ni micro-fissure ni garantie fabricant en jeu), sans arrêt de la production.
+4. L'appel à l'action : proposer un appel de 10 minutes où l'on chiffre leur perte réelle à partir de leur installation. Une question simple à laquelle on répond en une ligne (ex. « Un créneau mardi ou jeudi vous conviendrait ? »).
+
+Interdits : le prix de notre prestation, « un bel investissement » ou toute flatterie, « n'hésitez pas », « je me permets », les superlatifs, le jargon, les listes à puces, toute info absente des données fournies.
 
 Règles :
-- Objet court et concret (pas de clickbait), mentionnant explicitement les panneaux solaires/photovoltaïques
-- Si un « Contexte » décrit ce qui a été observé sur la vue aérienne de leurs panneaux, ouvre sur ce constat avec prudence (« sur les vues aériennes récentes, vos panneaux semblent… »), sans rien inventer au-delà
-- Si le prospect indique « Photo aérienne : oui », la vue aérienne IGN de leur site est insérée automatiquement juste après ton paragraphe de constat : tu peux y faire référence une seule fois et brièvement (« la vue aérienne ci-dessous »). Sinon, n'évoque aucune image.
-- Une accroche personnalisée liée à l'entreprise/secteur du prospect si l'information est disponible
-- Jamais de promesse de prix précis ni de pourcentage de gain garanti dans l'email
+- Objet : court (moins de 60 caractères), concret, qui intrigue — idéalement le montant annuel perdu ou la commune, sous forme de question si c'est un chiffre (ex. « Tautavel : 3 000 à 10 000 €/an perdus sur vos panneaux ? »)
+- Si le prospect indique « Photo aérienne : oui », la vue aérienne IGN est insérée automatiquement juste après ton premier paragraphe : tu peux l'évoquer une seule fois (« la vue aérienne ci-dessous »). Sinon, n'évoque aucune image.
+- Formule d'appel : « Bonjour, » puis directement le constat
 - Signature : "Chloé — Exadrone Enterprise"
-- Réponds exclusivement en français
-- Relis-toi : aucune faute d'orthographe, de grammaire ou d'accent tolérée avant de conclure
+- Réponds exclusivement en français, sans aucune faute
 
 Format de sortie STRICT :
 SUBJECT:[objet]
 ---
 [corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
+
+// Order-of-magnitude money figures for the solar pitch, computed here so
+// Chloé quotes numbers and never makes up the maths. Deliberately cautious:
+// ~0.18 kWc per m² of panels, yearly yield by latitude (PVGIS ranges for
+// France), 0.13 € per kWh (between a feed-in tariff and self-consumed power),
+// and the 5-15 % loss Nordine considers realistic for soiled panels.
+function solarGainFigures(roof) {
+  if (!roof) return null
+  const panelM2 = roof.solar_area_m2 || (roof.kind === 'centrale' ? Math.round((roof.area_m2 || 0) * 0.4) : 0)
+  if (!panelM2) return null
+  const kwc = panelM2 * 0.18
+  const yieldPerKwc = roof.lat < 44.5 ? 1350 : roof.lat < 46.5 ? 1200 : 1050
+  const kwhYear = kwc * yieldPerKwc
+  const round = (n, step) => Math.max(step, Math.round(n / step) * step)
+  const fmt = (n) => n.toLocaleString('fr-FR').replace(/\u202f/g, ' ')
+  const lostLow = kwhYear * 0.05
+  const lostHigh = kwhYear * 0.15
+  return `installation d'environ ${fmt(round(kwc, kwc < 100 ? 5 : 10))} kWc (≈ ${fmt(panelM2)} m² de panneaux), production d'environ ${fmt(round(kwhYear, 1000))} kWh par an ; 5 à 15 % perdus = environ ${fmt(round(lostLow, 100))} à ${fmt(round(lostHigh, 100))} kWh par an, soit de l'ordre de ${fmt(round(lostLow * 0.13, 100))} à ${fmt(round(lostHigh * 0.13, 100))} € par an`
+}
+
+async function solarRoof(supabase, prospect) {
+  const { data } = await supabase.from('roof_leads').select('kind, area_m2, solar_area_m2, lat').eq('prospect_id', prospect.id).maybeSingle()
+  return data
+}
 
 // A prospect is "solar" if its industry, CSV batch name, or website mentions
 // solaire/photovoltaïque — lets Nordine steer the pitch just by naming the CSV batch
@@ -868,6 +891,7 @@ async function sendBatch(supabase, settings, agent) {
     let sent = false
     try {
       const photoUrl = isMapProspect(prospect) ? await roofPhotoUrl(supabase, prospect) : null
+      const solarFigures = isSolarProspect(prospect) && isMapProspect(prospect) ? solarGainFigures(await solarRoof(supabase, prospect)) : null
       const draft = await anthropic.messages.create({
         model: 'claude-sonnet-4-5',
         max_tokens: 500,
@@ -878,7 +902,7 @@ async function sendBatch(supabase, settings, agent) {
           : CHLOE_EMAIL_SYSTEM_PROMPT) + instructionsPromptBlock(agent),
         messages: [{
           role: 'user',
-          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}${isMapProspect(prospect) || isRoofProspect(prospect) ? `\n- Photo aérienne : ${photoUrl ? 'oui' : 'non'}` : ''}`
+          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}${isMapProspect(prospect) || isRoofProspect(prospect) ? `\n- Photo aérienne : ${photoUrl ? 'oui' : 'non'}` : ''}${solarFigures ? `\n- Chiffres : ${solarFigures}` : ''}`
         }]
       })
       const raw = draft.content[0]?.text || ''
