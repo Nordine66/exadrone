@@ -691,15 +691,21 @@ async function handleOutreach(req, res) {
   const action = req.query?.action || req.body?.action
 
   if (action === 'send-batch') return handleSendBatch(req, res, supabase)
+  if (action === 'send-selected') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+    const ids = [...new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).filter(id => typeof id === 'string'))].slice(0, MANUAL_SEND_MAX)
+    if (!ids.length) return res.status(400).json({ error: 'Aucun prospect sélectionné' })
+    return handleSendBatch(req, res, supabase, { ids })
+  }
   if (action === 'import') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
     return handleImport(req, res, supabase)
   }
-  return res.status(400).json({ error: 'action requis : import ou send-batch' })
+  return res.status(400).json({ error: 'action requis : import, send-batch ou send-selected' })
 }
 
 async function handleImport(req, res, supabase) {
-  const { csv, batchName } = req.body || {}
+  const { csv, batchName, priority } = req.body || {}
   if (!csv || typeof csv !== 'string') return res.status(400).json({ error: 'Champ csv (texte) requis' })
 
   let records
@@ -726,7 +732,8 @@ async function handleImport(req, res, supabase) {
       industry: row.industry ? String(row.industry).trim() : null,
       website: row.website ? String(row.website).trim() : null,
       status: 'pending',
-      csv_batch: batchName || null
+      csv_batch: batchName || null,
+      ...(priority ? { priority: 1 } : {})
     })
   }
 
@@ -754,14 +761,17 @@ async function handleImport(req, res, supabase) {
 
   let inserted = 0
   if (toInsert.length) {
-    const { data, error } = await supabase.from('prospects').insert(toInsert).select('id')
+    let { data, error } = await supabase.from('prospects').insert(toInsert).select('id')
+    if (error && /priority/.test(error.message)) {
+      return res.status(500).json({ error: error.message, hint: 'Exécutez la migration 011 dans Supabase (colonne priority) pour utiliser les imports prioritaires.' })
+    }
     if (error) return res.status(500).json({ error: error.message })
     inserted = data.length
   }
 
   await logActivity(supabase, {
     agent: 'chloe', kind: 'prospects_import',
-    summary: `Import CSV${batchName ? ` « ${batchName} »` : ''} : ${inserted} prospect(s) ajouté(s), ${candidates.length - toInsert.length} adresse(s) déjà connue(s) ou désinscrite(s) ignorée(s), ${rejected} ligne(s) rejetée(s)`,
+    summary: `Import CSV${batchName ? ` « ${batchName} »` : ''}${priority ? ' (prioritaire)' : ''} : ${inserted} prospect(s) ajouté(s), ${candidates.length - toInsert.length} adresse(s) déjà connue(s) ou désinscrite(s) ignorée(s), ${rejected} ligne(s) rejetée(s)`,
     meta: { batchName, inserted, rejected }
   })
 
@@ -813,7 +823,7 @@ async function releaseBatchLock(supabase) {
 const DRAFT_CONCURRENCY = 4
 const BATCH_TIME_BUDGET_MS = 230 * 1000
 
-async function handleSendBatch(req, res, supabase) {
+async function handleSendBatch(req, res, supabase, { ids = null } = {}) {
   const [settings, agent] = await Promise.all([getSettings(supabase), getAgent(supabase, 'chloe')])
 
   if (settings.paused_all) return res.status(200).json({ sent: 0, reason: 'Tous les agents sont en pause' })
@@ -824,7 +834,7 @@ async function handleSendBatch(req, res, supabase) {
     return res.status(200).json({ sent: 0, reason: "Un lot est déjà en cours d'envoi — réessayez dans quelques minutes." })
   }
   try {
-    return res.status(200).json(await sendBatch(supabase, settings, agent))
+    return res.status(200).json(await sendBatch(supabase, settings, agent, { ids }))
   } catch (e) {
     console.error('Chloé batch error:', e)
     return res.status(500).json({ error: e.message })
@@ -833,24 +843,43 @@ async function handleSendBatch(req, res, supabase) {
   }
 }
 
-async function sendBatch(supabase, settings, agent) {
+// Prospects ticked by hand in the « Envoi manuel » tab per click: each email is
+// written by the AI, so the batch must finish inside the function's 300 s.
+const MANUAL_SEND_MAX = 40
+
+async function sendBatch(supabase, settings, agent, { ids = null } = {}) {
   const deadline = Date.now() + BATCH_TIME_BUDGET_MS
-  const dailyLimit = agent?.config?.daily_limit ?? 50
-  const todayStart = startOfTodayIso()
-  const { count: sentToday } = await supabase
-    .from('outreach_emails').select('id', { count: 'exact', head: true })
-    .eq('agent_slug', 'chloe').eq('sequence_step', 0).eq('status', 'sent').gte('sent_at', todayStart)
+  let prospects
+  if (ids) {
+    // Hand-picked prospects go out now, whatever the daily limit (they still
+    // count in today's total, so the automatic batch sends that much less).
+    const { data, error } = await supabase.from('prospects').select('*').in('id', ids).eq('status', 'pending')
+    if (error) throw new Error(error.message)
+    const order = new Map(ids.map((id, i) => [id, i]))
+    prospects = (data || []).sort((a, b) => order.get(a.id) - order.get(b.id))
+    if (!prospects.length) return { sent: 0, reason: 'Aucun des prospects choisis n\'est encore en attente (déjà envoyés ?)' }
+  } else {
+    const dailyLimit = agent?.config?.daily_limit ?? 50
+    const todayStart = startOfTodayIso()
+    const { count: sentToday } = await supabase
+      .from('outreach_emails').select('id', { count: 'exact', head: true })
+      .eq('agent_slug', 'chloe').eq('sequence_step', 0).eq('status', 'sent').gte('sent_at', todayStart)
 
-  const remaining = Math.max(0, dailyLimit - (sentToday || 0))
-  if (remaining === 0) return { sent: 0, reason: 'Limite quotidienne atteinte' }
+    const remaining = Math.max(0, dailyLimit - (sentToday || 0))
+    if (remaining === 0) return { sent: 0, reason: 'Limite quotidienne atteinte' }
 
-  // Roofs Nordine picked in the "Toitures" tab jump the queue: they were
-  // qualified by hand, the CSV backlog can wait a day.
-  const roofProspects = await fetchPending(supabase, q => q.in('csv_batch', MAP_BATCHES), remaining)
-  const otherProspects = remaining > roofProspects.length
-    ? await fetchPending(supabase, q => q.or(`csv_batch.is.null,csv_batch.not.in.(${MAP_BATCHES.join(',')})`), remaining - roofProspects.length)
-    : []
-  const prospects = [...roofProspects, ...otherProspects]
+    // Send order: 1) prospects Nordine marked priority (own imports, « Envoi
+    // manuel » tab), 2) roofs picked in the "Toitures" tab (qualified by hand),
+    // 3) the waiting queue in import order. priority arrives with migration 011.
+    prospects = []
+    const take = (list) => {
+      const used = new Set(prospects.map(p => p.id))
+      for (const p of list) if (!used.has(p.id) && prospects.length < remaining) prospects.push(p)
+    }
+    take(await fetchPending(supabase, q => q.gt('priority', 0), remaining).catch(() => []))
+    if (prospects.length < remaining) take(await fetchPending(supabase, q => q.in('csv_batch', MAP_BATCHES), remaining + prospects.length))
+    if (prospects.length < remaining) take(await fetchPending(supabase, q => q.or(`csv_batch.is.null,csv_batch.not.in.(${MAP_BATCHES.join(',')})`), remaining + prospects.length))
+  }
   if (!prospects.length) return { sent: 0, reason: 'Aucun prospect en attente' }
 
   // Fresh registries, read once for the whole batch: exclusions, every email

@@ -415,6 +415,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Prospects
         </button>
+        <button class="tab nav-item" data-tab="manual">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          Envoi manuel
+        </button>
         <button class="tab nav-item" data-tab="exclusions">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
           Exclusions relances
@@ -548,6 +552,7 @@
             <input type="file" id="csv-file-input" class="file-input" accept=".csv,text/csv">
             <textarea class="csv-textarea" id="csv-textarea" placeholder="company_name,contact_name,email,industry,website
 Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" style="margin-top:12px"></textarea>
+            <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:.84rem;cursor:pointer"><input type="checkbox" id="csv-priority" checked> ⭐ Prioritaire : Chloé envoie ces prospects avant les 3 000+ en attente (décochez pour les ajouter à la suite de la file)</label>
             <div class="csv-actions">
               <button class="btn-primary btn-sm" id="csv-import-btn">Importer</button>
               <button class="btn-primary btn-sm" id="send-batch-btn" style="background:linear-gradient(135deg,#10b981,#34d399);box-shadow:0 6px 18px -8px rgba(16,185,129,.6)">Envoyer le prochain lot <span class="cost-pill" title="Chloé rédige chaque email avec l'IA : utilise vos crédits Anthropic (montant estimé)">€ &lt; 1 ct / email</span></button>
@@ -590,6 +595,38 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
               </table>
             </div>
             <div class="pager" id="prospects-pager"></div>
+          </div>
+        </div>
+
+        <!-- MANUAL SEND TAB — pick waiting prospects: send now, or put them ahead of the queue -->
+        <div class="tab-content" id="tab-manual">
+          <div class="csv-upload-card">
+            <h2 class="csv-upload-title">✉️ Envoyer ceux que je veux</h2>
+            <p class="csv-hint">Ordre d'envoi de Chloé : <b>1.</b> les prospects ⭐ prioritaires (vos imports, ceux que vous cochez ici), <b>2.</b> les toitures choisies dans l'onglet Toitures, <b>3.</b> la file d'attente dans l'ordre d'import. Cochez des prospects puis « Envoyer maintenant » (40 maximum à la fois, hors limite quotidienne mais compté dans le total du jour) ou « ⭐ Mettre en priorité » pour qu'ils partent en tête au prochain lot. Les adresses déjà contactées ou exclues ne sont jamais renvoyées.</p>
+            <input type="text" id="manual-search" class="auth-input" style="max-width:420px;margin-bottom:0" placeholder="Rechercher un prospect en attente (commune, nom, email)…">
+            <div class="csv-actions" style="flex-wrap:wrap;margin-top:12px">
+              <button class="btn-primary btn-sm" id="manual-send" style="background:linear-gradient(135deg,#10b981,#34d399);box-shadow:0 6px 18px -8px rgba(16,185,129,.6)" disabled>Envoyer maintenant (0)</button>
+              <button class="filter-btn" id="manual-prio" disabled>⭐ Mettre en priorité</button>
+              <button class="filter-btn" id="manual-unprio" disabled>Retirer la priorité</button>
+              <button class="filter-btn" id="manual-clear" disabled>Tout décocher</button>
+            </div>
+            <div class="csv-import-status" id="manual-status"></div>
+          </div>
+          <div class="table-wrap">
+            <div class="table-head">
+              <span class="table-head-title" id="manual-title">Prospects en attente</span>
+              <div class="table-filters">
+                <button class="filter-btn manual-view-btn active" data-view="all">File d'envoi</button>
+                <button class="filter-btn manual-view-btn" data-view="priority">⭐ Prioritaires</button>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th style="width:34px"><input type="checkbox" id="manual-all" title="Cocher / décocher la page"></th><th>Entreprise / Contact</th><th>Email</th><th>Secteur</th><th>Priorité</th><th>Importé le</th></tr></thead>
+                <tbody id="manual-body"><tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+            <div class="pager" id="manual-pager"></div>
           </div>
         </div>
 
@@ -824,6 +861,7 @@ const TAB_META = {
   overview: { title: "Vue d'ensemble", subtitle: 'Activité commerciale récente' },
   leads: { title: 'Leads', subtitle: 'Toutes les demandes de devis reçues sur le site' },
   prospects: { title: 'Prospects', subtitle: 'Campagnes de prospection à froid de Chloé' },
+  manual: { title: 'Envoi manuel', subtitle: "Choisissez vous-même les prospects à contacter en priorité ou tout de suite" },
   exclusions: { title: 'Exclusions relances', subtitle: 'Prospects que Hugo et Chloé ne doivent plus contacter' },
   blog: { title: 'Blog', subtitle: 'Articles SEO rédigés par Marco' },
   emails: { title: 'Emails envoyés', subtitle: 'Historique complet des envois de Chloé et Hugo' },
@@ -847,6 +885,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (name === 'agents' && !isFresh('agents')) loadAgents()
     if (name === 'leads' && !isFresh('leads')) loadLeads()
     if (name === 'prospects' && !isFresh('prospects')) loadProspects()
+    if (name === 'manual' && !isFresh('manual')) loadManual()
     if (name === 'exclusions' && !isFresh('exclusions')) loadExclusions()
     if (name === 'blog' && !isFresh('blog')) loadBlog()
     if (name === 'emails' && !isFresh('emails')) loadEmails()
@@ -1446,9 +1485,10 @@ document.getElementById('csv-import-btn').addEventListener('click', () => {
   const statusEl = document.getElementById('csv-import-status')
   if (!csv) { statusEl.textContent = "Collez ou importez un CSV avant d'importer."; return }
   statusEl.textContent = 'Import en cours…'
-  API('/api/agents/outreach?action=import', { method: 'POST', body: JSON.stringify({ csv, batchName: 'manual-' + Date.now() }) }).then(data => {
-    if (data.error) { statusEl.textContent = 'Erreur : ' + data.error; return }
-    statusEl.textContent = `✓ ${data.imported} importés, ${data.duplicates} doublons ignorés, ${data.rejected} rejetés.`
+  API('/api/agents/outreach?action=import', { method: 'POST', body: JSON.stringify({ csv, batchName: 'manual-' + Date.now(), priority: document.getElementById('csv-priority').checked }) }).then(data => {
+    if (data.error) { statusEl.textContent = 'Erreur : ' + data.error + (data.hint ? ' — ' + data.hint : ''); return }
+    tabCache.manual = 0
+    statusEl.textContent = `✓ ${data.imported} importés${document.getElementById('csv-priority').checked ? ' (en priorité)' : ''}, ${data.duplicates} doublons ignorés, ${data.rejected} rejetés.`
     document.getElementById('csv-textarea').value = ''
     document.getElementById('csv-file-input').value = ''
     loadProspects()
@@ -1493,6 +1533,119 @@ document.getElementById('retag-btn').addEventListener('click', () => {
     tabCache.prospects = 0
     loadProspects()
   }).catch(() => { statusEl.textContent = 'Erreur réseau.' })
+})
+
+// ── Envoi manuel ──────────────────────────────────────────────────────────────
+// Waiting prospects in send order (priority first), searchable. The ticked ids
+// survive paging and searching; they leave the list once sent.
+let manualOffset = 0
+let manualView = 'all'
+let manualRows = []
+let manualBusy = false
+let manualSeq = 0
+let manualTimer = null
+const manualSel = new Set()
+const manualStatus = (msg) => { document.getElementById('manual-status').textContent = msg }
+
+function manualRefreshButtons() {
+  const n = manualSel.size
+  document.getElementById('manual-send').textContent = `Envoyer maintenant (${n})`
+  for (const id of ['manual-send', 'manual-prio', 'manual-unprio', 'manual-clear']) document.getElementById(id).disabled = !n || manualBusy
+  const all = document.getElementById('manual-all')
+  all.checked = manualRows.length > 0 && manualRows.every(p => manualSel.has(p.id))
+}
+
+function loadManual() {
+  const q = document.getElementById('manual-search').value.trim()
+  const seq = ++manualSeq
+  const url = q.length >= 2
+    ? `/api/admin/prospects?status=pending&q=${encodeURIComponent(q)}`
+    : `/api/admin/prospects?status=pending&limit=${PAGE_SIZE}&offset=${manualOffset}${manualView === 'priority' ? '&priority=1' : ''}`
+  document.getElementById('manual-body').innerHTML = '<tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr>'
+  API(url).then(data => {
+    if (seq !== manualSeq) return
+    if (data.error) { document.getElementById('manual-body').innerHTML = `<tr><td colspan="6" class="empty-state">${esc(data.error)}</td></tr>`; return }
+    markFresh('manual')
+    manualRows = data.prospects || []
+    document.getElementById('manual-title').textContent = q.length >= 2 ? `Résultats pour « ${q} »` : manualView === 'priority' ? `Prospects prioritaires (${(data.total || 0).toLocaleString('fr-FR')})` : `Prospects en attente (${(data.total || 0).toLocaleString('fr-FR')}) — dans l'ordre d'envoi`
+    if (q.length >= 2) document.getElementById('manual-pager').innerHTML = ''
+    else renderPager('manual-pager', manualOffset, manualRows.length, data.total || 0, offset => { manualOffset = offset; loadManual() })
+    document.getElementById('manual-body').innerHTML = manualRows.length ? manualRows.map(p => `
+      <tr>
+        <td><input type="checkbox" class="manual-chk" data-id="${esc(p.id)}" ${manualSel.has(p.id) ? 'checked' : ''}></td>
+        <td><div class="td-company">${esc(p.company_name)}</div><div class="td-muted">${esc(p.contact_name || '')}</div></td>
+        <td>${esc(p.email)}</td>
+        <td>${sectorBadge(p.industry)}</td>
+        <td>${p.priority > 0 ? '<span class="badge badge-hot">⭐ Prioritaire</span>' : '<span class="td-muted">file normale</span>'}</td>
+        <td class="td-date">${fmtDate(p.created_at)}</td>
+      </tr>`).join('') : '<tr><td colspan="6" class="empty-state">Aucun prospect en attente ne correspond.</td></tr>'
+    manualRefreshButtons()
+  }).catch(() => { if (seq === manualSeq) document.getElementById('manual-body').innerHTML = '<tr><td colspan="6" class="empty-state">Erreur réseau.</td></tr>' })
+}
+
+document.getElementById('manual-body').addEventListener('change', (e) => {
+  const c = e.target.closest('.manual-chk')
+  if (!c) return
+  c.checked ? manualSel.add(c.dataset.id) : manualSel.delete(c.dataset.id)
+  manualRefreshButtons()
+})
+document.getElementById('manual-all').addEventListener('change', (e) => {
+  for (const p of manualRows) e.target.checked ? manualSel.add(p.id) : manualSel.delete(p.id)
+  document.querySelectorAll('.manual-chk').forEach(c => { c.checked = e.target.checked })
+  manualRefreshButtons()
+})
+document.getElementById('manual-clear').addEventListener('click', () => {
+  manualSel.clear()
+  document.querySelectorAll('.manual-chk').forEach(c => { c.checked = false })
+  manualRefreshButtons()
+})
+document.getElementById('manual-search').addEventListener('input', () => {
+  clearTimeout(manualTimer)
+  manualTimer = setTimeout(() => { manualOffset = 0; loadManual() }, 300)
+})
+document.querySelectorAll('.manual-view-btn').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.manual-view-btn').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  manualView = btn.dataset.view
+  manualOffset = 0
+  loadManual()
+}))
+
+async function manualSetPriority(on) {
+  if (!manualSel.size || manualBusy) return
+  manualBusy = true; manualRefreshButtons()
+  manualStatus('Enregistrement…')
+  try {
+    const data = await API('/api/admin/prospects', { method: 'PATCH', body: JSON.stringify({ ids: [...manualSel], priority: on }) })
+    if (data.error) throw new Error(data.error + (data.hint ? ' — ' + data.hint : ''))
+    manualStatus(`✓ ${data.updated} prospect(s) ${on ? 'passés en priorité : Chloé les enverra avant la file d\'attente' : 'remis dans la file normale'}.`)
+    manualSel.clear()
+  } catch (e) { manualStatus('Erreur : ' + e.message) }
+  manualBusy = false
+  tabCache.prospects = 0
+  loadManual()
+}
+document.getElementById('manual-prio').addEventListener('click', () => manualSetPriority(true))
+document.getElementById('manual-unprio').addEventListener('click', () => manualSetPriority(false))
+
+document.getElementById('manual-send').addEventListener('click', async () => {
+  const n = manualSel.size
+  if (!n || manualBusy) return
+  if (n > 40) return manualStatus('40 prospects maximum par envoi : décochez-en ' + (n - 40) + ' ou envoyez en deux fois.')
+  if (!confirm(`Envoyer maintenant ${n} email(s) ? Chloé les rédige un par un (comptez environ ${Math.max(1, Math.ceil(n / 4 * 8 / 60))} min) : ne fermez pas la page.`)) return
+  manualBusy = true; manualRefreshButtons()
+  const btn = document.getElementById('manual-send')
+  btn.textContent = 'Envoi en cours…'
+  manualStatus(`Envoi de ${n} email(s) en cours…`)
+  try {
+    const data = await API('/api/agents/outreach?action=send-selected', { method: 'POST', body: JSON.stringify({ ids: [...manualSel] }) })
+    if (data.error) throw new Error(data.error)
+    manualStatus(data.reason ? data.reason : `✓ ${data.sent} email(s) envoyé(s) (${data.failed || 0} échec(s), ${data.skippedDuplicate || 0} doublon(s) évité(s), ${data.skippedUnsubscribed || 0} exclu(s) ignoré(s)${data.notStarted ? `, ${data.notStarted} non traité(s) faute de temps — ils restent cochés` : ''}). Retrouvez-les dans « Emails envoyés ».`)
+    if (!data.notStarted) manualSel.clear()
+  } catch (e) { manualStatus('Erreur : ' + e.message) }
+  manualBusy = false
+  tabCache.prospects = 0; tabCache.emails = 0; tabCache.agents = 0
+  loadManual()
 })
 
 // ── Blog ──────────────────────────────────────────────────────────────────────
