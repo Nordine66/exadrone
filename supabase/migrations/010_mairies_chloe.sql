@@ -39,6 +39,7 @@ begin
   end if;
 end $$;
 
+alter table outreach_emails add column if not exists recipient_email text;
 create index if not exists idx_outreach_recipient on outreach_emails (lower(recipient_email));
 create index if not exists idx_roof_leads_contact_email on roof_leads (lower(contact_email));
 
