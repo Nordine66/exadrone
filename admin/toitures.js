@@ -95,11 +95,22 @@
     .tt-mini{font-size:.72rem;color:var(--muted);margin-top:4px;line-height:1.4}
     .tt-ok{color:var(--green)}.tt-warn{color:var(--orange)}.tt-ko{color:var(--muted2)}
     .tt-found{font-size:.8rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin:6px 0 2px;line-height:1.5}
+    .tt-light{position:sticky;top:0;z-index:500;display:flex;align-items:center;gap:10px;padding:9px 14px;margin-bottom:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-size:.84rem;font-weight:600;color:var(--muted)}
+    .tt-light i{flex:none;width:14px;height:14px;border-radius:50%;background:#64748b}
+    .tt-light span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .tt-light[data-s=busy]{border-color:rgba(251,146,60,.55);color:var(--text)}
+    .tt-light[data-s=busy] i{background:none;border:3px solid rgba(251,146,60,.3);border-top-color:#fb923c;animation:tt-spin .8s linear infinite}
+    .tt-light[data-s=ok]{border-color:rgba(52,211,153,.55);color:var(--text)}
+    .tt-light[data-s=ok] i{background:#34d399;box-shadow:0 0 8px #34d399}
+    .tt-light[data-s=error]{border-color:rgba(248,113,113,.55);color:var(--text)}
+    .tt-light[data-s=error] i{background:#f87171;box-shadow:0 0 8px #f87171}
+    @keyframes tt-spin{to{transform:rotate(360deg)}}
     @media (max-width:760px){.tt-card{grid-template-columns:1fr}.tt-map{height:320px}}
   `
   document.head.appendChild(css)
 
   root.innerHTML = `
+    <div class="tt-light" id="tt-light" data-s="idle"><i></i><span>Prêt — choisissez une zone sur la carte puis lancez le scan.</span></div>
     <div class="tt-toolbar">
       <input class="tt-input" id="tt-search" placeholder="Ville, adresse ou zone d'activités (ex. « Rivesaltes », « ZI Nord Narbonne »)…">
       <button class="tt-btn" id="tt-go" title="Centrer la carte sur ce lieu">Aller</button>
@@ -266,7 +277,20 @@
     render(); qualifyAll()
   }
 
-  const setStatus = (msg, kind = '') => { const el = $('tt-status'); el.textContent = msg; el.dataset.kind = kind }
+  // Traffic light always visible at the top: spinner = working, green = done, red = problem
+  const activity = new Map()
+  let lastMsg = '', lastKind = ''
+  function refreshLight() {
+    const el = $('tt-light')
+    if (!el) return
+    const label = [...activity.values()].pop()
+    const working = label || state.running
+    const state_ = working ? 'busy' : lastKind === 'error' ? 'error' : lastKind === 'ok' ? 'ok' : 'idle'
+    el.dataset.s = state_
+    el.lastElementChild.textContent = working ? (label || lastMsg || 'Travail en cours…') : state_ === 'ok' ? `Terminé — ${lastMsg}` : state_ === 'error' ? lastMsg : 'Prêt — choisissez une zone sur la carte puis lancez le scan.'
+  }
+  const busy = (key, label) => { label ? activity.set(key, label) : activity.delete(key); refreshLight() }
+  const setStatus = (msg, kind = '') => { const el = $('tt-status'); el.textContent = msg; el.dataset.kind = kind; lastMsg = msg; lastKind = kind; refreshLight() }
 
   // ── Map ───────────────────────────────────────────────────────────────────
   function loadLeaflet() {
@@ -433,6 +457,7 @@
     state.view = 'scan'; syncViewButtons()
     $('tt-scan').disabled = true
     setStatus('Recherche des bâtiments de 500 m² et plus dans la zone…')
+    busy('scan', 'Scan de la zone en cours (10 à 60 s)…')
     try {
       const data = await api('/api/admin/roofs?action=scan', { method: 'POST', retries: 2, timeout: 110000, body: JSON.stringify({ zone, min_area: state.scope.min, max_area: state.scope.max }) })
       if (data.error) throw new Error(data.error + (data.hint ? ` — ${data.hint}` : ''))
@@ -454,6 +479,7 @@
     } catch (e) {
       setStatus(e.message, 'error')
     } finally {
+      busy('scan', null)
       updateZoneLabel()
     }
   }
@@ -461,7 +487,7 @@
   function clearScan() {
     if (state.running) return
     if (state.scan.length > 20 && !confirm(`Effacer les ${state.scan.length} toits de la recherche en cours ? (les toits déjà analysés restent enregistrés)`)) return
-    qualifyRun++
+    qualifyRun++; busy('qualify', null)
     state.scan = []; state.city = null; state.scanMin = null
     if (state.cityLayer) { state.cityLayer.remove(); state.cityLayer = null }
     $('tt-q-status').textContent = ''
@@ -471,7 +497,9 @@
 
   async function loadSaved() {
     setStatus('Chargement de vos toitures…')
+    busy('saved', 'Chargement de vos toitures…')
     const data = await api('/api/admin/roofs')
+    busy('saved', null)
     if (data.error) return setStatus(data.error + (data.hint ? ` — ${data.hint}` : ''), 'error')
     state.saved = data.roofs
     setStatus(`${data.roofs.length} toiture(s) analysée(s) enregistrée(s).`, 'ok')
@@ -615,7 +643,8 @@
     for (const r of state.scan) if (!r.b2b && r.osm_class === 'residentiel') r.b2b = 'residentiel'
     const todo = state.scan.filter(r => b2bOf(r) == null || (!r.b2b && !r.analyzed_at && r.osm_class))
     const status = $('tt-q-status')
-    if (!todo.length) { status.textContent = ''; return }
+    if (!todo.length) { status.textContent = ''; busy('qualify', null); return }
+    busy('qualify', `Qualification B2B (propriétaires) 0/${todo.length}…`)
     const batches = []
     for (let i = 0; i < todo.length; i += 12) batches.push(todo.slice(i, i + 12))
     let done = 0, last = 0
@@ -635,13 +664,16 @@
         }
         done += batch.length
         status.innerHTML = `Qualification B2B ${freePill()} ${done}/${todo.length}…`
+        if (run === qualifyRun) busy('qualify', `Qualification B2B (propriétaires) ${done}/${todo.length}…`)
         if (Date.now() - last > 1500) { last = Date.now(); render() }
       }
     }
     await Promise.all([worker(), worker()])
     if (run !== qualifyRun) return
+    busy('qualify', null)
     const c = (k) => state.scan.filter(r => areaOk(r) && b2bOf(r) === k).length
     status.textContent = `${c('collectivite')} collectivités · ${c('entreprise')} entreprises · ${c('bailleur') + c('copropriete')} bailleurs / copros · ${c('inconnu')} inconnus · ${c('residentiel')} logements`
+    if (!state.running) setStatus(`${state.scan.length} toits en mémoire — ${status.textContent}`, 'ok')
     render()
   }
 
