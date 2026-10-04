@@ -614,10 +614,20 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
               <button class="filter-btn" id="manual-prio" disabled>⭐ Mettre en priorité</button>
               <button class="filter-btn" id="manual-unprio" disabled>Retirer la priorité</button>
               <button class="filter-btn" id="manual-solar" disabled title="Chloé enverra l'email panneaux solaires (avec chiffres) au lieu de l'email toiture">☀️ Offre panneaux solaires</button>
+              <button class="filter-btn" id="manual-sub" disabled title="Pour les entreprises du solaire (développeurs, exploitants, O&M) : Chloé propose d'être leur sous-traitant nettoyage par drone">🤝 Offre sous-traitance</button>
               <button class="filter-btn" id="manual-roof" disabled title="Chloé enverra l'email toiture (démoussage)">🏠 Offre toiture</button>
               <button class="filter-btn" id="manual-clear" disabled>Tout décocher</button>
             </div>
             <div class="csv-import-status" id="manual-status"></div>
+            <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:14px">
+              <b style="font-size:.86rem">🤝 Relance Hugo — angle sous-traitance</b>
+              <p class="csv-hint" style="margin:6px 0 10px">Pour les entreprises du solaire déjà contactées avec l'ancien angle : les N derniers premiers emails envoyés par Chloé sont repérés (vous confirmez la liste), puis Hugo les relance avec l'angle « devenir votre sous-traitant nettoyage par drone », au bout du délai habituel entre deux relances.</p>
+              <div class="csv-actions">
+                <input type="number" id="relaunch-n" class="auth-input" style="max-width:90px;margin-bottom:0" value="23" min="1" max="100">
+                <button class="filter-btn" id="relaunch-btn">Voir les derniers mails envoyés</button>
+              </div>
+              <div class="csv-import-status" id="relaunch-status"></div>
+            </div>
           </div>
           <div class="table-wrap">
             <div class="table-head">
@@ -625,6 +635,7 @@ Mairie de Test,Jean Dupont,jean@mairie-test.fr,Collectivité,mairie-test.fr" sty
               <div class="table-filters">
                 <button class="filter-btn manual-view-btn active" data-view="all">File d'envoi</button>
                 <button class="filter-btn manual-view-btn" data-view="priority">⭐ Prioritaires</button>
+                <button class="filter-btn manual-view-btn" data-view="pv">☀️ Secteur photovoltaïque</button>
                 <button class="filter-btn manual-view-btn" data-view="recent">🕒 Derniers importés</button>
               </div>
             </div>
@@ -1558,7 +1569,7 @@ const manualStatus = (msg) => { document.getElementById('manual-status').textCon
 function manualRefreshButtons() {
   const n = manualSel.size
   document.getElementById('manual-send').textContent = `Envoyer maintenant (${n})`
-  for (const id of ['manual-send', 'manual-prio', 'manual-unprio', 'manual-solar', 'manual-roof', 'manual-clear', 'manual-note-save', 'manual-note-clear']) document.getElementById(id).disabled = !n || manualBusy
+  for (const id of ['manual-send', 'manual-prio', 'manual-unprio', 'manual-solar', 'manual-roof', 'manual-sub', 'manual-clear', 'manual-note-save', 'manual-note-clear']) document.getElementById(id).disabled = !n || manualBusy
   const all = document.getElementById('manual-all')
   all.checked = manualRows.length > 0 && manualRows.every(p => manualSel.has(p.id))
 }
@@ -1568,14 +1579,14 @@ function loadManual() {
   const seq = ++manualSeq
   const url = q.length >= 2
     ? `/api/admin/prospects?status=pending&q=${encodeURIComponent(q)}`
-    : `/api/admin/prospects?status=pending&limit=${PAGE_SIZE}&offset=${manualOffset}${manualView === 'priority' ? '&priority=1' : manualView === 'recent' ? '&recent=1' : ''}`
+    : `/api/admin/prospects?status=pending&limit=${PAGE_SIZE}&offset=${manualOffset}${manualView === 'priority' ? '&priority=1' : manualView === 'recent' ? '&recent=1' : manualView === 'pv' ? '&industry=photovolta' : ''}`
   document.getElementById('manual-body').innerHTML = '<tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr>'
   API(url).then(data => {
     if (seq !== manualSeq) return
     if (data.error) { document.getElementById('manual-body').innerHTML = `<tr><td colspan="6" class="empty-state">${esc(data.error)}</td></tr>`; return }
     markFresh('manual')
     manualRows = data.prospects || []
-    document.getElementById('manual-title').textContent = q.length >= 2 ? `Résultats pour « ${q} »` : manualView === 'priority' ? `Prospects prioritaires (${(data.total || 0).toLocaleString('fr-FR')})` : manualView === 'recent' ? `Derniers prospects importés en attente (${(data.total || 0).toLocaleString('fr-FR')}) — les plus récents en premier` : `Prospects en attente (${(data.total || 0).toLocaleString('fr-FR')}) — dans l'ordre d'envoi`
+    document.getElementById('manual-title').textContent = q.length >= 2 ? `Résultats pour « ${q} »` : manualView === 'priority' ? `Prospects prioritaires (${(data.total || 0).toLocaleString('fr-FR')})` : manualView === 'pv' ? `Prospects du secteur photovoltaïque en attente (${(data.total || 0).toLocaleString('fr-FR')})` : manualView === 'recent' ? `Derniers prospects importés en attente (${(data.total || 0).toLocaleString('fr-FR')}) — les plus récents en premier` : `Prospects en attente (${(data.total || 0).toLocaleString('fr-FR')}) — dans l'ordre d'envoi`
     if (q.length >= 2) document.getElementById('manual-pager').innerHTML = ''
     else renderPager('manual-pager', manualOffset, manualRows.length, data.total || 0, offset => { manualOffset = offset; loadManual() })
     document.getElementById('manual-body').innerHTML = manualRows.length ? manualRows.map(p => `
@@ -1640,7 +1651,7 @@ async function manualSetOffer(offer) {
   try {
     const data = await API('/api/admin/prospects', { method: 'PATCH', body: JSON.stringify({ ids: [...manualSel], offer }) })
     if (data.error) throw new Error(data.error)
-    manualStatus(`✓ ${data.updated} prospect(s) passés en offre ${offer === 'solaire' ? 'panneaux solaires' : 'toiture'}.${data.skipped?.length ? ' Non modifiés : ' + data.skipped.join(' ; ') : ''}`)
+    manualStatus(`✓ ${data.updated} prospect(s) passés en offre ${offer === 'solaire' ? 'panneaux solaires' : offer === 'sous-traitance' ? 'sous-traitance solaire' : 'toiture'}.${data.skipped?.length ? ' Non modifiés : ' + data.skipped.join(' ; ') : ''}`)
   } catch (e) { manualStatus('Erreur : ' + e.message) }
   manualBusy = false
   tabCache.prospects = 0
@@ -1659,10 +1670,29 @@ async function manualSetNote(text) {
   manualBusy = false
   loadManual()
 }
+document.getElementById('relaunch-btn').addEventListener('click', async () => {
+  const n = Number(document.getElementById('relaunch-n').value) || 0
+  const st = document.getElementById('relaunch-status')
+  if (n < 1) return
+  st.textContent = 'Recherche…'
+  try {
+    const data = await API('/api/admin/prospects', { method: 'PATCH', body: JSON.stringify({ relaunchLast: n }) })
+    if (data.error) throw new Error(data.error)
+    if (!data.eligible) { st.textContent = 'Aucun de ces prospects n\'est en attente de relance (déjà relancés ou répondu).'; return }
+    const list = data.prospects.map(p => `• ${p.company_name} — ${p.industry || 'secteur ?'}${p.status !== 'contacted' ? ` (statut ${prospectStatusLabel(p.status)}, ignoré)` : ''}`).join('\n')
+    if (!confirm(`Hugo relancera ces ${data.eligible} prospect(s) avec l'angle sous-traitance solaire :\n\n${list}\n\nConfirmer ?`)) { st.textContent = 'Annulé.'; return }
+    const done = await API('/api/admin/prospects', { method: 'PATCH', body: JSON.stringify({ relaunchLast: n, apply: true }) })
+    if (done.error) throw new Error(done.error)
+    st.textContent = `✓ ${done.updated} prospect(s) marqués : Hugo les relancera avec l'angle sous-traitance.`
+    tabCache.prospects = 0
+  } catch (e) { st.textContent = 'Erreur : ' + e.message }
+})
+
 document.getElementById('manual-note-save').addEventListener('click', () => manualSetNote(document.getElementById('manual-note').value.trim()))
 document.getElementById('manual-note-clear').addEventListener('click', () => manualSetNote(''))
 document.getElementById('manual-solar').addEventListener('click', () => manualSetOffer('solaire'))
 document.getElementById('manual-roof').addEventListener('click', () => manualSetOffer('toiture'))
+document.getElementById('manual-sub').addEventListener('click', () => manualSetOffer('sous-traitance'))
 document.getElementById('manual-prio').addEventListener('click', () => manualSetPriority(true))
 document.getElementById('manual-unprio').addEventListener('click', () => manualSetPriority(false))
 

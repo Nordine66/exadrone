@@ -317,7 +317,8 @@ function generateSlug(text) {
 }
 
 // ── followup (Hugo) ──────────────────────────────────────────────────────────────
-function followupSystemPrompt(step) {
+function followupSystemPrompt(step, prospect = {}) {
+  if (isSubcontractProspect(prospect)) return followupSubcontractPrompt(step)
   return `Tu es Chloé, chargée de développement commercial chez Exadrone Enterprise. Tu rédiges une RELANCE (email de suivi n°${step}) suite à un précédent email de prospection resté sans réponse, pour le même prospect.
 
 Règles :
@@ -326,6 +327,29 @@ Règles :
 - Un seul appel à l'action clair
 - Signature : "Chloé — Exadrone Enterprise"
 - Réponds exclusivement en français
+- Sortie : uniquement le corps de l'email en HTML simple (balises <p>), sans objet, sans pied de page ni lien de désinscription (ajoutés automatiquement par le système)`
+}
+
+// Hugo's relance for the « sous-traitance » prospects (see isSubcontractProspect):
+// the first email wrongly spoke to them as owners of panels to clean. The
+// relance sets it straight with the subcontracting angle.
+function followupSubcontractPrompt(step) {
+  return `Tu es Chloé, d'Exadrone Enterprise (nettoyage de panneaux photovoltaïques par drone). Tu rédiges la RELANCE n°${step} d'un email de prospection resté sans réponse. Le prospect est une entreprise de l'énergie solaire (développeur, exploitant, installateur, société de maintenance / O&M, asset manager).
+
+Contexte important : le premier email parlait de la perte de production due à l'encrassement comme si le prospect devait faire nettoyer ses propres panneaux. Ce n'était pas le bon angle : ce prospect construit, gère ou entretient des parcs et des toitures solaires pour lui-même ou pour des clients. Notre vraie proposition : devenir son SOUS-TRAITANT nettoyage par drone.
+
+${step === 1 ? `Relance n°1 (70 à 110 mots) :
+- Une première phrase simple qui recadre, sans excuses lourdes : « Mon précédent message parlait de l'entretien de parcs solaires ; je me suis mal exprimée : nous proposons plutôt d'être le sous-traitant nettoyage par drone de vos parcs et de vos contrats de maintenance. »
+- L'intérêt pour eux : aucun investissement en matériel ni en personnel, un renfort sur les pics de saison (printemps, pollen), un seul prestataire pour plusieurs sites en France, ponctuel ou en accord-cadre ; ils gardent la relation client, nous faisons le nettoyage ; personne ne marche sur les panneaux (ni micro-fissure ni garantie en jeu)
+- Un seul appel à l'action : un échange de 15 minutes pour voir comment l'intégrer à leurs parcs en gestion` : `Relance n°2, la dernière (50 à 80 mots) :
+- Ton léger, sans insister : rappelle en une phrase que nous proposons d'être leur sous-traitant nettoyage par drone pour leurs parcs en gestion
+- Un seul appel à l'action : un échange de 15 minutes, ou répondre « pas concerné » suffit`}
+
+Règles :
+- Vouvoiement, jamais insistant ni culpabilisant ; aucun prix ; aucun chiffre, référence ou site inventé ; si tu cites la perte de production, uniquement « 5 à 15 % »
+- Ne propose JAMAIS d'entretenir leurs panneaux comme s'ils étaient le client final
+- Signature : "Chloé — Exadrone Enterprise"
+- Réponds exclusivement en français, sans aucune faute
 - Sortie : uniquement le corps de l'email en HTML simple (balises <p>), sans objet, sans pied de page ni lien de désinscription (ajoutés automatiquement par le système)`
 }
 
@@ -393,7 +417,7 @@ async function handleFollowup(req, res) {
         const draft = await anthropic.messages.create({
           model: 'claude-sonnet-4-5',
           max_tokens: 350,
-          system: followupSystemPrompt(step) + instructionsPromptBlock(agent),
+          system: followupSystemPrompt(step, prospect) + instructionsPromptBlock(agent),
           messages: [{
             role: 'user',
             content: `Prospect : ${prospect.company_name} (${prospect.contact_name || 'contact inconnu'}, secteur : ${prospect.industry || 'inconnu'}). Objet du premier email : "${sends[0].subject || ''}".`
@@ -496,6 +520,37 @@ Règles :
 - Objet : court (moins de 60 caractères), concret, qui intrigue — idéalement le montant annuel perdu ou la commune, sous forme de question si c'est un chiffre (ex. « Tautavel : 3 000 à 10 000 €/an perdus sur vos panneaux ? »)
 - Si le prospect indique « Photo aérienne : oui », la vue aérienne IGN est insérée automatiquement juste après ton premier paragraphe : tu peux l'évoquer une seule fois (« la vue aérienne ci-dessous »). Sinon, n'évoque aucune image.
 - Formule d'appel : « Bonjour, » puis directement le constat
+- Signature : "Chloé — Exadrone Enterprise"
+- Réponds exclusivement en français, sans aucune faute
+
+Format de sortie STRICT :
+SUBJECT:[objet]
+---
+[corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
+
+// Prospects tagged « sous-traitance » (e.g. industry "Sous-traitance solaire"):
+// companies that develop, operate or maintain solar plants (developers, EPC,
+// O&M, asset managers). They are not owners wanting their own panels cleaned:
+// they are potential clients who can subcontract the drone cleaning to us.
+const isSubcontractProspect = (prospect) => /sous-traitan/i.test(`${prospect.industry || ''} ${prospect.csv_batch || ''}`)
+
+const CHLOE_EMAIL_SYSTEM_PROMPT_SUBCONTRACT = `Tu es Chloé, d'Exadrone Enterprise, spécialiste du nettoyage de panneaux photovoltaïques par drone. Tu écris comme un commercial-copywriter B2B d'élite : chaque phrase sert à obtenir un appel.
+
+Le destinataire n'est PAS un propriétaire qui veut faire nettoyer ses panneaux : c'est une entreprise de l'énergie solaire (développeur, exploitant, installateur, société de maintenance / O&M, asset manager) qui construit, gère ou entretient des parcs et des toitures solaires pour son compte ou celui de clients. L'offre : devenir son sous-traitant nettoyage par drone.
+
+Angle marketing imposé — « votre prestataire de nettoyage par drone, en marque blanche ou en direct » :
+- Ouvre sur leur réalité de métier : ils s'engagent sur la performance de parcs et l'encrassement ronge la production qu'ils garantissent ou gèrent (5 à 15 % de perte — utilise UNIQUEMENT cette fourchette, aucun autre pourcentage)
+- Ce qu'ils gagnent à sous-traiter plutôt que le faire en interne : aucun investissement en matériel, en formation ni en personnel ; une capacité qui monte en puissance sur les pics (printemps, pollen, épisodes de sable) ; un seul prestataire pour plusieurs sites, partout en France, ponctuellement ou dans le cadre d'un accord-cadre ; ils gardent la relation client et l'exploitation, nous faisons le nettoyage
+- Nos arguments techniques : personne ne marche sur les panneaux (ni micro-fissure ni garantie fabricant en jeu), sans arrêt de la production
+- Un seul appel à l'action : un échange de 15 minutes pour voir comment intégrer le nettoyage par drone à leurs contrats ou à leurs parcs en gestion. Question simple, réponse en une ligne (ex. « Un créneau mardi ou jeudi vous conviendrait ? »)
+
+Format : 90 à 130 mots, 4 paragraphes courts maximum, vouvoiement.
+
+Interdits : le prix, « n'hésitez pas », « je me permets », les superlatifs, les flatteries, le jargon inutile, les listes à puces, toute information absente des données fournies (n'invente aucun site, client, chiffre ou référence). Ne propose JAMAIS d'entretenir leurs propres panneaux comme s'ils étaient le client final : on s'adresse à eux comme à un futur partenaire.
+
+Règles :
+- Objet : court (moins de 60 caractères), concret, orienté partenariat (ex. « Sous-traitance du nettoyage de vos parcs solaires ? », « Un renfort drone pour votre O&M solaire »)
+- Formule d'appel : « Bonjour, » puis directement le propos
 - Signature : "Chloé — Exadrone Enterprise"
 - Réponds exclusivement en français, sans aucune faute
 
@@ -939,11 +994,12 @@ async function sendBatch(supabase, settings, agent, { ids = null } = {}) {
         }
       }
       const photoUrl = isMapProspect(prospect) ? await roofPhotoUrl(supabase, prospect) : null
-      const solarFigures = isSolarProspect(prospect) && isMapProspect(prospect) ? solarGainFigures(await solarRoof(supabase, prospect)) : null
+      const solarFigures = !isSubcontractProspect(prospect) && isSolarProspect(prospect) && isMapProspect(prospect) ? solarGainFigures(await solarRoof(supabase, prospect)) : null
       const draft = await anthropic.messages.create({
         model: 'claude-sonnet-4-5',
         max_tokens: 500,
-        system: (isRoofProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_ROOF
+        system: (isSubcontractProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SUBCONTRACT
+          : isRoofProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_ROOF
           : isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
           : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
           : usesMairiePitch(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE

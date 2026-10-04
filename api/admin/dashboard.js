@@ -264,7 +264,7 @@ async function handleProspects(req, res, supabase) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
 
-  const { status, q, priority, recent } = req.query || {}
+  const { status, q, priority, recent, industry } = req.query || {}
   const { from, to } = pageRange(req.query)
 
   // « Envoi manuel » tab: search among the prospects (status filter kept)
@@ -288,6 +288,7 @@ async function handleProspects(req, res, supabase) {
     query = query.order(column, { ascending, nullsFirst: false }).range(from, to)
     if (status) query = query.eq('status', status)
     if (priority && withPriority) query = query.gt('priority', 0)
+    if (industry) query = query.ilike('industry', `%${String(industry).replace(/[%,()*]/g, '')}%`)
     return query
   }
 
@@ -307,7 +308,27 @@ async function handleProspects(req, res, supabase) {
 async function handleProspectsPatch(req, res, supabase) {
   if (!isAdminAuthenticated(req)) return res.status(401).json({ error: 'Non autorisé' })
 
-  const { industryTag, ids, priority, offer, note } = req.body || {}
+  const { industryTag, ids, priority, offer, note, relaunchLast, apply } = req.body || {}
+
+  // Hugo's relance with the subcontracting angle for the N last first emails Chloé sent:
+  // without apply the list is only returned (to be confirmed), with apply the prospects
+  // are tagged « Sous-traitance solaire » — Hugo then relances them with that angle.
+  if (relaunchLast) {
+    const n = Math.min(Math.max(parseInt(relaunchLast, 10) || 0, 1), 100)
+    const { data: sent, error } = await supabase.from('outreach_emails')
+      .select('prospect_id, sent_at, prospects(id, company_name, email, industry, status)')
+      .eq('agent_slug', 'chloe').eq('sequence_step', 0).eq('status', 'sent')
+      .order('sent_at', { ascending: false }).limit(n)
+    if (error) return res.status(500).json({ error: error.message })
+    const rows = (sent || []).map(r => r.prospects).filter(Boolean)
+    const todo = rows.filter(p => p.status === 'contacted')
+    if (apply) {
+      const { error: e2 } = await supabase.from('prospects').update({ industry: 'Sous-traitance solaire' }).in('id', todo.map(p => p.id)).eq('status', 'contacted')
+      if (e2) return res.status(500).json({ error: e2.message })
+      await logActivity(supabase, { agent: 'hugo', kind: 'admin_action', summary: `Nordine (dashboard) : ${todo.length} prospect(s) du solaire seront relancés par Hugo avec l'angle sous-traitance (${todo.map(p => p.company_name).slice(0, 25).join(', ')})` })
+    }
+    return res.status(200).json({ prospects: rows, updated: apply ? todo.length : 0, eligible: todo.length })
+  }
 
   // « Envoi manuel » tab: instruction for Chloé on the ticked prospects (empty = remove it)
   if (Array.isArray(ids) && typeof note === 'string') {
@@ -322,7 +343,7 @@ async function handleProspectsPatch(req, res, supabase) {
 
   // « Envoi manuel » tab: switch the pitch (panneaux solaires / toiture) of waiting prospects
   if (Array.isArray(ids) && offer) {
-    if (!['solaire', 'toiture'].includes(offer)) return res.status(400).json({ error: 'offer : solaire ou toiture' })
+    if (!['solaire', 'toiture', 'sous-traitance'].includes(offer)) return res.status(400).json({ error: 'offer : solaire, toiture ou sous-traitance' })
     const list = [...new Set(ids.filter(id => typeof id === 'string'))].slice(0, 200)
     if (!list.length) return res.status(400).json({ error: 'Aucun prospect sélectionné' })
     const { data: rows, error } = await supabase.from('prospects').select('id, company_name').in('id', list).eq('status', 'pending')
@@ -333,7 +354,9 @@ async function handleProspectsPatch(req, res, supabase) {
       const { data: roof } = await supabase.from('roof_leads').select('*').eq('prospect_id', row.id).maybeSingle()
       const solar = offer === 'solaire'
       let fields
-      if (roof) {
+      if (offer === 'sous-traitance') {
+        fields = { industry: 'Sous-traitance solaire' }
+      } else if (roof) {
         if (solar && !roof.solar && !notesWantSolar(roof)) { skipped.push(`${row.company_name} (pas de panneaux détectés sur ce bâtiment)`); continue }
         fields = roofPitch(roof, solar)
       } else {
@@ -341,10 +364,10 @@ async function handleProspectsPatch(req, res, supabase) {
       }
       const { error: e2 } = await supabase.from('prospects').update(fields).eq('id', row.id).eq('status', 'pending')
       if (e2) { skipped.push(`${row.company_name} (${e2.message})`); continue }
-      if (roof) await supabase.from('roof_leads').update({ prospect_offer: offer }).eq('id', roof.id)
+      if (roof && offer !== 'sous-traitance') await supabase.from('roof_leads').update({ prospect_offer: offer }).eq('id', roof.id)
       updated++
     }
-    await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: `Nordine (dashboard) : ${updated} prospect(s) en attente passés en offre « ${offer === 'solaire' ? 'panneaux solaires' : 'toiture'} »` })
+    await logActivity(supabase, { agent: 'chloe', kind: 'admin_action', summary: `Nordine (dashboard) : ${updated} prospect(s) en attente passés en offre « ${offer === 'solaire' ? 'panneaux solaires' : offer === 'sous-traitance' ? 'sous-traitance solaire' : 'toiture'} »` })
     return res.status(200).json({ updated, skipped })
   }
 
