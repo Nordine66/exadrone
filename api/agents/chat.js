@@ -28,7 +28,9 @@ function checkRateLimit(ip) {
 // source of truth also used by the estimator UI and /api/quote) so this prompt
 // can never drift out of sync with the real tarifs again.
 const PRICE_GRID_TEXT = pricing.config.services
-  .map((s) => `- ${s.label} : ${s.priceHT.toFixed(2).replace('.', ',')} € HT/m²`)
+  .map((s) => s.tiers
+    ? `- ${s.label} : tarif dégressif HT/m², ${pricing.describeTiers(s)} (le palier s'applique à toute la surface, et une surface n'est jamais facturée plus cher que le seuil du palier suivant)`
+    : `- ${s.label} : ${s.priceHT.toFixed(2).replace('.', ',')} € HT/m²`)
   .join('\n')
 const MIN_ORDER_TEXT = `${pricing.config.minimumOrderHT.toFixed(2).replace('.', ',')} € HT`
 const bigExample = pricing.calculateQuote('toiture', 200)

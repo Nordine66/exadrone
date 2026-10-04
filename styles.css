@@ -1365,6 +1365,17 @@ a, button, input, select, textarea { touch-action: manipulation; }
   font-size: 12px;
   color: #D9DEE5;
 }
+/* Small print under a volume-priced headline ("à partir de 2 000 m²") */
+.exa-hero-price__line:has(.exa-hero-price__note) { flex-wrap: wrap; row-gap: 0; }
+.exa-hero-price__note {
+  display: block;
+  flex-basis: 100%;
+  text-align: center;
+  margin-top: -2px;
+  font-size: 10px;
+  letter-spacing: .02em;
+  color: #AEB6C2;
+}
 .exa-hero-price__sub {
   margin: 3px auto 0;
   max-width: 420px;
@@ -2530,6 +2541,7 @@ body:has(#cookieBanner.is-visible) .hud-scrubbar { transform: translateY(-200px)
 .devis-service__detail { color: var(--steel); font-size: 0.85rem; line-height: 1.4; }
 .devis-service__price { margin-top: auto; padding-top: 10px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--steel); }
 .devis-service__price strong { color: var(--cro-blue); font-size: 1.05rem; }
+.devis-service__tier { display: block; margin-top: 2px; font-size: 0.68rem; color: var(--steel); opacity: .85; }
 
 /* ---------- Step 2: surface ---------- */
 .devis-surface-input {

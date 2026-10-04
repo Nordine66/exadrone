@@ -710,7 +710,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // data-service="<pricing id>" (e.g. solaire.html) shows that service's
     // rate instead of the site-wide cheapest one.
     const pinnedService = heroPriceValue.dataset.service && window.ExadronePricing.getService(heroPriceValue.dataset.service);
-    const target = (pinnedService || window.ExadronePricing.getCheapestService()).priceHT;
+    // A volume-priced service (solaire) headlines its lowest tier; the page
+    // states the threshold next to it (.exa-hero-price__note).
+    const target = pinnedService ? window.ExadronePricing.fromPriceHT(pinnedService) : window.ExadronePricing.getCheapestService().priceHT;
     const eurFmt = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const setPriceText = (v) => { heroPriceValue.innerHTML = `${eurFmt.format(v)}&nbsp;€`; };
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1170,7 +1172,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${preselectIds.includes(s.id) ? '<span class="devis-service__badge">Recommandé</span>' : s.id === cheapest.id ? '<span class="devis-service__badge">Meilleur prix</span>' : ''}
           <span class="devis-service__label">${escapeHtml(s.label)}</span>
           <span class="devis-service__detail">${escapeHtml(s.detail)}</span>
-          <span class="devis-service__price"><strong>${fmtRate(s.priceHT)}</strong> HT/m²</span>
+          <span class="devis-service__price">${s.tiers ? `dès <strong>${fmtRate(pricing.fromPriceHT(s))}</strong> HT/m² <small class="devis-service__tier">dès ${fmtSurfaceNum(s.tiers[s.tiers.length - 1].from)}&nbsp;m² · tarif dégressif</small>` : `<strong>${fmtRate(s.priceHT)}</strong> HT/m²`}</span>
         </button>
       `).join('');
       servicesWrap.querySelectorAll('.devis-service').forEach((btn) => {
@@ -1204,7 +1206,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="devis-surface-line" data-service="${id}">
             <div class="devis-surface-line__head">
               <span class="devis-surface-line__label">${escapeHtml(s.label)}</span>
-              <span class="devis-surface-line__rate">${fmtRate(s.priceHT)} HT/m²</span>
+              <span class="devis-surface-line__rate"${s.tiers ? ` title="Tarif dégressif HT/m² : ${escapeHtml(pricing.describeTiers(s))}"` : ''}>${s.tiers ? `dégressif, dès ${fmtRate(pricing.fromPriceHT(s))} HT/m²` : `${fmtRate(s.priceHT)} HT/m²`}</span>
             </div>
             <div class="devis-surface-input">
               <input type="text" inputmode="decimal" placeholder="0" data-surface-for="${id}" aria-label="Surface pour ${escapeHtml(s.label)}">
@@ -1257,7 +1259,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!state.items.length) return;
       const lineRows = state.items.map((it) => {
         const service = pricing.getService(it.serviceId);
-        return `<div class="devis-quote-row devis-quote-row--line"><span>${escapeHtml(service.label)}</span><span>${fmtSurfaceNum(it.surface)}&nbsp;m² × ${fmtRate(service.priceHT)}</span></div>`;
+        return `<div class="devis-quote-row devis-quote-row--line"><span>${escapeHtml(service.label)}</span><span>${fmtSurfaceNum(it.surface)}&nbsp;m² × ${fmtRate(pricing.linePrice(service, it.surface).unitPriceHT)}</span></div>`;
       }).join('');
       quotePreview.innerHTML = `
         ${lineRows}
