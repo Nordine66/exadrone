@@ -10,6 +10,7 @@ const pricing = require('../../lib/pricing')
 const { SERVICE_PAGES } = require('../../lib/service-pages')
 const { logActivity } = require('../../lib/activity')
 const { instructionsPromptBlock } = require('../../lib/agent-memory')
+const { roofPitch, notesWantSolar, noteOf } = require('../../lib/roof-pitch')
 
 const FROM_ADDRESS = 'chloe@exadrone-enterprise.com'
 // chloe@ isn't connected to an inbox anyone actually reads (no MX/inbound
@@ -924,6 +925,19 @@ async function sendBatch(supabase, settings, agent, { ids = null } = {}) {
 
     let sent = false
     try {
+      // The note Nordine typed on the roof card (Toitures tab) is read again at
+      // send time, so a note written or edited after the handover still counts:
+      // it can switch the pitch (e.g. « panneaux solaires ») and is passed to the AI.
+      if (isMapProspect(prospect) || isRoofProspect(prospect)) {
+        const { data: roof } = await supabase.from('roof_leads').select('*').eq('prospect_id', prospect.id).maybeSingle()
+        if (roof && noteOf(roof)) {
+          const solar = isSolarProspect(prospect) || notesWantSolar(roof)
+          const fields = roofPitch(roof, solar)
+          Object.assign(prospect, fields)
+          await supabase.from('prospects').update(fields).eq('id', prospect.id)
+          if (solar !== (roof.prospect_offer === 'solaire')) await supabase.from('roof_leads').update({ prospect_offer: solar ? 'solaire' : 'toiture' }).eq('id', roof.id)
+        }
+      }
       const photoUrl = isMapProspect(prospect) ? await roofPhotoUrl(supabase, prospect) : null
       const solarFigures = isSolarProspect(prospect) && isMapProspect(prospect) ? solarGainFigures(await solarRoof(supabase, prospect)) : null
       const draft = await anthropic.messages.create({
@@ -933,7 +947,7 @@ async function sendBatch(supabase, settings, agent, { ids = null } = {}) {
           : isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
           : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
           : usesMairiePitch(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE
-          : CHLOE_EMAIL_SYSTEM_PROMPT) + instructionsPromptBlock(agent),
+          : CHLOE_EMAIL_SYSTEM_PROMPT) + (prospect.context && /Note de Nordine/.test(prospect.context) ? '\n\nLe contexte du prospect contient une « Note de Nordine » : elle est PRIORITAIRE sur tout le reste de ces consignes (type d\'installation, interlocuteur, éléments à mentionner ou à éviter). Applique-la scrupuleusement et ne la cite jamais telle quelle dans l\'email.' : '') + instructionsPromptBlock(agent),
         messages: [{
           role: 'user',
           content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}${isMapProspect(prospect) || isRoofProspect(prospect) ? `\n- Photo aérienne : ${photoUrl ? 'oui' : 'non'}` : ''}${solarFigures ? `\n- Chiffres : ${solarFigures}` : ''}`

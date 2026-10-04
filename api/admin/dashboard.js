@@ -5,6 +5,7 @@ const { logActivity } = require('../../lib/activity')
 const { EMAIL_RE, excludeEmail, includeEmail } = require('../../lib/exclusions')
 const { findDuplicates } = require('../../lib/agent-tools')
 const DEVIS_EXAMPLE = require('../../lib/devis-example')
+const { roofPitch, notesWantSolar } = require('../../lib/roof-pitch')
 const { scanZone, analyzeBuilding, findContact, screenBuildings, qualifyBuildings, roofEmailPhoto, photoFor } = require('../../lib/roofs')
 
 // Consolidates agents/leads/prospects/stats into one function to stay under
@@ -322,7 +323,7 @@ async function handleProspectsPatch(req, res, supabase) {
       const solar = offer === 'solaire'
       let fields
       if (roof) {
-        if (solar && !roof.solar) { skipped.push(`${row.company_name} (pas de panneaux détectés sur ce bâtiment)`); continue }
+        if (solar && !roof.solar && !notesWantSolar(roof)) { skipped.push(`${row.company_name} (pas de panneaux détectés sur ce bâtiment)`); continue }
         fields = roofPitch(roof, solar)
       } else {
         fields = { industry: solar ? 'Panneaux solaires' : 'Toiture industrielle' }
@@ -872,28 +873,8 @@ async function handleRoofs(req, res, supabase) {
   return res.status(400).json({ error: 'action requise : scan, analyze, contact, prospect ou prospect-bulk' })
 }
 
-// What Chloé's first email is built from for a roof handed over from the Toitures tab:
-// the sector / batch tags select the pitch (roof or PV panels), the context carries the diagnosis.
-function roofPitch(roof, solarOffer) {
-  const where = roof.address ? ` situé${roof.kind === 'centrale' ? 'e' : ''} ${roof.address}` : ''
-  const context = solarOffer ? [
-    roof.kind === 'centrale'
-      ? `Centrale solaire au sol d'environ ${roof.area_m2} m²${where}${roof.solar_area_m2 ? `, environ ${roof.solar_area_m2} m² de panneaux` : ''}.`
-      : `Bâtiment de ${roof.area_m2} m² d'emprise au sol${where}, avec environ ${roof.solar_area_m2 || '?'} m² de panneaux photovoltaïques en toiture.`,
-    roof.solar_diagnostic ? `Constat sur la vue aérienne IGN : ${roof.solar_diagnostic}` : null,
-    roof.contact_search?.contact_role && roof.contact_name ? `Destinataire : ${roof.contact_name}, ${roof.contact_search.contact_role}.` : null
-  ].filter(Boolean).join(' ') : [
-    `Bâtiment de ${roof.area_m2} m² d'emprise au sol${where}${roof.roof_type && roof.roof_type !== 'indéterminé' ? `, toiture en ${roof.roof_type}` : ''}.`,
-    roof.diagnostic ? `Constat sur la vue aérienne IGN : ${roof.diagnostic}` : null,
-    roof.lichen ? 'Présence de mousses / lichens visible.' : null,
-    roof.contact_search?.contact_role && roof.contact_name ? `Destinataire : ${roof.contact_name}, ${roof.contact_search.contact_role}.` : null
-  ].filter(Boolean).join(' ')
-  return { context, industry: solarOffer ? 'Panneaux solaires' : 'Toiture industrielle', csv_batch: solarOffer ? 'solaire-detecte' : 'toitures' }
-}
-
 // offer: 'toiture' (roof cleaning pitch) or 'solaire' (PV panel cleaning pitch)
 async function roofToProspect(supabase, id, offer = 'toiture') {
-  const solarOffer = offer === 'solaire'
   const { data: roof, error: e1 } = await supabase.from('roof_leads').select('*').eq('id', id).single()
   if (e1) return { error: e1.message }
   if (roof.prospect_id) return { error: 'Déjà transmis à Chloé.' }
@@ -901,7 +882,7 @@ async function roofToProspect(supabase, id, offer = 'toiture') {
   const company = String(roof.contact_company || '').trim()
   if (!EMAIL_RE.test(email)) return { error: "Pas d'email de contact." }
   if (!company) return { error: "Entreprise à démarcher non renseignée." }
-  if (solarOffer && !roof.solar) return { error: "Pas de panneaux solaires détectés sur ce bâtiment (analyse détaillée)." }
+  if (offer === 'solaire' && !roof.solar && !notesWantSolar(roof)) return { error: "Pas de panneaux solaires détectés sur ce bâtiment (analyse détaillée)." }
 
   const [{ data: existing }, { data: unsub }] = await Promise.all([
     supabase.from('prospects').select('id, status').eq('email', email).limit(1),
@@ -910,6 +891,8 @@ async function roofToProspect(supabase, id, offer = 'toiture') {
   if (unsub?.length) return { error: 'Adresse dans les exclusions (désinscrite ou « pas intéressé »).' }
   if (existing?.length) return { error: 'Adresse déjà dans les prospects.' }
 
+  // Nordine's note on the roof card wins: « panneaux solaires » there switches the pitch
+  const solarOffer = offer === 'solaire' || notesWantSolar(roof)
   const pitch = roofPitch(roof, solarOffer)
 
   const { data: prospect, error: e2 } = await supabase.from('prospects').insert({
