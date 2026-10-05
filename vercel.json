@@ -24,12 +24,48 @@
       "schedule": "0 8 * * 1"
     },
     {
-      "path": "/api/agents/tasks?agent=outreach&action=send-batch",
-      "schedule": "30 6 * * *"
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=6",
+      "schedule": "5 6 * * *"
     },
     {
-      "path": "/api/agents/tasks?agent=outreach&action=send-batch&pass=2",
-      "schedule": "30 7 * * *"
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=7",
+      "schedule": "5 7 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=8",
+      "schedule": "5 8 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=9",
+      "schedule": "5 9 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=10",
+      "schedule": "5 10 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=11",
+      "schedule": "5 11 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=12",
+      "schedule": "5 12 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=13",
+      "schedule": "5 13 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=14",
+      "schedule": "5 14 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=15",
+      "schedule": "5 15 * * *"
+    },
+    {
+      "path": "/api/agents/tasks?agent=outreach&action=send-batch&slot=16",
+      "schedule": "5 16 * * *"
     },
     {
       "path": "/api/agents/tasks?agent=followup",

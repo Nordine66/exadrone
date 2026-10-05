@@ -12,7 +12,8 @@ const { logActivity } = require('../../lib/activity')
 const { instructionsPromptBlock } = require('../../lib/agent-memory')
 const { roofPitch, notesWantSolar, noteOf } = require('../../lib/roof-pitch')
 
-const FROM_ADDRESS = 'chloe@exadrone-enterprise.com'
+// A display name: a bare address looks like an automated sender
+const FROM_ADDRESS = 'Chloé - Exadrone Enterprise <chloe@exadrone-enterprise.com>'
 // chloe@ isn't connected to an inbox anyone actually reads (no MX/inbound
 // routing set up for it yet — see api/agents/inbound-email.js's own "once
 // MX points to Resend" note); only contact@ forwards to a real mailbox.
@@ -517,7 +518,7 @@ Structure imposée (80 à 120 mots, 4 paragraphes courts maximum) :
 Interdits : le prix de notre prestation, « un bel investissement » ou toute flatterie, « n'hésitez pas », « je me permets », les superlatifs, le jargon, les listes à puces, toute info absente des données fournies.
 
 Règles :
-- Objet : court (moins de 60 caractères), concret, qui intrigue — idéalement le montant annuel perdu ou la commune, sous forme de question si c'est un chiffre (ex. « Tautavel : 3 000 à 10 000 €/an perdus sur vos panneaux ? »)
+- Objet : court (moins de 60 caractères), concret, qui intrigue — idéalement la commune ou l'installation, SANS aucun chiffre, montant, « % » ni « € » (ex. « Tautavel : vos panneaux solaires vus du ciel », « Une question sur vos panneaux solaires »). Les chiffres vont dans le corps, jamais dans l'objet.
 - Si le prospect indique « Photo aérienne : oui », la vue aérienne IGN est insérée automatiquement juste après ton premier paragraphe : tu peux l'évoquer une seule fois (« la vue aérienne ci-dessous »). Sinon, n'évoque aucune image.
 - Formule d'appel : « Bonjour, » puis directement le constat
 - Signature : "Chloé — Exadrone Enterprise"
@@ -880,6 +881,7 @@ const DRAFT_CONCURRENCY = 4
 const BATCH_TIME_BUDGET_MS = 230 * 1000
 
 async function handleSendBatch(req, res, supabase, { ids = null } = {}) {
+  const paced = isCronCall(req)
   const [settings, agent] = await Promise.all([getSettings(supabase), getAgent(supabase, 'chloe')])
 
   if (settings.paused_all) return res.status(200).json({ sent: 0, reason: 'Tous les agents sont en pause' })
@@ -890,7 +892,7 @@ async function handleSendBatch(req, res, supabase, { ids = null } = {}) {
     return res.status(200).json({ sent: 0, reason: "Un lot est déjà en cours d'envoi — réessayez dans quelques minutes." })
   }
   try {
-    return res.status(200).json(await sendBatch(supabase, settings, agent, { ids }))
+    return res.status(200).json(await sendBatch(supabase, settings, agent, { ids, paced }))
   } catch (e) {
     console.error('Chloé batch error:', e)
     return res.status(500).json({ error: e.message })
@@ -899,11 +901,41 @@ async function handleSendBatch(req, res, supabase, { ids = null } = {}) {
   }
 }
 
+// Spam filters flag subjects with money, percentages, shouting or exclamation
+// marks. Anything like that is replaced by a sober subject for the pitch.
+function cleanSubject(subject, prospect) {
+  let s = String(subject || '').replace(/!+/g, '').replace(/\s{2,}/g, ' ').trim()
+  const shouting = (s.match(/[A-ZÀ-Ý]{4,}/g) || []).some(w => !/^(EPDM|PVC|IGN|DRAC|CRMH|BTP)$/.test(w))
+  if (/[%€$]|\b(gratuit|urgent|offre spéciale|promo)\b/i.test(s) || shouting || s.length > 80) {
+    s = isSubcontractProspect(prospect) ? 'Sous-traitance du nettoyage de vos parcs solaires'
+      : isRoofProspect(prospect) ? `${prospect.company_name} : votre toiture vue du ciel`
+      : isSolarProspect(prospect) ? 'Une question sur vos panneaux solaires'
+      : isHeritageProspect(prospect) ? 'Entretien de monuments par drone'
+      : usesMairiePitch(prospect) ? 'Entretien de vos bâtiments communaux par drone'
+      : `Exadrone Enterprise — ${prospect.company_name}`
+  }
+  return s
+}
+
+// The automatic sends are spread over the day: one cron per hour from 06:00 to
+// 16:00 UTC (8 h - 18 h in Paris in summer). Each run only sends what keeps
+// Chloé on a straight line towards the daily limit at that hour, so the 90
+// emails leave in small groups (~8 per hour) instead of one burst; a missed
+// run is caught up by the next one.
+const SEND_WINDOW_UTC = { start: 6, end: 16 }
+function pacedAllowance(dailyLimit, sentToday, now = new Date()) {
+  const slots = SEND_WINDOW_UTC.end - SEND_WINDOW_UTC.start + 1
+  const slot = now.getUTCHours() - SEND_WINDOW_UTC.start + 1
+  if (slot < 1) return 0
+  const target = Math.ceil(dailyLimit * Math.min(slot, slots) / slots)
+  return Math.max(0, target - sentToday)
+}
+
 // Prospects ticked by hand in the « Envoi manuel » tab per click: each email is
 // written by the AI, so the batch must finish inside the function's 300 s.
 const MANUAL_SEND_MAX = 40
 
-async function sendBatch(supabase, settings, agent, { ids = null } = {}) {
+async function sendBatch(supabase, settings, agent, { ids = null, paced = false } = {}) {
   const deadline = Date.now() + BATCH_TIME_BUDGET_MS
   let prospects
   if (ids) {
@@ -921,8 +953,13 @@ async function sendBatch(supabase, settings, agent, { ids = null } = {}) {
       .from('outreach_emails').select('id', { count: 'exact', head: true })
       .eq('agent_slug', 'chloe').eq('sequence_step', 0).eq('status', 'sent').gte('sent_at', todayStart)
 
-    const remaining = Math.max(0, dailyLimit - (sentToday || 0))
+    let remaining = Math.max(0, dailyLimit - (sentToday || 0))
     if (remaining === 0) return { sent: 0, reason: 'Limite quotidienne atteinte' }
+    // Cron runs follow the hourly pace; the dashboard button sends what's left at once
+    if (paced) {
+      remaining = Math.min(remaining, pacedAllowance(dailyLimit, sentToday || 0))
+      if (remaining === 0) return { sent: 0, reason: 'Rythme horaire respecté, prochain envoi à la prochaine heure' }
+    }
 
     // Send order: 1) prospects Nordine marked priority (own imports, « Envoi
     // manuel » tab), 2) roofs picked in the "Toitures" tab (qualified by hand),
@@ -1014,6 +1051,7 @@ async function sendBatch(supabase, settings, agent, { ids = null } = {}) {
       let subject = (subjectMatch?.[1] || `Exadrone Enterprise — ${prospect.company_name}`).trim()
       // Mairie emails land at the front desk: the subject says at once who
       // it is for, so it gets forwarded (Hugo's relances keep it via "Re:").
+      subject = cleanSubject(subject, prospect)
       if (usesMairiePitch(prospect) && !/services techniques/i.test(subject)) subject = `À l'attention des services techniques — ${subject}`
       const draftHtml = raw.split('---').slice(1).join('---').trim() || `<p>Bonjour ${prospect.contact_name || ''},</p>`
       const bodyHtml = photoUrl ? insertRoofPhoto(draftHtml, photoUrl) : draftHtml
