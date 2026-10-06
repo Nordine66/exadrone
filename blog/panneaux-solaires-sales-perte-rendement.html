@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panneaux solaires sales : quelle perte de rendement ? | Exadrone</title>
+<meta name="description" content="Poussière, pollen, fientes, mousses : combien de production perdent des panneaux solaires sales, comment le repérer et à quelle fréquence nettoyer une installation.">
+<link rel="canonical" href="https://exadrone-enterprise.com/blog/panneaux-solaires-sales-perte-rendement.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Exadrone Enterprise">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Panneaux solaires sales : quelle perte de rendement ? | Exadrone">
+<meta property="og:description" content="Poussière, pollen, fientes, mousses : combien de production perdent des panneaux solaires sales, comment le repérer et à quelle fréquence nettoyer une installation.">
+<meta property="og:url" content="https://exadrone-enterprise.com/blog/panneaux-solaires-sales-perte-rendement.html">
+<meta property="og:image" content="https://exadrone-enterprise.com/images/action/action-photovoltaique.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="675">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Panneaux solaires sales : quelle perte de rendement ? | Exadrone">
+<meta name="twitter:description" content="Poussière, pollen, fientes, mousses : combien de production perdent des panneaux solaires sales, comment le repérer et à quelle fréquence nettoyer une installation.">
+<meta name="twitter:image" content="https://exadrone-enterprise.com/images/action/action-photovoltaique.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="/styles.css?v=20260727">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Panneaux solaires sales : quelle perte de rendement ?",
+  "description": "Poussière, pollen, fientes, mousses : combien de production perdent des panneaux solaires sales, comment le repérer et à quelle fréquence nettoyer une installation.",
+  "image": "https://exadrone-enterprise.com/images/action/action-photovoltaique.jpg",
+  "datePublished": "2026-10-06",
+  "dateModified": "2026-10-06",
+  "author": {
+    "@type": "Organization",
+    "name": "Exadrone Enterprise",
+    "url": "https://exadrone-enterprise.com/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Exadrone Enterprise",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://exadrone-enterprise.com/images/og-cover.jpg"
+    }
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://exadrone-enterprise.com/blog/panneaux-solaires-sales-perte-rendement.html"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Accueil",
+      "item": "https://exadrone-enterprise.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Blog",
+      "item": "https://exadrone-enterprise.com/blog/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Panneaux solaires sales : quelle perte de rendement ?",
+      "item": "https://exadrone-enterprise.com/blog/panneaux-solaires-sales-perte-rendement.html"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Les panneaux solaires sales produisent-ils moins ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Oui : un panneau encrassé perd couramment 5 à 15 % de production, parfois davantage sur les installations peu inclinées. La pluie ne suffit pas à retirer les dépôts gras, les fientes ou les mousses."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "À quelle fréquence nettoyer des panneaux solaires ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "En général une à deux fois par an, plus souvent près des zones agricoles, routières ou industrielles. Le meilleur moment est avant le pic de production du printemps."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Peut-on nettoyer des panneaux solaires au karcher ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "C'est déconseillé : une pression trop forte et une eau calcaire peuvent abîmer le verre et laisser des traces. Une eau osmosée à pression adaptée, sans marcher sur les modules, est la méthode la plus sûre."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="grain"></div>
+<canvas class="ambient-canvas" id="ambientCanvas" aria-hidden="true"></canvas>
+<div class="ambient-hotspots" aria-hidden="true"></div>
+
+<header class="site-nav" id="siteNav">
+  <div class="nav-inner">
+    <a href="/index.html#top" class="nav-mark" aria-label="Accueil Exadrone Enterprise">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+        <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+        <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+        <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+        <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+      </svg>
+      <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+    </a>
+
+    <nav class="nav-links" id="navLinks">
+      <a href="/nettoyage-toiture" data-cursor="link">Toiture</a>
+      <a href="/nettoyage-facade" data-cursor="link">Façade</a>
+      <a href="/solaire" data-cursor="link">Solaire</a>
+      <a href="/collectivites-territoriales.html" data-cursor="link">Collectivités</a>
+      <a href="/tarifs" data-cursor="link">Tarifs</a>
+      <a href="/blog/" data-cursor="link">Blog</a>
+      <a href="/contact.html" class="nav-cta" data-cursor="link">Demander un devis</a>
+    </nav>
+
+    <button class="nav-toggle" id="navToggle" aria-label="Afficher le menu" aria-expanded="false">
+      <span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="article-main">
+    <div class="article-inner">
+      <p class="article-breadcrumb"><a href="/">Accueil</a> / <a href="/blog/">Blog</a> / Panneaux solaires sales</p>
+      <p class="eyebrow reveal" data-reveal>Photovoltaïque</p>
+      <h1 class="article-title">Panneaux solaires sales : quelle perte de rendement ?</h1>
+      <p class="article-meta">Publié le 2026-10-06 · Exadrone Enterprise</p>
+
+      <figure class="article-cover reveal" data-reveal data-delay="2">
+        <picture>
+          <source srcset="/images/action/action-photovoltaique.webp" type="image/webp">
+          <img src="/images/action/action-photovoltaique.jpg" alt="Rangées de panneaux photovoltaïques encrassés vues de près" width="1200" height="675" loading="eager" fetchpriority="high">
+        </picture>
+      </figure>
+
+      <div class="article-body">
+<p>Un panneau solaire sale produit moins : la poussière, le pollen, les fientes ou les mousses font écran à la lumière. La perte est discrète, car l'installation continue de fonctionner, mais elle se compte chaque année en kilowattheures et en euros. Voici ce qu'il faut savoir pour décider quand nettoyer.</p>
+
+<h2>Combien de production perd un panneau encrassé ?</h2>
+<h3>Une perte courante de 5 à 15 %</h3>
+<p>Un panneau encrassé perd couramment 5 à 15&nbsp;% de sa production, parfois davantage sur les installations peu inclinées, où la pluie ne rince presque rien. Sur une toiture de 1&nbsp;000&nbsp;m² de panneaux, cela représente plusieurs milliers de kilowattheures par an.</p>
+<h3>Les points chauds</h3>
+<p>Une salissure localisée (fiente, feuille, dépôt en bas de module) peut aussi créer un point chaud : la cellule masquée chauffe et vieillit plus vite. C'est une raison de plus de ne pas laisser les dépôts s'installer.</p>
+
+<h2>D'où vient l'encrassement</h2>
+<h3>L'environnement du site</h3>
+<p>Les sites proches de terres agricoles, d'axes routiers, de zones industrielles ou de carrières s'encrassent plus vite. Le pollen du printemps et les épisodes de sable laissent un voile sur toute la surface.</p>
+<h3>Les oiseaux et la végétation</h3>
+<p>Les fientes, très adhérentes, et les mousses le long des cadres résistent à la pluie. Les ombrières de parking et les toitures agricoles y sont particulièrement exposées.</p>
+
+<h2>Comment savoir s'il faut nettoyer</h2>
+<h3>Regarder les données de production</h3>
+<p>Comparez la production à ensoleillement équivalent d'une année sur l'autre, ou entre deux zones de la même installation. Une baisse progressive sans panne apparente signale souvent un encrassement.</p>
+<h3>Regarder les panneaux</h3>
+<p>Un voile gris ou beige, des traînées en bas des rangées, des dépôts aux angles des cadres : vus de près ou depuis le ciel, ces signes ne trompent pas.</p>
+
+<h2>Nettoyer sans abîmer les modules</h2>
+<h3>Les erreurs à éviter</h3>
+<p>Marcher sur les panneaux provoque des micro-fissures invisibles qui réduisent la production pour des années. L'eau calcaire laisse des traces, et les brosses dures ou les produits agressifs rayent le verre.</p>
+<h3>La solution par drone</h3>
+<p>Le nettoyage par drone utilise de l'eau osmosée, sans trace de calcaire ni micro-rayure, et personne ne marche sur les modules. Il se fait sans arrêt de production, de préférence tôt le matin ou en fin de journée. Le tarif est dégressif selon la surface : voir notre <a href="/solaire">nettoyage de panneaux solaires par drone</a>. En général, une à deux interventions par an suffisent, idéalement avant le pic de production du printemps.</p>
+
+<h2>Questions fréquentes</h2>
+<h3>Les panneaux solaires sales produisent-ils moins ?</h3>
+<p>Oui : un panneau encrassé perd couramment 5 à 15 % de production, parfois davantage sur les installations peu inclinées. La pluie ne suffit pas à retirer les dépôts gras, les fientes ou les mousses.</p>
+<h3>À quelle fréquence nettoyer des panneaux solaires ?</h3>
+<p>En général une à deux fois par an, plus souvent près des zones agricoles, routières ou industrielles. Le meilleur moment est avant le pic de production du printemps.</p>
+<h3>Peut-on nettoyer des panneaux solaires au karcher ?</h3>
+<p>C'est déconseillé : une pression trop forte et une eau calcaire peuvent abîmer le verre et laisser des traces. Une eau osmosée à pression adaptée, sans marcher sur les modules, est la méthode la plus sûre.</p>
+      </div>
+
+      <div class="article-cta reveal" data-reveal>
+        <h3>Combien perdent vos panneaux ?</h3>
+        <p>Indiquez la surface de panneaux : le devis est dégressif et chiffré en 30 secondes, sans arrêt de production.</p>
+        <a href="/solaire#estimate" class="btn btn-primary" data-cursor="link">Calculer mon devis solaire</a>
+      </div>
+
+<div class="article-related">
+  <h3>À lire aussi</h3>
+  <ul>
+      <li><a href="/blog/nettoyage-panneaux-solaires-par-drone.html">Nettoyage de panneaux solaires par drone</a></li>
+      <li><a href="/tarifs">Tous nos tarifs au m²</a></li>
+      <li><a href="/faq">FAQ : prix, assurance et réglementation</a></li>
+  </ul>
+</div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="nav-mark static">
+        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="14" cy="14" r="2.2" fill="currentColor"/>
+          <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
+          <circle cx="7" cy="21" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="21" r="1.5" fill="currentColor"/>
+          <line x1="14" y1="14" x2="8.3" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="8.3" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="8.3" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+          <line x1="14" y1="14" x2="19.7" y2="19.7" stroke="currentColor" stroke-width="0.75"/>
+        </svg>
+        <span class="brand-name"><span class="brand-exadrone">EXADRONE</span><span class="brand-enterprise">&nbsp;ENTERPRISE</span></span>
+      </span>
+      <p>Systèmes de Nettoyage Aérien de Précision</p>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Explorer</span>
+      <div class="footer-links">
+        <a href="/index.html#capabilities">Capacités</a>
+        <a href="/index.html#process">Processus</a>
+        <a href="/index.html#fleet">Drone</a>
+        <a href="/index.html#reliability">Fiabilité</a>
+        <a href="/tarifs">Tarifs</a>
+        <a href="/faq">FAQ</a>
+        <a href="/blog/">Blog</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Prestations &amp; secteurs</span>
+      <div class="footer-links">
+        <a href="/nettoyage-toiture">Nettoyage de toiture</a>
+        <a href="/nettoyage-facade">Nettoyage de façade</a>
+        <a href="/collectivites-territoriales.html">Collectivités &amp; mairies</a>
+        <a href="/entreprises-btp.html">Entreprises du BTP</a>
+        <a href="/renovation-facade.html">Rénovation de façade</a>
+        <a href="/marches-publics.html">Marchés publics</a>
+        <a href="/solaire">Photovoltaïque &amp; ombrières</a>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <span class="footer-col-title">Légal</span>
+      <div class="footer-links">
+        <a href="/mentions-legales.html">Mentions légales</a>
+        <a href="/cgv.html">CGV</a>
+        <a href="/politique-de-confidentialite.html">Confidentialité</a>
+        <a href="/politique-de-cookies.html">Cookies</a>
+        <button type="button" class="footer-link-btn" id="cookiePrefsBtn">Préférences cookies</button>
+      </div>
+    </div>
+
+    <div class="footer-meta">
+      <span>contact@exadrone-enterprise.com</span>
+      <span>© 2026 Exadrone Enterprise. Tous droits réservés.</span>
+    </div>
+  </div>
+</footer>
+
+<div class="cookie-banner" id="cookieBanner" role="dialog" aria-live="polite" aria-label="Gestion des cookies">
+  <div class="cookie-banner-inner">
+    <p>
+      Nous utilisons des cookies strictement nécessaires au fonctionnement du site et, si vous l'acceptez,
+      des cookies de mesure d'audience pour améliorer votre expérience.
+      <a href="/politique-de-cookies.html">En savoir plus</a>.
+    </p>
+    <div class="cookie-banner-actions">
+      <button type="button" class="btn btn-ghost btn-small" id="cookieReject">Refuser</button>
+      <button type="button" class="btn btn-ghost btn-small" id="cookieCustomize">Personnaliser</button>
+      <button type="button" class="btn btn-primary btn-small" id="cookieAccept">Accepter tout</button>
+    </div>
+  </div>
+</div>
+
+<a class="whatsapp-fab" href="https://wa.me/33671312706" target="_blank" rel="noopener" aria-label="Discuter avec Exadrone Enterprise sur WhatsApp">
+  <span class="whatsapp-fab-tooltip">WhatsApp</span>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.6 6.32A7.85 7.85 0 0 0 12.05 4C7.7 4 4.15 7.53 4.15 11.87c0 1.4.37 2.74 1.07 3.92L4 20l4.32-1.13a7.9 7.9 0 0 0 3.73.94h.01c4.34 0 7.88-3.53 7.88-7.87a7.8 7.8 0 0 0-2.34-5.62Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9.2 9.04c.1-.23.27-.23.43-.23h.37c.12 0 .27 0 .39.3.14.34.47 1.18.51 1.27.04.09.07.2 0 .31-.31.6-.66.86-.66.86s-.13.15-.02.36c.42.78 1.55 2 2.93 2.43.22.07.34.05.46-.08.13-.13.5-.59.64-.79.13-.2.27-.17.45-.1.18.07 1.15.55 1.35.65.2.1.33.15.38.23.05.09.05.5-.13.99-.18.49-1.04.96-1.45 1.02-.37.06-.83.08-1.34-.08a8.4 8.4 0 0 1-3.71-2.57c-1.4-1.5-1.95-2.85-2-3.07-.04-.21-.18-.7.13-1.3.2-.39.4-.55.55-.7Z" fill="currentColor"/>
+  </svg>
+</a>
+
+<script src="/script.js?v=20260927" defer></script>
+</body>
+</html>

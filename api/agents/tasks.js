@@ -202,6 +202,11 @@ ${SERVICE_PAGES_PROMPT}
   IMPORTANT : l'ancre de chaque lien nomme la prestation (ex. « nettoyage de toiture et démoussage », « prix du nettoyage de façade ») dans une phrase naturelle — jamais « en savoir plus », « cliquez ici » ni le nom de la page répété à l'identique d'un article à l'autre.
 - Chiffres concrets : ${BLOG_PRICE_TEXT}, devis adapté à toute taille de projet, réduction 30–50% vs échafaudage
 
+${/drone/i.test(topic.target_keyword) ? '' : `Mot-clé intermédiaire (la personne ne cherche pas encore un drone) :
+- N'écris pas « drone » dans le H1, le TITLE ni le SLUG
+- Traite d'abord le sujet de façon neutre et vraiment utile : méthodes existantes, coûts, risques, erreurs à éviter — comme un guide indépendant
+- N'amène le drone qu'à partir de la seconde moitié de l'article, comme la solution qui évite l'échafaudage, la nacelle, le cordiste ou de monter sur le toit, sans dénigrer les autres méthodes
+`}
 Ton : expert technique, pédagogique, rassurant pour décideurs publics et privés.
 
 Format de sortie : HTML valide avec uniquement h1, h2, h3, p, ul, li, strong, a (pas de html/head/body). Liens internes avec le chemin exact de la liste ci-dessus (ex. href="/nettoyage-toiture").

@@ -76,7 +76,9 @@
     { "source": "/solaire.html", "destination": "/solaire", "permanent": true },
     { "source": "/nettoyage-toiture.html", "destination": "/nettoyage-toiture", "permanent": true },
     { "source": "/nettoyage-facade.html", "destination": "/nettoyage-facade", "permanent": true },
-    { "source": "/blog/index.html", "destination": "/blog", "permanent": true }
+    { "source": "/blog/index.html", "destination": "/blog", "permanent": true },
+    { "source": "/tarifs.html", "destination": "/tarifs", "permanent": true },
+    { "source": "/faq.html", "destination": "/faq", "permanent": true }
   ],
   "rewrites": [
     {
@@ -90,6 +92,14 @@
     {
       "source": "/nettoyage-facade",
       "destination": "/nettoyage-facade.html"
+    },
+    {
+      "source": "/tarifs",
+      "destination": "/tarifs.html"
+    },
+    {
+      "source": "/faq",
+      "destination": "/faq.html"
     },
     {
       "source": "/sitemap.xml",

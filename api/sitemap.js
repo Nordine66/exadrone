@@ -13,6 +13,8 @@ const STATIC_URLS = [
   { loc: '/solaire', lastmod: '2026-09-29', changefreq: 'monthly', priority: '0.9' },
   { loc: '/nettoyage-toiture', lastmod: '2026-10-02', changefreq: 'monthly', priority: '0.9' },
   { loc: '/nettoyage-facade', lastmod: '2026-10-02', changefreq: 'monthly', priority: '0.9' },
+  { loc: '/tarifs', lastmod: '2026-10-06', changefreq: 'monthly', priority: '0.9' },
+  { loc: '/faq', lastmod: '2026-10-06', changefreq: 'monthly', priority: '0.8' },
   { loc: '/blog/', lastmod: TODAY, changefreq: 'weekly', priority: '0.9' },
   // Static blog articles (keep .html URLs for SEO continuity)
   { loc: '/blog/nettoyage-toiture-par-drone-avantages.html', lastmod: '2026-07-01', changefreq: 'yearly', priority: '0.7' },
@@ -31,6 +33,9 @@ const STATIC_URLS = [
   { loc: '/blog/cahier-des-charges-marche-public-nettoyage-facade-drone.html', lastmod: '2026-08-17', changefreq: 'yearly', priority: '0.8' },
   { loc: '/blog/drone-vs-nacelle-echafaudage-comparatif-couts-securite.html', lastmod: '2026-08-19', changefreq: 'yearly', priority: '0.8' },
   { loc: '/blog/maintenance-batiments-publics-drone.html', lastmod: '2026-08-24', changefreq: 'yearly', priority: '0.8' },
+  { loc: '/blog/perche-nacelle-cordiste-drone-nettoyage-hauteur.html', lastmod: '2026-10-06', changefreq: 'yearly', priority: '0.8' },
+  { loc: '/blog/mousse-toiture-degats-traitement.html', lastmod: '2026-10-06', changefreq: 'yearly', priority: '0.8' },
+  { loc: '/blog/panneaux-solaires-sales-perte-rendement.html', lastmod: '2026-10-06', changefreq: 'yearly', priority: '0.8' },
 ]
 
 function urlEntry({ loc, lastmod, changefreq, priority }) {
