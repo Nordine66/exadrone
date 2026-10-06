@@ -154,6 +154,8 @@
     </div>
     <div class="tt-actions" id="tt-batch" style="display:none">
       <span id="tt-count" style="font-size:.84rem;flex-basis:100%"></span>
+      <button class="tt-btn" id="tt-free" title="Adresse, parcelles, propriétaire, entreprises sur place, contact de la mairie et liens de recherche : sans IA, gratuit">Infos des 20 premiers ${freePill()}</button>
+      <span style="flex-basis:100%;height:0"></span>
       <b style="font-size:.8rem">1. Tri rapide</b>
       <button class="tt-btn" id="tt-screen" title="L'IA note les toits 9 par 9 sur une planche photo : beaucoup moins cher que l'analyse détaillée">Trier les toits</button>
       <span class="tt-mini" id="tt-screen-cost" style="margin:0"></span>
@@ -543,7 +545,7 @@
 
   // Server rows don't carry the scan-time fields (OSM class, free B2B
   // qualification): keep them from the row being replaced.
-  const CLIENT_FIELDS = ['osm_class', 'b2b', 'b2b_label', 'tint_roof', 'tint_tile_ratio', 'tint_dirt']
+  const CLIENT_FIELDS = ['osm_class', 'b2b', 'b2b_label', 'tint_roof', 'tint_tile_ratio', 'tint_dirt', 'mairie', 'free_at', 'citycode']
   function replaceRoof(roof) {
     for (const list of [state.scan, state.saved]) {
       const i = list.findIndex(r => r.osm_id === roof.osm_id)
@@ -945,7 +947,7 @@
   }
 
   function ownersHtml(r) {
-    if (!r.analyzed_at) return ''
+    if (!r.analyzed_at && !r.free_at) return ''
     const owners = r.owners || []
     const parcels = (r.parcels || []).map(p => `${p.section} ${p.numero}`).join(', ')
     const body = owners.length
@@ -955,10 +957,77 @@
   }
 
   function occupantsHtml(r) {
-    if (!r.analyzed_at) return ''
+    if (!r.analyzed_at && !r.free_at) return ''
     const occ = r.occupants || []
     if (!occ.length) return `<div class="tt-section"><h4>Entreprises à cette adresse</h4><div class="tt-sub">Aucune entreprise déclarée à proximité immédiate.</div></div>`
     return `<div class="tt-section"><h4>Entreprises à cette adresse (occupants possibles)</h4>${occ.slice(0, 4).map(o => companyBlock(o, o.name)).join('')}${occ.length > 4 ? `<div class="tt-sub">+ ${occ.length - 4} autre(s)</div>` : ''}</div>`
+  }
+
+  // 🆓 Everything free about the building, to search further by hand
+  const freePending = new Set()
+  function freeHtml(r) {
+    if (freePending.has(r.osm_id)) return '<div class="tt-section"><span class="tt-pending"><span class="spinner"></span> Recherche des infos gratuites (cadastre, propriétaire, entreprises, mairie)…</span></div>'
+    if (!r.free_at && !r.analyzed_at) return `<div style="margin-top:8px"><button class="tt-btn" data-act="free" data-osm="${esc(r.osm_id)}">Toutes les infos ${freePill()}</button></div>`
+    const m = r.mairie
+    const commune = r.commune || m?.name?.replace(/^Mairie - /, '') || ''
+    const owner = (r.owners || [])[0]
+    const name = owner?.company?.name || owner?.name || (r.occupants || [])[0]?.name || b2bLabel(r) || ''
+    const q = encodeURIComponent
+    const parcels = (r.parcels || []).slice(0, 8)
+    const links = name ? [
+      ['Annuaire des entreprises', owner?.company?.annuaire || `https://annuaire-entreprises.data.gouv.fr/rechercher?terme=${q(name)}`],
+      ['Pappers', `https://www.pappers.fr/recherche?q=${q(name)}`],
+      ['Societe.com', `https://www.societe.com/cgi-bin/search?champs=${q(name)}`],
+      ['Pages Jaunes', `https://www.pagesjaunes.fr/annuaire/chercherlespros?quoiqui=${q(name)}&ou=${q(commune)}`],
+      ['LinkedIn', `https://www.linkedin.com/search/results/all/?keywords=${q(name)}`],
+      ['Google : email', `https://www.google.com/search?q=${q(`"${name}" ${commune} email contact`)}`],
+      ['Google : services techniques', `https://www.google.com/search?q=${q(`${name} ${commune} services techniques responsable`)}`]
+    ] : []
+    return `<div class="tt-section"><h4>Infos ${freePill()}</h4>
+      ${r.address ? `<div class="tt-who">📍 ${esc(r.address)}</div>` : ''}
+      ${parcels.length ? `<div class="tt-sub">Parcelles cadastrales : ${parcels.map(p => `<a href="https://www.geoportail.gouv.fr/carte?c=${r.lon},${r.lat}&z=19&l0=ORTHOIMAGERY.ORTHOPHOTOS::GEOPORTAIL:OGC:WMTS(1)&l1=CADASTRALPARCELS.PARCELLAIRE_EXPRESS::GEOPORTAIL:OGC:WMTS(1)&permalink=yes" target="_blank" rel="noopener" title="${esc(p.idu || '')}">${esc(p.section)} ${esc(p.numero)}</a>${p.contenance ? ` (${Number(p.contenance).toLocaleString('fr-FR')} m²)` : ''}`).join(', ')}</div>` : ''}
+      ${m ? `<div class="tt-who" style="margin-top:6px"><b>🏛️ ${esc(m.name || 'Mairie')}</b>${m.phone ? ` · <a href="tel:${esc(m.phone.replace(/\s/g, ''))}">${esc(m.phone)}</a>` : ''}${m.email ? ` · <a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ''}${m.website ? ` · <a href="${esc(m.website)}" target="_blank" rel="noopener">site</a>` : ''}${m.address ? `<div class="tt-sub">${esc(m.address)}</div>` : ''}</div>` : ''}
+      ${links.length ? `<div class="tt-links" style="margin-top:6px">${links.map(([l, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>` : ''}
+      <div class="tt-links" style="margin-top:4px">
+        <a href="https://www.geoportail.gouv.fr/carte?c=${r.lon},${r.lat}&z=19&l0=ORTHOIMAGERY.ORTHOPHOTOS::GEOPORTAIL:OGC:WMTS(1)&permalink=yes" target="_blank" rel="noopener">Géoportail (photo IGN)</a>
+        <a href="https://remonterletemps.ign.fr/comparer?lon=${r.lon}&lat=${r.lat}&z=18" target="_blank" rel="noopener">Photos anciennes</a>
+        ${/^(way|relation)\//.test(r.osm_id) ? `<a href="https://www.openstreetmap.org/${esc(r.osm_id)}" target="_blank" rel="noopener">Fiche OpenStreetMap</a>` : ''}
+        ${r.free_at ? `<a href="#" data-act="free" data-osm="${esc(r.osm_id)}">Actualiser ${freePill()}</a>` : ''}
+      </div></div>`
+  }
+
+  async function loadFree(roofs) {
+    const todo = roofs.filter(r => !freePending.has(r.osm_id))
+    if (!todo.length) return
+    todo.forEach(r => freePending.add(r.osm_id)); render()
+    busy('free', `Infos gratuites : 0/${todo.length}…`)
+    const batches = []
+    for (let i = 0; i < todo.length; i += 4) batches.push(todo.slice(i, i + 4))
+    let done = 0
+    async function worker() {
+      while (batches.length) {
+        const batch = batches.shift()
+        const data = await api('/api/admin/roofs?action=free', { method: 'POST', retries: 1, timeout: 60000, body: JSON.stringify({ buildings: batch.map(strip) }) })
+        for (const d of data?.results || []) {
+          if (d.error) continue
+          const { osm_id, ...fields } = d
+          for (const r of state.scan.filter(x => x.osm_id === osm_id)) {
+            Object.assign(r, fields)
+            // Owner type from the cadastre, now known for sure
+            const o = (fields.owners || []).slice().sort((a, b) => (RANK[b.owner_class] || 0) - (RANK[a.owner_class] || 0))[0]
+            if (o && !r.analyzed_at) { r.b2b = o.owner_class; r.b2b_label = o.company?.name || o.name }
+          }
+        }
+        batch.forEach(r => freePending.delete(r.osm_id))
+        done += batch.length
+        busy('free', `Infos gratuites : ${done}/${todo.length}…`)
+        render()
+      }
+    }
+    await Promise.all([worker(), worker()])
+    busy('free', null)
+    if (!state.running) setStatus(`Infos gratuites chargées pour ${todo.length} bâtiment(s).`, 'ok')
+    render()
   }
 
   function emailBadge(r) {
@@ -1052,7 +1121,7 @@
     const prioClass = { HAUTE: 'badge-hot', MOYENNE: 'badge-warm', BASSE: 'badge-cold' }[r.priority] || 'badge-cold'
     const isPending = pending.has(r.osm_id)
     return `<div class="tt-card" data-osm="${esc(r.osm_id)}">
-      <div class="tt-photo">${photo ? `<img src="${esc(photo.url)}" alt="Vue aérienne IGN" loading="lazy"><svg viewBox="0 0 ${photo.px} ${photo.px}" preserveAspectRatio="none">${outline}</svg>` : ''}</div>
+      <div class="tt-photo">${photo ? `<img src="${esc(photo.url)}" alt="Vue aérienne IGN" loading="lazy" onerror="if(!this.dataset.retry){this.dataset.retry=1;var i=this;setTimeout(function(){i.src=i.src+'&_r=1'},1500+Math.random()*2500)}"><svg viewBox="0 0 ${photo.px} ${photo.px}" preserveAspectRatio="none">${outline}</svg>` : ''}</div>
       <div>
         <div class="tt-head">
           <div>
@@ -1076,6 +1145,7 @@
         ${b2bOf(r) ? `<div class="tt-badges" style="margin:4px 0 0"><span class="badge ${b2bOf(r) === 'collectivite' ? 'badge-new' : b2bOf(r) === 'entreprise' ? 'badge-warm' : 'badge-cold'}">${esc(B2B_LABEL[b2bOf(r)])}${b2bLabel(r) && !r.analyzed_at ? ` · ${esc(b2bLabel(r))}` : ''}</span></div>` : ''}
         ${ownersHtml(r)}
         ${occupantsHtml(r)}
+        ${freeHtml(r)}
         <div class="tt-links">
           <a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank" rel="noopener">Google Maps</a>
           <a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${r.lat},${r.lon}" target="_blank" rel="noopener">Street View</a>
@@ -1390,6 +1460,11 @@ Règles impératives :
   $('tt-screen').addEventListener('click', screenAll)
   $('tt-city').addEventListener('click', () => { state.preset = null; cityScan() })
   $('tt-gym').addEventListener('click', gymScan)
+  $('tt-free').addEventListener('click', () => {
+    const list = filtered(sorted(current())).filter(r => !r.free_at && !r.analyzed_at).slice(0, 20)
+    if (!list.length) return setStatus('Les 20 premiers toits affichés ont déjà leurs infos gratuites.', 'ok')
+    loadFree(list)
+  })
   $('tt-searches').addEventListener('click', e => {
     const close = e.target.closest('[data-close]')
     if (close) { e.stopPropagation(); return closeSearch(close.dataset.close) }
@@ -1454,6 +1529,11 @@ Règles impératives :
       const roof = current().find(r => r.id === btn.dataset.id)
       if (!roof) return
       try { await searchContact(roof, !!roof.contact_search); setStatus('Recherche de contact terminée.', 'ok') } catch (err) { setStatus(err.message, 'error') }
+      return
+    }
+    if (act === 'free') {
+      const roof = current().find(r => r.osm_id === btn.dataset.osm)
+      if (roof) await loadFree([roof])
       return
     }
     if (act === 'analyze' || act === 'reanalyze') {
