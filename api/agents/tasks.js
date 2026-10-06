@@ -754,6 +754,15 @@ async function handleOutreach(req, res) {
   const action = req.query?.action || req.body?.action
 
   if (action === 'send-batch') return handleSendBatch(req, res, supabase)
+  if (action === 'roof-draft' || action === 'roof-send') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+    try {
+      return res.status(200).json(action === 'roof-draft' ? await roofDraft(supabase, req.body || {}) : await roofSend(supabase, req.body || {}))
+    } catch (e) {
+      console.error(`${action} error:`, e)
+      return res.status(e.status || 500).json({ error: e.message })
+    }
+  }
   if (action === 'send-selected') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
     const ids = [...new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).filter(id => typeof id === 'string'))].slice(0, MANUAL_SEND_MAX)
@@ -765,6 +774,146 @@ async function handleOutreach(req, res) {
     return handleImport(req, res, supabase)
   }
   return res.status(400).json({ error: 'action requis : import, send-batch ou send-selected' })
+}
+
+// ── « Email de prospection » from a roof card (dashboard Toitures tab) ────────
+// Nordine picks a building, an address and a pitch; Chloé drafts the email
+// (same pitches as her batch, with the aerial photo), he reads / edits it,
+// then sends it right away. The roof is saved in roof_leads (for the photo
+// link and the history) and a prospect is created as « contacted » once the
+// email is sent, so Hugo relances it like any other.
+const fail = (status, message) => Object.assign(new Error(message), { status })
+
+// The building's row, created from the scan data when it was never analysed
+async function ensureRoofLead(supabase, b) {
+  if (!b || !/^(way|relation|node)\/\d+$/.test(String(b.osm_id || '')) || !Array.isArray(b.rings)) throw fail(400, 'Bâtiment invalide')
+  const { data: found } = await supabase.from('roof_leads').select('*').eq('osm_id', b.osm_id).maybeSingle()
+  if (found) {
+    // Free details gathered after the first save fill the gaps
+    const patch = {}
+    for (const k of ['address', 'commune']) if (!found[k] && b[k]) patch[k] = b[k]
+    for (const k of ['parcels', 'owners', 'occupants']) if (!(found[k] || []).length && Array.isArray(b[k]) && b[k].length) patch[k] = b[k]
+    if (!Object.keys(patch).length) return found
+    const { data } = await supabase.from('roof_leads').update(patch).eq('id', found.id).select('*').single()
+    return data || found
+  }
+  const row = {
+    osm_id: b.osm_id, name: b.name || null, usage: b.usage || null,
+    area_m2: Math.round(Number(b.area_m2) || 0), lat: Number(b.lat), lon: Number(b.lon), rings: b.rings,
+    address: b.address || null, commune: b.commune || null,
+    parcels: Array.isArray(b.parcels) ? b.parcels : [], owners: Array.isArray(b.owners) ? b.owners : [], occupants: Array.isArray(b.occupants) ? b.occupants : []
+  }
+  let { data, error } = await supabase.from('roof_leads').insert({ ...row, kind: b.kind === 'centrale' ? 'centrale' : 'batiment' }).select('*').single()
+  // kind arrives with migration 009
+  if (error && /kind/.test(error.message)) ({ data, error } = await supabase.from('roof_leads').insert(row).select('*').single())
+  if (error) throw fail(500, error.message)
+  return data
+}
+
+function roofProspect(roof, { email, company, contact_name, offer, note }) {
+  const solar = offer === 'solaire'
+  const pitch = roofPitch(roof, solar)
+  const owner = (roof.owners || [])[0]
+  const publicOwner = owner?.owner_class === 'collectivite'
+  const who = publicOwner
+    ? ` Le bâtiment appartient à ${owner.company?.name || owner.name} : l'email s'adresse à la mairie / au service technique propriétaire (bâtiment communal), pas à une entreprise.`
+    : owner ? ` Propriétaire selon le cadastre : ${owner.company?.name || owner.name}.` : ''
+  return {
+    company_name: company, contact_name: contact_name || null, email,
+    industry: pitch.industry, csv_batch: pitch.csv_batch, context: pitch.context + who,
+    chloe_note: note || null, website: null
+  }
+}
+
+async function roofPhotoLink(roof) {
+  const url = `${process.env.SITE_URL || 'https://exadrone-enterprise.com'}/api/roof-photo/${roof.id}`
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(45000) })
+    return res.ok && String(res.headers.get('content-type')).startsWith('image/') ? url : null
+  } catch (e) {
+    return null
+  }
+}
+
+function roofEmailInput(body) {
+  const email = normEmail(body.email)
+  const company = String(body.company || '').trim()
+  if (!EMAIL_RE.test(email)) throw fail(400, 'Adresse email invalide')
+  if (!company) throw fail(400, 'Indiquez l\'organisation à démarcher')
+  return { email, company, contact_name: String(body.contact_name || '').trim(), offer: body.offer === 'solaire' ? 'solaire' : 'toiture', note: String(body.note || '').trim().slice(0, 1500) }
+}
+
+// Nordine's absolute rule: an address already in the prospects, the send log,
+// the exclusions or handled on another building is never emailed again.
+async function roofEmailBlocked(supabase, email, roofId) {
+  const [{ data: unsub }, { data: existing }, sent, { data: otherRoof }] = await Promise.all([
+    supabase.from('unsubscribes').select('email').eq('email', email).limit(1),
+    supabase.from('prospects').select('id, status').eq('email', email).limit(1),
+    sentEmailSet(supabase),
+    supabase.from('roof_leads').select('id').eq('contact_email', email).neq('id', roofId).limit(1)
+  ])
+  if (unsub?.length) return 'Cette adresse est dans les exclusions (désinscrite ou « pas intéressé »).'
+  if (sent.has(email)) return 'Cette adresse a déjà reçu un email de notre part.'
+  if (existing?.length) return 'Cette adresse est déjà dans les prospects (Chloé s\'en occupe).'
+  if (otherRoof?.length) return 'Cette adresse est déjà le contact d\'un autre bâtiment de l\'onglet Toitures.'
+  return null
+}
+
+async function roofDraft(supabase, body) {
+  const input = roofEmailInput(body)
+  const roof = await ensureRoofLead(supabase, body.building)
+  const blocked = await roofEmailBlocked(supabase, input.email, roof.id)
+  if (blocked) throw fail(409, blocked)
+  const agent = await getAgent(supabase, 'chloe')
+  const prospect = roofProspect(roof, input)
+  const photoUrl = await roofPhotoLink(roof)
+  const solarFigures = input.offer === 'solaire' ? solarGainFigures(roof) : null
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const { subject, bodyHtml } = await draftFirstEmail(anthropic, agent, prospect, { photoUrl, solarFigures })
+  await supabase.from('roof_leads').update({ contact_email: input.email, contact_company: input.company, contact_name: input.contact_name || null, updated_at: new Date().toISOString() }).eq('id', roof.id)
+  return { roof_id: roof.id, subject, html: bodyHtml, photo: !!photoUrl, signature: chloeSignatureHtml() + outreachFooterHtml(input.email) }
+}
+
+async function roofSend(supabase, body) {
+  const input = roofEmailInput(body)
+  const subject = String(body.subject || '').trim().slice(0, 200)
+  const html = String(body.html || '').trim()
+  if (!subject || html.replace(/<[^>]+>/g, '').trim().length < 40) throw fail(400, 'Objet ou message vide')
+  const { data: roof } = await supabase.from('roof_leads').select('*').eq('id', String(body.roof_id || '')).maybeSingle()
+  if (!roof) throw fail(404, 'Bâtiment introuvable : régénérez le brouillon')
+  if (roof.prospect_id) throw fail(409, 'Un email a déjà été envoyé pour ce bâtiment.')
+  const blocked = await roofEmailBlocked(supabase, input.email, roof.id)
+  if (blocked) throw fail(409, blocked)
+
+  const settings = await getSettings(supabase)
+  const messageId = `<${crypto.randomUUID()}@exadrone-enterprise.com>`
+  // Sent first: the prospect and the log are only written for an email that left
+  const result = await sendManagedEmail({
+    settings, from: FROM_ADDRESS, to: input.email, subject,
+    html: html + chloeSignatureHtml() + outreachFooterHtml(input.email),
+    replyTo: REPLY_TO, headers: { 'Message-ID': messageId }
+  })
+  const now = new Date().toISOString()
+  const p = roofProspect(roof, input)
+  const row = { company_name: p.company_name, contact_name: p.contact_name, email: input.email, industry: p.industry, csv_batch: p.csv_batch, context: p.context, status: 'contacted', contacted_at: now, ...(p.chloe_note ? { chloe_note: p.chloe_note } : {}) }
+  let { data: prospect, error } = await supabase.from('prospects').insert(row).select('id').single()
+  // contacted_at / chloe_note arrive with migrations 010 / 012
+  if (error && /contacted_at|chloe_note/.test(error.message)) {
+    const { contacted_at, chloe_note, ...legacy } = row
+    ;({ data: prospect, error } = await supabase.from('prospects').insert(legacy).select('id').single())
+  }
+  if (error) console.error('Roof email: prospect insert failed after send:', error.message)
+  await insertOutreachEmail(supabase, {
+    prospect_id: prospect?.id || null, agent_slug: 'chloe', sequence_step: 0, subject,
+    body_html: html + chloeSignatureHtml() + outreachFooterHtml(input.email),
+    resend_message_id: result.messageId, email_message_id: messageId, recipient_email: input.email, status: 'sent'
+  })
+  const { data: updated } = await supabase.from('roof_leads').update({
+    prospect_id: prospect?.id || null, prospect_offer: input.offer, status: 'contacte',
+    contact_email: input.email, contact_company: input.company, contact_name: input.contact_name || null, updated_at: now
+  }).eq('id', roof.id).select('*').single()
+  await logActivity(supabase, { agent: 'chloe', kind: 'outreach_manual', summary: `Nordine (onglet Toitures) : email de prospection ${input.offer === 'solaire' ? 'panneaux solaires' : 'toiture'} envoyé à ${input.company} <${input.email}>${settings.test_mode ? ' (mode test)' : ''}` })
+  return { sent: true, test_mode: !!settings.test_mode, roof: updated || roof }
 }
 
 async function handleImport(req, res, supabase) {
@@ -937,6 +1086,36 @@ function pacedAllowance(dailyLimit, sentToday, now = new Date()) {
   return Math.max(0, target - sentToday)
 }
 
+// Chloé's first email (subject + HTML body with the aerial photo, without
+// signature and footer). Shared by the daily batch and the « Email de
+// prospection » of the Toitures tab, so both use exactly the same pitches.
+async function draftFirstEmail(anthropic, agent, prospect, { photoUrl = null, solarFigures = null } = {}) {
+  const draft = await anthropic.messages.create({
+    model: 'claude-sonnet-4-5',
+    max_tokens: 500,
+    system: (isSubcontractProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SUBCONTRACT
+      : isRoofProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_ROOF
+      : isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
+      : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
+      : usesMairiePitch(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE
+      : CHLOE_EMAIL_SYSTEM_PROMPT) + ((prospect.chloe_note || (prospect.context && /Note de Nordine/.test(prospect.context))) ? '\n\nLe contexte du prospect contient une « Note de Nordine » ou une « Consigne de Nordine » : elle est PRIORITAIRE sur tout le reste de ces consignes (type d\'installation, interlocuteur, éléments à mentionner ou à éviter). Applique-la scrupuleusement et ne la cite jamais telle quelle dans l\'email.' : '') + instructionsPromptBlock(agent),
+    messages: [{
+      role: 'user',
+      content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}${prospect.chloe_note ? `\n- Consigne de Nordine (prioritaire, à respecter) : ${prospect.chloe_note}` : ''}${isMapProspect(prospect) || isRoofProspect(prospect) ? `\n- Photo aérienne : ${photoUrl ? 'oui' : 'non'}` : ''}${solarFigures ? `\n- Chiffres : ${solarFigures}` : ''}`
+    }]
+  })
+  const raw = draft.content[0]?.text || ''
+  const subjectMatch = raw.match(/^SUBJECT:(.+)$/m)
+  let subject = (subjectMatch?.[1] || `Exadrone Enterprise — ${prospect.company_name}`).trim()
+  // Mairie emails land at the front desk: the subject says at once who
+  // it is for, so it gets forwarded (Hugo's relances keep it via "Re:").
+  subject = cleanSubject(subject, prospect)
+  if (usesMairiePitch(prospect) && !/services techniques/i.test(subject)) subject = `À l'attention des services techniques — ${subject}`
+  const draftHtml = raw.split('---').slice(1).join('---').trim() || `<p>Bonjour ${prospect.contact_name || ''},</p>`
+  const bodyHtml = photoUrl ? insertRoofPhoto(draftHtml, photoUrl) : draftHtml
+  return { subject, bodyHtml }
+}
+
 // Prospects ticked by hand in the « Envoi manuel » tab per click: each email is
 // written by the AI, so the batch must finish inside the function's 300 s.
 const MANUAL_SEND_MAX = 40
@@ -1038,29 +1217,7 @@ async function sendBatch(supabase, settings, agent, { ids = null, paced = false 
       }
       const photoUrl = isMapProspect(prospect) ? await roofPhotoUrl(supabase, prospect) : null
       const solarFigures = !isSubcontractProspect(prospect) && isSolarProspect(prospect) && isMapProspect(prospect) ? solarGainFigures(await solarRoof(supabase, prospect)) : null
-      const draft = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 500,
-        system: (isSubcontractProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SUBCONTRACT
-          : isRoofProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_ROOF
-          : isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
-          : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
-          : usesMairiePitch(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE
-          : CHLOE_EMAIL_SYSTEM_PROMPT) + ((prospect.chloe_note || (prospect.context && /Note de Nordine/.test(prospect.context))) ? '\n\nLe contexte du prospect contient une « Note de Nordine » ou une « Consigne de Nordine » : elle est PRIORITAIRE sur tout le reste de ces consignes (type d\'installation, interlocuteur, éléments à mentionner ou à éviter). Applique-la scrupuleusement et ne la cite jamais telle quelle dans l\'email.' : '') + instructionsPromptBlock(agent),
-        messages: [{
-          role: 'user',
-          content: `Prospect :\n- Entreprise : ${prospect.company_name}\n- Contact : ${prospect.contact_name || 'inconnu'}\n- Secteur : ${prospect.industry || 'inconnu'}\n- Site web : ${prospect.website || 'inconnu'}${prospect.context ? `\n- Contexte : ${prospect.context}` : ''}${prospect.chloe_note ? `\n- Consigne de Nordine (prioritaire, à respecter) : ${prospect.chloe_note}` : ''}${isMapProspect(prospect) || isRoofProspect(prospect) ? `\n- Photo aérienne : ${photoUrl ? 'oui' : 'non'}` : ''}${solarFigures ? `\n- Chiffres : ${solarFigures}` : ''}`
-        }]
-      })
-      const raw = draft.content[0]?.text || ''
-      const subjectMatch = raw.match(/^SUBJECT:(.+)$/m)
-      let subject = (subjectMatch?.[1] || `Exadrone Enterprise — ${prospect.company_name}`).trim()
-      // Mairie emails land at the front desk: the subject says at once who
-      // it is for, so it gets forwarded (Hugo's relances keep it via "Re:").
-      subject = cleanSubject(subject, prospect)
-      if (usesMairiePitch(prospect) && !/services techniques/i.test(subject)) subject = `À l'attention des services techniques — ${subject}`
-      const draftHtml = raw.split('---').slice(1).join('---').trim() || `<p>Bonjour ${prospect.contact_name || ''},</p>`
-      const bodyHtml = photoUrl ? insertRoofPhoto(draftHtml, photoUrl) : draftHtml
+      const { subject, bodyHtml } = await draftFirstEmail(anthropic, agent, prospect, { photoUrl, solarFigures })
       const fullHtml = bodyHtml + chloeSignatureHtml() + outreachFooterHtml(prospect.email)
       const emailMessageId = `<${crypto.randomUUID()}@exadrone-enterprise.com>`
 

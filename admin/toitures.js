@@ -105,6 +105,13 @@
     .tt-light[data-s=error]{border-color:rgba(248,113,113,.55);color:var(--text)}
     .tt-light[data-s=error] i{background:#f87171;box-shadow:0 0 8px #f87171}
     @keyframes tt-spin{to{transform:rotate(360deg)}}
+    .tt-mail summary{cursor:pointer;list-style:none}.tt-mail summary::-webkit-details-marker{display:none}
+    .tt-mail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:8px 0}
+    .tt-mail-grid input,.tt-mail-grid select,.tt-mail textarea,.tt-mail-subject{width:100%;box-sizing:border-box;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:.82rem;font-family:var(--font-body)}
+    .tt-mail-grid label{display:block;font-size:.72rem;color:var(--muted);margin-bottom:3px}
+    .tt-mail-body{background:#fff;color:#1e293b;border-radius:8px;padding:14px 16px;font:14px/1.55 -apple-system,sans-serif;max-height:460px;overflow:auto;margin-top:8px;outline:none}
+    .tt-mail-body img{max-width:100%;height:auto}.tt-mail-body:focus{box-shadow:0 0 0 2px rgba(59,130,246,.6)}
+    .tt-mail-sign{background:#fff;color:#64748b;border-radius:0 0 8px 8px;padding:0 16px 10px;font:12px/1.5 -apple-system,sans-serif;margin-top:-6px;opacity:.85}
     .tt-searches{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
     .tt-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:99px;border:1px solid var(--border);background:var(--surface2);font-size:.8rem;cursor:pointer;color:var(--muted)}
     .tt-chip b{font-weight:600;color:var(--text)}
@@ -1030,6 +1037,77 @@
     render()
   }
 
+  // ✉️ Prospecting email from the card: Chloé drafts it (same pitches as her
+  // batch, aerial photo included), Nordine edits, then sends it at once.
+  const mailDrafts = new Map()
+  function mailState(r) {
+    if (!mailDrafts.has(r.osm_id)) {
+      const owner = (r.owners || [])[0]
+      const publicOwner = b2bOf(r) === 'collectivite'
+      mailDrafts.set(r.osm_id, {
+        email: r.contact_email || (publicOwner ? r.mairie?.email || '' : ''),
+        company: r.contact_company || owner?.company?.name || owner?.name || b2bLabel(r) || (publicOwner ? r.mairie?.name || '' : ''),
+        contact_name: r.contact_name || '',
+        offer: isSolar() || r.solar ? 'solaire' : 'toiture',
+        note: '', subject: '', html: '', signature: '', roof_id: null, busy: false, msg: '', kind: ''
+      })
+    }
+    return mailDrafts.get(r.osm_id)
+  }
+  function mailHtml(r) {
+    if (r.prospect_id || r.status === 'contacte') return ''
+    const m = mailState(r)
+    const o = esc(r.osm_id)
+    const field = (k, label, type = 'text', ph = '') => `<div><label>${label}</label><input data-m="${k}" data-osm="${o}" type="${type}" value="${esc(m[k])}" placeholder="${esc(ph)}"></div>`
+    return `<details class="tt-section tt-mail" data-osm="${o}" ${m.open || m.html || m.busy ? 'open' : ''}><summary><h4>✉️ Email de prospection ${costPill('≈ 1 ct')}</h4></summary>
+      <div class="tt-mail-grid">
+        ${field('email', 'Destinataire', 'email', r.mairie?.email ? `ex. ${r.mairie.email}` : 'adresse@exemple.fr')}
+        ${field('company', 'Organisation')}
+        ${field('contact_name', 'Nom du contact (facultatif)')}
+        <div><label>Argumentaire</label><select data-m="offer" data-osm="${o}"><option value="toiture" ${m.offer === 'toiture' ? 'selected' : ''}>Toiture sale (démoussage)</option><option value="solaire" ${m.offer === 'solaire' ? 'selected' : ''}>Panneaux solaires</option></select></div>
+      </div>
+      <textarea data-m="note" data-osm="${o}" rows="2" placeholder="Consigne pour Chloé (facultatif) : ex. « gymnase vu sur place, tuiles très noircies, proposer un passage gratuit »">${esc(m.note)}</textarea>
+      <div class="tt-form-actions" style="margin-top:8px">
+        <button class="tt-btn" data-act="mail-draft" data-osm="${o}" ${m.busy ? 'disabled' : ''}>${m.html ? 'Régénérer' : 'Générer l\'email avec la photo'} ${costPill('≈ 1 ct')}</button>
+        ${m.busy ? '<span class="tt-pending"><span class="spinner"></span> Chloé rédige l\'email…</span>' : ''}
+      </div>
+      ${m.html ? `
+        <input class="tt-mail-subject" data-m="subject" data-osm="${o}" value="${esc(m.subject)}" style="margin-top:10px;font-weight:600">
+        <div class="tt-mail-body" contenteditable="true" data-m="html" data-osm="${o}" title="Cliquez dans le texte pour le modifier">${m.html}</div>
+        <div class="tt-mail-sign">${m.signature}</div>
+        <div class="tt-form-actions" style="margin-top:8px">
+          <button class="btn-primary btn-sm" data-act="mail-send" data-osm="${o}" ${m.busy ? 'disabled' : ''}>Envoyer l'email maintenant</button>
+          <span class="tt-sub">Texte modifiable ci-dessus · Hugo relancera s'il n'y a pas de réponse</span>
+        </div>` : ''}
+      ${m.msg ? `<div class="tt-status" data-kind="${m.kind}" style="margin-top:6px">${esc(m.msg)}</div>` : ''}
+    </details>`
+  }
+  const mailBuilding = (r) => ({ ...strip(r), kind: r.kind, address: r.address, commune: r.commune, parcels: r.parcels, owners: r.owners, occupants: r.occupants })
+  async function mailDraft(r) {
+    const m = mailState(r)
+    if (!m.email || !m.company) { m.msg = 'Indiquez au moins le destinataire et l\'organisation (cliquez sur « Toutes les infos » pour récupérer l\'email de la mairie).'; m.kind = 'error'; return renderMail() }
+    m.busy = true; m.msg = ''; renderMail()
+    const data = await api('/api/agents/outreach?action=roof-draft', { method: 'POST', timeout: 120000, body: JSON.stringify({ building: mailBuilding(r), email: m.email, company: m.company, contact_name: m.contact_name, offer: m.offer, note: m.note }) })
+    m.busy = false
+    if (data.error) { m.msg = data.error; m.kind = 'error' }
+    else { Object.assign(m, { roof_id: data.roof_id, subject: data.subject, html: data.html, signature: data.signature, msg: data.photo ? 'Brouillon prêt, avec la photo aérienne. Relisez puis envoyez.' : 'Brouillon prêt (photo aérienne indisponible pour le moment). Relisez puis envoyez.', kind: 'ok' }); r.id = r.id || data.roof_id }
+    renderMail()
+  }
+  async function mailSend(r) {
+    const m = mailState(r)
+    if (!m.html || !m.roof_id) return
+    if (!confirm(`Envoyer cet email à ${m.email} (${m.company}) ?`)) return
+    m.busy = true; m.msg = 'Envoi…'; m.kind = ''; renderMail()
+    const data = await api('/api/agents/outreach?action=roof-send', { method: 'POST', timeout: 90000, body: JSON.stringify({ roof_id: m.roof_id, email: m.email, company: m.company, contact_name: m.contact_name, offer: m.offer, note: m.note, subject: m.subject, html: m.html }) })
+    m.busy = false
+    if (data.error) { m.msg = data.error; m.kind = 'error'; return renderMail() }
+    replaceRoof({ ...data.roof, photo: r.photo })
+    mailDrafts.delete(r.osm_id)
+    setStatus(`Email envoyé à ${m.email}${data.test_mode ? ' (mode test : redirigé vers votre boîte)' : ''}. Il est visible dans « Emails envoyés », et Hugo relancera sans réponse.`, 'ok')
+    renderMail()
+  }
+  function renderMail() { document.activeElement?.blur?.(); render() }
+
   function emailBadge(r) {
     const cs = r.contact_search
     if (contactPending.has(r.id)) return '<span class="tt-pending"><span class="spinner"></span> Recherche sur le web…</span>'
@@ -1146,6 +1224,7 @@
         ${ownersHtml(r)}
         ${occupantsHtml(r)}
         ${freeHtml(r)}
+        ${mailHtml(r)}
         <div class="tt-links">
           <a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank" rel="noopener">Google Maps</a>
           <a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${r.lat},${r.lon}" target="_blank" rel="noopener">Street View</a>
@@ -1460,6 +1539,20 @@ Règles impératives :
   $('tt-screen').addEventListener('click', screenAll)
   $('tt-city').addEventListener('click', () => { state.preset = null; cityScan() })
   $('tt-gym').addEventListener('click', gymScan)
+  const syncMail = (e) => {
+    const el = e.target.closest('[data-m]')
+    if (!el) return
+    const m = mailDrafts.get(el.dataset.osm)
+    if (!m) return
+    m[el.dataset.m] = el.dataset.m === 'html' ? el.innerHTML : el.value
+  }
+  $('tt-list').addEventListener('input', syncMail)
+  // Keep the email block open across re-renders (toggle doesn't bubble: capture)
+  $('tt-list').addEventListener('toggle', e => {
+    const d = e.target
+    if (d.classList?.contains('tt-mail')) { const m = mailDrafts.get(d.dataset.osm); if (m) m.open = d.open }
+  }, true)
+  $('tt-list').addEventListener('change', syncMail)
   $('tt-free').addEventListener('click', () => {
     const list = filtered(sorted(current())).filter(r => !r.free_at && !r.analyzed_at).slice(0, 20)
     if (!list.length) return setStatus('Les 20 premiers toits affichés ont déjà leurs infos gratuites.', 'ok')
@@ -1529,6 +1622,11 @@ Règles impératives :
       const roof = current().find(r => r.id === btn.dataset.id)
       if (!roof) return
       try { await searchContact(roof, !!roof.contact_search); setStatus('Recherche de contact terminée.', 'ok') } catch (err) { setStatus(err.message, 'error') }
+      return
+    }
+    if (act === 'mail-draft' || act === 'mail-send') {
+      const roof = current().find(r => r.osm_id === btn.dataset.osm)
+      if (roof) await (act === 'mail-draft' ? mailDraft(roof) : mailSend(roof))
       return
     }
     if (act === 'free') {
