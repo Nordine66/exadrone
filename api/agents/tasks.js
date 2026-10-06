@@ -120,7 +120,8 @@ const SERVICE_PAGES_PROMPT = SERVICE_PAGES
 const BLOG_PRICE_TEXT = (() => {
   const cheapest = pricing.getCheapestService()
   const fmt = (n) => n.toFixed(2).replace('.', ',')
-  return `à partir de ${fmt(cheapest.priceHT)} € HT/m² selon le service (TVA 20% en sus, forfait minimum ${fmt(pricing.config.minimumOrderHT)} € HT)`
+  const grid = pricing.config.services.map(s => `${s.label.toLowerCase()} ${s.tiers ? pricing.describeTiers(s) : fmt(s.priceHT) + ' €'}`).join(' ; ')
+  return `tarifs dégressifs au m² selon la surface, le palier atteint s'appliquant à toute la surface (${grid} — HT/m², TVA 20% en sus, forfait minimum ${fmt(pricing.config.minimumOrderHT)} € HT ; pour un prix d'appel, citer « à partir de ${fmt(cheapest.priceHT)} € HT/m² »)`
 })()
 
 // Consolidates blog-writer/followup/outreach into one function to stay under

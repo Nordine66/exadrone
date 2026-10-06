@@ -6,11 +6,11 @@ Exadrone Enterprise ne s'adresse pas aux particuliers : les prestations sont ré
 
 ## Services
 
-- Nettoyage de toiture par drone (mousses, lichens, algues) — à partir de 6,90 € HT/m²
+- Nettoyage de toiture par drone (mousses, lichens, algues) — de 6,90 à 4,90 € HT/m², tarif dégressif selon la surface
 - Nettoyage de panneaux photovoltaïques par drone (toitures et centrales solaires) — tarif dégressif : 0,99 € HT/m² dès 2 000 m² de panneaux, 2,50 € HT/m² de 500 à 1 999 m², 4,90 € HT/m² sous 500 m²
-- Nettoyage de bardage par drone (métallique, bois, composite) — à partir de 7,50 € HT/m²
-- Nettoyage de façade par drone (enduit, pierre, brique) — à partir de 7,90 € HT/m²
-- Nettoyage de vitrages en hauteur par drone — à partir de 8,90 € HT/m²
+- Nettoyage de bardage par drone (métallique, bois, composite) — de 7,50 à 4,90 € HT/m², tarif dégressif selon la surface
+- Nettoyage de façade par drone (enduit, pierre, brique) — de 7,90 à 4,90 € HT/m², tarif dégressif selon la surface
+- Nettoyage de vitrages en hauteur par drone — de 8,90 à 4,90 € HT/m², tarif dégressif selon la surface
 - Cartographie et photogrammétrie de bâtiment ou de chantier par drone
 - Inspection de toiture, façade et bâtiment par drone
 - Sous-traitance drone pour entreprises de rénovation de façade

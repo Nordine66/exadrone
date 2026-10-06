@@ -4,25 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Prix nettoyage toiture et démoussage, devis en ligne | Exadrone</title>
-<meta name="description" content="Nettoyage de toiture et démoussage par drone dès 6,90 € HT/m² : tuile ou ardoise, traitement anti-mousse et hydrofuge sur demande. Devis chiffré en 30 secondes, sans échafaudage.">
+<meta name="description" content="Nettoyage de toiture et démoussage par drone de 6,90 à 4,90 € HT/m² selon la surface : tuile ou ardoise, traitement anti-mousse et hydrofuge sur demande. Devis chiffré en 30 secondes, sans échafaudage.">
 <link rel="canonical" href="https://exadrone-enterprise.com/nettoyage-toiture">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Exadrone Enterprise">
 <meta property="og:locale" content="fr_FR">
 <meta property="og:title" content="Prix nettoyage toiture et démoussage, devis en ligne | Exadrone">
-<meta property="og:description" content="Nettoyage de toiture et démoussage par drone dès 6,90 € HT/m² : tuile ou ardoise, traitement anti-mousse et hydrofuge sur demande. Devis chiffré en 30 secondes, sans échafaudage.">
+<meta property="og:description" content="Nettoyage de toiture et démoussage par drone de 6,90 à 4,90 € HT/m² selon la surface : tuile ou ardoise, traitement anti-mousse et hydrofuge sur demande. Devis chiffré en 30 secondes, sans échafaudage.">
 <meta property="og:url" content="https://exadrone-enterprise.com/nettoyage-toiture">
 <meta property="og:image" content="https://exadrone-enterprise.com/images/action/action-toiture.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Prix nettoyage toiture et démoussage, devis en ligne | Exadrone">
-<meta name="twitter:description" content="Nettoyage de toiture et démoussage par drone dès 6,90 € HT/m² : tuile ou ardoise, traitement anti-mousse et hydrofuge sur demande. Devis chiffré en 30 secondes, sans échafaudage.">
+<meta name="twitter:description" content="Nettoyage de toiture et démoussage par drone de 6,90 à 4,90 € HT/m² selon la surface : tuile ou ardoise, traitement anti-mousse et hydrofuge sur demande. Devis chiffré en 30 secondes, sans échafaudage.">
 <meta name="twitter:image" content="https://exadrone-enterprise.com/images/action/action-toiture.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500&display=swap"></noscript>
 <link rel="stylesheet" href="/styles.css?v=20261002">
-<!-- Prix (rate 6.9 € HT/m², minimum 390 € HT) repris de lib/pricing.js
+<!-- Prix (tarif dégressif 6,90 / 5,90 / 4,90 € HT/m², minimum 390 € HT) repris de lib/pricing.js
      ("toiture") — le tableau, la FAQ et ces données structurées sont
      statiques pour les moteurs de recherche : à mettre à jour avec pricing.js. -->
 <script type="application/ld+json">
@@ -32,7 +32,7 @@
   "@id": "https://exadrone-enterprise.com/nettoyage-toiture#service",
   "name": "Nettoyage de toiture et démoussage par drone",
   "serviceType": "Nettoyage et démoussage de toiture",
-  "description": "Nettoyage de toiture et démoussage par drone dès 6,90 € HT/m² : tuile ou ardoise, traitement anti-mousse et hydrofuge sur demande. Devis chiffré en 30 secondes, sans échafaudage.",
+  "description": "Nettoyage de toiture et démoussage par drone de 6,90 à 4,90 € HT/m² selon la surface : tuile ou ardoise, traitement anti-mousse et hydrofuge sur demande. Devis chiffré en 30 secondes, sans échafaudage.",
   "provider": {
     "@type": "ProfessionalService",
     "name": "Exadrone Enterprise",
@@ -55,7 +55,39 @@
         "priceCurrency": "EUR",
         "unitCode": "MTK",
         "unitText": "m²",
-        "valueAddedTaxIncluded": false
+        "valueAddedTaxIncluded": false,
+        "eligibleQuantity": {
+          "@type": "QuantitativeValue",
+          "maxValue": 499,
+          "unitCode": "MTK"
+        }
+      },
+      {
+        "@type": "UnitPriceSpecification",
+        "price": 5.9,
+        "priceCurrency": "EUR",
+        "unitCode": "MTK",
+        "unitText": "m²",
+        "valueAddedTaxIncluded": false,
+        "eligibleQuantity": {
+          "@type": "QuantitativeValue",
+          "minValue": 500,
+          "maxValue": 1999,
+          "unitCode": "MTK"
+        }
+      },
+      {
+        "@type": "UnitPriceSpecification",
+        "price": 4.9,
+        "priceCurrency": "EUR",
+        "unitCode": "MTK",
+        "unitText": "m²",
+        "valueAddedTaxIncluded": false,
+        "eligibleQuantity": {
+          "@type": "QuantitativeValue",
+          "minValue": 2000,
+          "unitCode": "MTK"
+        }
       },
       {
         "@type": "PriceSpecification",
@@ -98,7 +130,7 @@
       "name": "Quel est le prix d'un démoussage de toiture au m² ?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Le nettoyage et le démoussage de toiture par drone coûtent 6,90 € HT/m², avec un forfait minimum de 390 € HT. Pour 200 m² de toiture, comptez 1 380 € HT. Les traitements anti-mousse et hydrofuge sont chiffrés en complément."
+        "text": "Le nettoyage et le démoussage de toiture par drone suivent un tarif dégressif : 6,90 € HT/m² sous 500 m², 5,90 € dès 500 m² et 4,90 € dès 2 000 m², avec un forfait minimum de 390 € HT. Pour 200 m² de toiture, comptez 1 380 € HT. Les traitements anti-mousse et hydrofuge sont chiffrés en complément."
       }
     },
     {
@@ -190,7 +222,7 @@
     <div class="landing-inner">
       <p class="eyebrow reveal" data-reveal>Toiture · Démoussage</p>
       <h1 class="landing-title">Nettoyage de toiture et démoussage : prix et devis en ligne</h1>
-      <p class="landing-sub reveal" data-reveal data-delay="2">À partir de 6,90&nbsp;€ HT/m², par drone : personne ne monte sur le toit, aucun échafaudage. Tuile ou ardoise, avec traitement anti-mousse ou hydrofuge sur demande. Votre devis chiffré en 30 secondes.</p>
+      <p class="landing-sub reveal" data-reveal data-delay="2">De 6,90 à 4,90&nbsp;€ HT/m² selon la surface, par drone : personne ne monte sur le toit, aucun échafaudage. Tuile ou ardoise, avec traitement anti-mousse ou hydrofuge sur demande. Votre devis chiffré en 30 secondes.</p>
       <div class="landing-actions reveal" data-reveal data-delay="3">
         <a href="#estimate" class="btn btn-primary" data-cursor="link">Calculer mon devis</a>
         <a href="#tarifs" class="btn btn-ghost" data-cursor="link">Voir les tarifs</a>
@@ -217,10 +249,10 @@
 
       <div class="landing-body" id="tarifs">
 <h2>Combien coûte un nettoyage de toiture ?</h2>
-<p>Le nettoyage et le démoussage de toiture par drone sont facturés <strong>6,90&nbsp;€ HT par m²</strong> de couverture, avec un forfait minimum de commande de 390&nbsp;€ HT. Quelques exemples :</p>
+<p>Le nettoyage et le démoussage de toiture par drone suivent un <strong>tarif dégressif</strong> : 6,90&nbsp;€ HT/m² sous 500 m², 5,90&nbsp;€ dès 500 m² et 4,90&nbsp;€ dès 2 000 m², avec un forfait minimum de commande de 390&nbsp;€ HT. Le palier s'applique à toute la surface. Quelques exemples :</p>
 <table class="legal-table">
-  <thead><tr><th>Surface</th><th>Prix HT</th><th>Prix TTC</th></tr></thead>
-  <tbody><tr><td>100&nbsp;m²</td><td>690,00&nbsp;€</td><td>828,00&nbsp;€</td></tr><tr><td>200&nbsp;m²</td><td>1&nbsp;380,00&nbsp;€</td><td>1&nbsp;656,00&nbsp;€</td></tr><tr><td>500&nbsp;m²</td><td>3&nbsp;450,00&nbsp;€</td><td>4&nbsp;140,00&nbsp;€</td></tr><tr><td>1000&nbsp;m²</td><td>6&nbsp;900,00&nbsp;€</td><td>8&nbsp;280,00&nbsp;€</td></tr></tbody>
+  <thead><tr><th>Surface</th><th>Prix HT/m²</th><th>Total HT</th><th>Total TTC</th></tr></thead>
+  <tbody><tr><td>100&nbsp;m²</td><td>6,90&nbsp;€</td><td>690,00&nbsp;€</td><td>828,00&nbsp;€</td></tr><tr><td>200&nbsp;m²</td><td>6,90&nbsp;€</td><td>1&nbsp;380,00&nbsp;€</td><td>1&nbsp;656,00&nbsp;€</td></tr><tr><td>500&nbsp;m²</td><td>5,90&nbsp;€</td><td>2&nbsp;950,00&nbsp;€</td><td>3&nbsp;540,00&nbsp;€</td></tr><tr><td>1&nbsp;000&nbsp;m²</td><td>5,90&nbsp;€</td><td>5&nbsp;900,00&nbsp;€</td><td>7&nbsp;080,00&nbsp;€</td></tr><tr><td>2&nbsp;000&nbsp;m²</td><td>4,90&nbsp;€</td><td>9&nbsp;800,00&nbsp;€</td><td>11&nbsp;760,00&nbsp;€</td></tr></tbody>
 </table>
 <p>Les traitements anti-mousse et hydrofuge sont chiffrés en complément selon le produit et la surface : précisez-les dans votre demande, nous les ajoutons au devis. Le montant est confirmé après validation technique du site (pente, hauteur, accès, niveau d'encrassement).</p>
 <h2>Ce qui fait varier le prix d'un démoussage de toiture</h2>
@@ -358,7 +390,7 @@
     <h2 class="section-title reveal" data-reveal data-delay="1" style="text-align:center;">Nettoyage de toiture : vos questions</h2>
     <div class="landing-body" style="max-width:820px;margin:2.5rem auto 0;">
 <h3>Quel est le prix d'un démoussage de toiture au m² ?</h3>
-<p>Le nettoyage et le démoussage de toiture par drone coûtent 6,90 € HT/m², avec un forfait minimum de 390 € HT. Pour 200 m² de toiture, comptez 1 380 € HT. Les traitements anti-mousse et hydrofuge sont chiffrés en complément.</p>
+<p>Le nettoyage et le démoussage de toiture par drone suivent un tarif dégressif : 6,90 € HT/m² sous 500 m², 5,90 € dès 500 m² et 4,90 € dès 2 000 m², avec un forfait minimum de 390 € HT. Pour 200 m² de toiture, comptez 1 380 € HT. Les traitements anti-mousse et hydrofuge sont chiffrés en complément.</p>
 <h3>Quelle différence entre démoussage et traitement anti-mousse ?</h3>
 <p>Le démoussage retire les mousses, lichens et algues présents sur la toiture. Le traitement anti-mousse est un produit appliqué ensuite pour ralentir leur retour. Les deux peuvent être réalisés lors de la même intervention.</p>
 <h3>À quoi sert un traitement hydrofuge de toiture ?</h3>
