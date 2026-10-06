@@ -6,7 +6,7 @@ const { EMAIL_RE, excludeEmail, includeEmail } = require('../../lib/exclusions')
 const { findDuplicates } = require('../../lib/agent-tools')
 const DEVIS_EXAMPLE = require('../../lib/devis-example')
 const { roofPitch, notesWantSolar } = require('../../lib/roof-pitch')
-const { scanZone, analyzeBuilding, findContact, screenBuildings, qualifyBuildings, roofEmailPhoto, photoFor } = require('../../lib/roofs')
+const { scanZone, analyzeBuilding, findContact, screenBuildings, qualifyBuildings, tintBuildings, roofEmailPhoto, photoFor } = require('../../lib/roofs')
 
 // Consolidates agents/leads/prospects/stats into one function to stay under
 // Vercel Hobby's 12-serverless-function limit. Original URLs (/api/admin/agents,
@@ -752,6 +752,14 @@ async function handleRoofs(req, res, supabase) {
       total: result.total,
       roofs: result.buildings.map(b => withPhoto(known.get(b.osm_id) || b))
     })
+  }
+
+  // Free colour pre-sort (IGN photo pixels, no AI): tiles or not, how dark they look
+  if (action === 'tint') {
+    const buildings = Array.isArray(req.body?.buildings) ? req.body.buildings.slice(0, 12) : []
+    if (!buildings.length) return res.status(400).json({ error: 'buildings requis' })
+    try { return res.status(200).json({ results: await tintBuildings(buildings) }) }
+    catch (e) { return res.status(400).json({ error: e.message }) }
   }
 
   // Quick AI screening, 9 roofs per call. Roofs already screened or analysed

@@ -105,6 +105,11 @@
     .tt-light[data-s=error]{border-color:rgba(248,113,113,.55);color:var(--text)}
     .tt-light[data-s=error] i{background:#f87171;box-shadow:0 0 8px #f87171}
     @keyframes tt-spin{to{transform:rotate(360deg)}}
+    .tt-searches{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    .tt-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:99px;border:1px solid var(--border);background:var(--surface2);font-size:.8rem;cursor:pointer;color:var(--muted)}
+    .tt-chip b{font-weight:600;color:var(--text)}
+    .tt-chip.on{border-color:rgba(59,130,246,.7);background:rgba(59,130,246,.15);color:var(--text)}
+    .tt-chip i{font-style:normal;opacity:.6;padding:0 2px}.tt-chip i:hover{opacity:1;color:var(--red)}
     @media (max-width:760px){.tt-card{grid-template-columns:1fr}.tt-map{height:320px}}
   `
   document.head.appendChild(css)
@@ -115,6 +120,7 @@
       <input class="tt-input" id="tt-search" placeholder="Ville, adresse ou zone d'activités (ex. « Rivesaltes », « ZI Nord Narbonne »)…">
       <button class="tt-btn" id="tt-go" title="Centrer la carte sur ce lieu">Aller</button>
       <button class="btn-primary btn-sm" id="tt-city" title="Tous les toits de 500 m² et plus de la commune">Scanner toute la ville ${freePill()}</button>
+      <button class="tt-btn" id="tt-gym" title="Comme le gymnase de Seysses : bâtiments publics (gymnases, écoles, salles, mairies) de 400 à 6 000 m² en tuiles, classés du plus sale au plus propre d'après la couleur de la photo IGN. Gratuit, sans IA.">🏫 Gymnases & écoles en tuiles sales ${freePill()}</button>
       <div class="tt-seg" id="tt-mode" title="Ce que vous voulez démarcher : la note, le tri, les filtres et l'argumentaire de Chloé s'adaptent">
         <button data-mode="toiture">Toitures sales</button>
         <button data-mode="solaire">Panneaux solaires</button>
@@ -139,10 +145,11 @@
       <span class="tt-mini" id="tt-q-status" style="margin:0"></span>
     </div>
     <div id="tt-main">
+    <div class="tt-searches" id="tt-searches" style="display:none"></div>
     <div class="tt-map" id="tt-map"></div>
     <div class="tt-actions">
       <button class="btn-primary btn-sm" id="tt-scan">Scanner la zone affichée ${freePill()}</button>
-      <button class="tt-btn" id="tt-clear" title="Efface les résultats de la recherche en cours">Effacer</button>
+      <button class="tt-btn" id="tt-clear" title="Ferme la recherche affichée (les autres restent)">Fermer cette recherche</button>
       <span class="tt-status" id="tt-zone"></span>
     </div>
     <div class="tt-actions" id="tt-batch" style="display:none">
@@ -264,17 +271,21 @@
     saveTimer = setTimeout(() => {
       if (!state.scan.length) return store.set('scan-v1', null)
       const c = state.map?.getCenter()
-      store.set('scan-v1', { scan: state.scan, city: state.city || null, scanMin: state.scanMin || null, view: c ? { center: [c.lat, c.lng], zoom: state.map.getZoom() } : null })
+      store.set('scan-v1', { scan: state.scan, searches: state.searches.map(({ _set, ...x }) => x), activeSearch: state.activeSearch, preset: state.preset || null, city: state.city || null, scanMin: state.scanMin || null, view: c ? { center: [c.lat, c.lng], zoom: state.map.getZoom() } : null })
     }, 1500)
   }
   async function restoreScan() {
     if (state.scan.length) return
     const saved = await store.get('scan-v1')
     if (!saved?.scan?.length || state.scan.length) return
-    state.scan = saved.scan; state.city = saved.city; state.scanMin = saved.scanMin
+    state.scan = saved.scan; state.city = saved.city; state.scanMin = saved.scanMin; state.preset = saved.preset || null
+    // Saves from before the searches were split: one tab with everything
+    state.searches = saved.searches?.length ? saved.searches
+      : [{ id: 's0', key: 'old', label: 'Recherches précédentes', preset: saved.preset || null, city: saved.city || null, ids: saved.scan.map(r => r.osm_id), at: Date.now() }]
+    state.activeSearch = state.searches.some(x => x.id === saved.activeSearch) || saved.activeSearch === 'all' ? saved.activeSearch : state.searches[0].id
     if (saved.view && state.map) state.map.setView(saved.view.center, saved.view.zoom)
-    setStatus(`${saved.scan.length} toits de votre dernière recherche ont été restaurés.`, 'ok')
-    render(); qualifyAll()
+    setStatus(`${state.searches.length} recherche(s) restaurée(s) — affichée : « ${activeSearch()?.label || 'Toutes'} » (${act().length} toits).`, 'ok')
+    render(); qualifyAll().then(() => { if (isGym()) tintAll() })
   }
 
   // Traffic light always visible at the top: spinner = working, green = done, red = problem
@@ -384,15 +395,37 @@
     return state.scope.b2b.includes(cls === 'copropriete' ? 'bailleur' : cls)
   }
   // Shown: pending rows stay visible while the free qualification runs
-  const inScope = (r) => areaOk(r) && classOk(r, true)
+  const inScopeBase = (r) => areaOk(r) && classOk(r, true)
   // Paid batches only ever take roofs whose owner type is known and selected
-  const payable = (r) => areaOk(r) && classOk(r, false)
+  const payableBase = (r) => areaOk(r) && classOk(r, false)
+
+  // ── Preset « gymnase de Seysses » ─────────────────────────────────────────
+  // Public buildings (gymnasiums, schools, halls, town halls) of 400-6 000 m²
+  // with terracotta tiles, ranked by how dark / dull the tiles look on the IGN
+  // photo (free colour pre-sort, lib/roofs.js roofTint). Replaces the surface
+  // and owner filters while it is on.
+  const GYM = { min: 400, max: 6000 }
+  const PUBLIC_USAGE = /^(sports_hall|sports_centre|school|college|university|kindergarten|public|civic|government|townhall|gymnasium|church|chapel|community_centre|fire_station)$/
+  const PUBLIC_NAME = /gymnase|complexe sportif|salle (des sports|polyvalente|des f[eê]tes|omnisports|municipale)|halle|[ée]cole|groupe scolaire|coll[eè]ge|lyc[ée]e|mairie|h[oô]tel de ville|piscine|m[ée]diath[eè]que|centre culturel|[ée]glise|stade|dojo/i
+  const publicHint = (r) => PUBLIC_USAGE.test(r.usage || '') || PUBLIC_NAME.test(r.name || '')
+  function gymCandidate(r, pendingOk) {
+    if (r.kind === 'centrale' || r.area_m2 < GYM.min || r.area_m2 > GYM.max) return false
+    const cls = b2bOf(r)
+    if (publicHint(r)) return cls !== 'residentiel'
+    if (cls == null) return pendingOk
+    return cls === 'collectivite'
+  }
+  // Tiles (or not yet pre-sorted, or already analysed by the AI)
+  const tileOk = (r) => !!r.analyzed_at || r.tint_roof == null || r.tint_roof === 'tuiles'
+  const isGym = () => state.preset === 'gym'
+  const inScope = (r) => isGym() ? gymCandidate(r, true) && tileOk(r) : inScopeBase(r)
+  const payable = (r) => isGym() ? gymCandidate(r, false) && (r.tint_roof === 'tuiles' || !!r.analyzed_at) : payableBase(r)
 
   function drawPolygons(roofs) {
     if (!state.map) return
     // Skip the (flickering, heavy) redraw when nothing visible changed
     const shown = roofs.filter(inScope)
-    const sig = `${state.mode}|${state.view}|${shown.map(r => `${r.osm_id}:${detailScore(r)}:${screenScore(r)}:${noPanels(r) ? 1 : 0}`).join(',')}`
+    const sig = `${state.mode}|${state.view}|${shown.map(r => `${r.osm_id}:${detailScore(r)}:${screenScore(r)}:${r.tint_dirt}:${noPanels(r) ? 1 : 0}`).join(',')}`
     if (sig === state.polySig) return
     state.polySig = sig
     state.layer.clearLayers()
@@ -428,6 +461,7 @@
       const [lon, lat] = f.geometry.coordinates
       const zoom = f.properties.type === 'municipality' ? 14 : 16
       state.map.setView([lat, lon], zoom)
+      state.lastPlace = f.properties.label
       setStatus(`${f.properties.label} — ajustez la carte puis lancez le scan.`)
     } catch (e) {
       setStatus('Recherche de lieu indisponible', 'error')
@@ -435,11 +469,81 @@
   }
 
   // ── Data ──────────────────────────────────────────────────────────────────
-  const current = () => state.view === 'scan' ? state.scan : state.saved
+  // Each search (a town, the 🏫 preset on a town, or zones of the map) keeps its
+  // own list of roofs: the active one alone is shown, the others stay one click
+  // away. state.scan holds every roof once; a search holds their osm_ids.
+  state.searches = []
+  state.activeSearch = null // id, or 'all'
+  const activeSearch = () => state.searches.find(x => x.id === state.activeSearch) || null
+  const idsOf = (x) => x._set || (x._set = new Set(x.ids))
+  // Roofs of the active search (every roof when « Toutes » is picked)
+  function act() {
+    const x = activeSearch()
+    if (!x) return state.activeSearch === 'all' ? state.scan : []
+    const ids = idsOf(x)
+    return state.scan.filter(r => ids.has(r.osm_id))
+  }
+  function addToSearch(x, osmId) {
+    if (idsOf(x).has(osmId)) return
+    x.ids.push(osmId); x._set.add(osmId)
+  }
+  // Same town + same kind of search = same tab (results are completed, not doubled)
+  function openSearch({ key, label, preset = null, city = null }) {
+    let x = state.searches.find(y => y.key === key)
+    if (!x) {
+      x = { id: `s${Date.now()}`, key, label, preset, city, ids: [], at: Date.now() }
+      state.searches.unshift(x)
+    } else {
+      state.searches = [x, ...state.searches.filter(y => y !== x)]
+      x.at = Date.now()
+    }
+    state.activeSearch = x.id
+    return x
+  }
+  function activateSearch(id) {
+    if (state.running) return
+    tintRun++; busy('tint', null)
+    state.activeSearch = id
+    const x = activeSearch()
+    state.preset = x?.preset || null
+    state.city = x?.city || null
+    if (state.cityLayer) { state.cityLayer.remove(); state.cityLayer = null }
+    const roofs = act().filter(r => r.lat)
+    if (state.map && roofs.length) state.map.fitBounds(window.L.latLngBounds(roofs.map(r => [r.lat, r.lon])).pad(0.1), { maxZoom: 17 })
+    $('tt-q-status').textContent = ''
+    setStatus(x ? `Recherche « ${x.label} » : ${roofs.length} toit(s).` : `Toutes les recherches : ${roofs.length} toit(s).`)
+    updateZoneLabel(); render()
+    if (x) qualifyAll().then(() => { if (isGym()) tintAll() })
+  }
+  function closeSearch(id) {
+    if (state.running) return
+    const x = state.searches.find(y => y.id === id)
+    if (!x) return
+    if (x.ids.length > 20 && !confirm(`Fermer la recherche « ${x.label} » (${x.ids.length} toits) ? Les toits déjà analysés restent dans « Mes toitures ».`)) return
+    state.searches = state.searches.filter(y => y !== x)
+    const kept = new Set(state.searches.flatMap(y => y.ids))
+    state.scan = state.scan.filter(r => kept.has(r.osm_id))
+    if (state.activeSearch === id) {
+      qualifyRun++; tintRun++; busy('qualify', null); busy('tint', null)
+      activateSearch(state.searches[0]?.id || null)
+    } else render()
+  }
+  function renderSearches() {
+    const el = $('tt-searches')
+    if (!el) return
+    if (!state.searches.length) { el.style.display = 'none'; return }
+    el.style.display = ''
+    const chip = (id, label, n, closable) => `<span class="tt-chip${state.activeSearch === id ? ' on' : ''}" data-search="${esc(id)}">${esc(label)} <b>${n}</b>${closable ? `<i data-close="${esc(id)}" title="Fermer cette recherche">✕</i>` : ''}</span>`
+    el.innerHTML = '<span class="tt-mini" style="margin:0">Recherches :</span>' +
+      state.searches.map(x => chip(x.id, x.label, x.ids.length, true)).join('') +
+      (state.searches.length > 1 ? chip('all', 'Toutes', state.scan.length, false) : '')
+  }
+
+  const current = () => state.view === 'scan' ? act() : state.saved
 
   // Server rows don't carry the scan-time fields (OSM class, free B2B
   // qualification): keep them from the row being replaced.
-  const CLIENT_FIELDS = ['osm_class', 'b2b', 'b2b_label']
+  const CLIENT_FIELDS = ['osm_class', 'b2b', 'b2b_label', 'tint_roof', 'tint_tile_ratio', 'tint_dirt']
   function replaceRoof(roof) {
     for (const list of [state.scan, state.saved]) {
       const i = list.findIndex(r => r.osm_id === roof.osm_id)
@@ -461,19 +565,25 @@
     try {
       const data = await api('/api/admin/roofs?action=scan', { method: 'POST', retries: 2, timeout: 110000, body: JSON.stringify({ zone, min_area: state.scope.min, max_area: state.scope.max }) })
       if (data.error) throw new Error(data.error + (data.hint ? ` — ${data.hint}` : ''))
-      // Results accumulate from one zone to the next (use « Effacer » to start over)
+      // Zones scanned one after the other from the same place go in one search
+      const where = state.lastPlace || 'Zone de la carte'
+      const x = openSearch({ key: `zone|${where}`, label: `📍 ${where}` })
+      state.preset = null; state.city = null
+      if (state.cityLayer) { state.cityLayer.remove(); state.cityLayer = null }
       const have = new Map(state.scan.map(r => [r.osm_id, r]))
       let added = 0
       for (const roof of data.roofs) {
         const old = have.get(roof.osm_id)
-        if (!old) { state.scan.push(roof); added++; continue }
+        if (!idsOf(x).has(roof.osm_id)) added++
+        addToSearch(x, roof.osm_id)
+        if (!old) { state.scan.push(roof); continue }
         const keep = Object.fromEntries(CLIENT_FIELDS.map(k => [k, old[k]]))
         Object.assign(old, roof)
         for (const k of CLIENT_FIELDS) if (old[k] == null && keep[k] != null) old[k] = keep[k]
       }
       state.scanMin = state.scanMin ? Math.min(state.scanMin, state.scope.min) : state.scope.min
       const analysed = data.roofs.filter(r => r.analyzed_at).length
-      setStatus(`${data.total.toLocaleString('fr-FR')} bâtiments dans la zone, ${data.roofs.length} toits dans la plage de surface (${added} nouveaux, ${state.scan.length} au total)${analysed ? ` · ${analysed} déjà analysés` : ''}. Qualification B2B gratuite en cours…`, 'ok')
+      setStatus(`${data.total.toLocaleString('fr-FR')} bâtiments dans la zone, ${data.roofs.length} toits dans la plage de surface (${added} nouveaux, ${x.ids.length} dans cette recherche)${analysed ? ` · ${analysed} déjà analysés` : ''}. Qualification B2B gratuite en cours…`, 'ok')
       render()
       qualifyAll()
     } catch (e) {
@@ -485,14 +595,7 @@
   }
 
   function clearScan() {
-    if (state.running) return
-    if (state.scan.length > 20 && !confirm(`Effacer les ${state.scan.length} toits de la recherche en cours ? (les toits déjà analysés restent enregistrés)`)) return
-    qualifyRun++; busy('qualify', null)
-    state.scan = []; state.city = null; state.scanMin = null
-    if (state.cityLayer) { state.cityLayer.remove(); state.cityLayer = null }
-    $('tt-q-status').textContent = ''
-    setStatus('Recherche effacée.')
-    updateZoneLabel(); render()
+    if (state.activeSearch && state.activeSearch !== 'all') closeSearch(state.activeSearch)
   }
 
   async function loadSaved() {
@@ -523,7 +626,7 @@
 
   function analysisTodo() {
     const v = $('tt-n').value
-    const pool = state.scan.filter(r => payable(r) && !analysedForMode(r) && !(isSolar() && noPanels(r)))
+    const pool = act().filter(r => payable(r) && !analysedForMode(r) && !(isSolar() && noPanels(r)))
     if (v.startsWith('s')) {
       const min = Number(v.slice(1))
       // Solar farms are always worth a look in solar mode, even unscreened
@@ -531,12 +634,12 @@
         .sort((a, b) => (screenScore(b) ?? 10) - (screenScore(a) ?? 10) || b.area_m2 - a.area_m2)
     }
     const n = Number(v)
-    return pool.slice().sort((a, b) => b.area_m2 - a.area_m2).slice(0, n || undefined)
+    return pool.slice().sort((a, b) => (isGym() ? (b.tint_dirt ?? -1) - (a.tint_dirt ?? -1) : 0) || b.area_m2 - a.area_m2).slice(0, n || undefined)
   }
 
   function updateBatchBar() {
-    const scope = state.scan.filter(payable)
-    const pendingQ = state.scan.filter(r => areaOk(r) && b2bOf(r) == null).length
+    const scope = act().filter(payable)
+    const pendingQ = act().filter(r => areaOk(r) && b2bOf(r) == null).length
     const n = scope.length
     const analysed = scope.filter(analysedForMode).length
     const screened = scope.filter(screenedForMode).length
@@ -546,7 +649,16 @@
     const withPanels = scope.filter(r => r.kind === 'centrale' || r.solar === true || (r.solar == null && r.screen_solar === true)).length
     const range = `${state.scope.min || 0}${state.scope.max ? ` à ${state.scope.max}` : ' m² et +'}${state.scope.max ? ' m²' : ''}`
     $('tt-count').textContent = `${state.city ? `${state.city.nom} (${state.city.dep}) · ` : ''}${n} toits ${state.scope.b2b.map(c => B2B_LABEL[c].toLowerCase()).join(' / ')} de ${range}${pendingQ ? ` (+ ${pendingQ} en cours de qualification)` : ''}${farms ? ` (dont ${farms} centrale(s) solaire(s) au sol)` : ''} · ${screened} triés · ${analysed} analysés en détail${isSolar() && screened ? ` · ${withPanels} avec panneaux` : ''}${screened ? ` · ${dirty} notés 6/10 et + (${scoreWord()})` : ''}`
-    for (const o of $('tt-n').options) if (o.dataset.label) o.textContent = `${isSolar() ? 'Panneaux' : 'Toits'} ${o.dataset.label}`
+    for (const o of $('tt-n').options) {
+      if (o.dataset.label) o.textContent = `${isSolar() ? 'Panneaux' : 'Toits'} ${o.dataset.label}`
+      else if (o.value !== '0') o.textContent = isGym() ? `${o.value} plus sales au pré-tri gratuit` : `${o.value} plus grands toits`
+    }
+    if (isGym()) {
+      const tinted = act().filter(r => gymCandidate(r, false) && r.tint_roof != null)
+      const tiles = tinted.filter(r => r.tint_roof === 'tuiles').length
+      const dirty = act().filter(r => payable(r) && (r.tint_dirt ?? 0) >= 6).length
+      $('tt-count').textContent = `${state.city ? `${state.city.nom} (${state.city.dep}) · ` : ''}🏫 Recherche type gymnase de Seysses : ${tiles} bâtiment(s) public(s) en tuiles sur ${tinted.length} pré-triés${dirty ? ` · ${dirty} à l'aspect sale (6/10 et +)` : ''} · ${analysed} analysés en détail. Étape payante conseillée : « Analyser » les plus sales.`
+    }
     $('tt-screen').disabled = !toScreen || state.running
     $('tt-screen').innerHTML = toScreen ? `Trier les ${toScreen} toits ${costPill(`≈ ${euros(Math.ceil(toScreen / 9) * COST_SCREEN)}`)}` : 'Tous les toits sont triés'
     $('tt-screen-cost').textContent = ''
@@ -568,7 +680,7 @@
   }
   const inCommune = (lon, lat, polygons) => polygons.some(rings => pointInRings(lon, lat, rings))
 
-  async function cityScan() {
+  async function cityScan(range = null) {
     let q = $('tt-search').value.trim()
     if (q.length < 2) return setStatus('Tapez le nom de la ville (ex. « Narbonne » ou « Saint-Cyprien 66 »).', 'error')
     if (state.running) return
@@ -597,6 +709,12 @@
     }
 
     state.city = { nom: commune.nom, dep: commune.codeDepartement, code: commune.code }
+    const x = openSearch({
+      key: `${state.preset || 'ville'}|${commune.code}`,
+      label: `${state.preset === 'gym' ? '🏫 ' : ''}${commune.nom} (${commune.codeDepartement})`,
+      preset: state.preset || null, city: state.city
+    })
+    render()
     qualifyRun++
     if (state.cityLayer) state.cityLayer.remove()
     state.cityLayer = window.L.geoJSON(commune.contour, { style: { color: '#a78bfa', weight: 2, fill: false, dashArray: '6 4' }, interactive: false }).addTo(state.map)
@@ -604,44 +722,88 @@
 
     state.running = true; state.stop = false
     $('tt-city').disabled = true; $('tt-stop').style.display = ''; updateZoneLabel()
-    const seen = new Set(state.scan.map(r => r.osm_id))
+    const have = new Set(state.scan.map(r => r.osm_id))
     let failed = 0, done = 0
     for (const zone of tiles) {
       if (state.stop) break
       let data = null
       for (let attempt = 0; attempt < 1 && !data; attempt++) {
-        const r = await api('/api/admin/roofs?action=scan', { method: 'POST', retries: 2, timeout: 110000, body: JSON.stringify({ zone, min_area: state.scope.min, max_area: state.scope.max }) }).catch(e => ({ error: e.message }))
+        const r = await api('/api/admin/roofs?action=scan', { method: 'POST', retries: 2, timeout: 110000, body: JSON.stringify({ zone, min_area: range?.min ?? state.scope.min, max_area: range ? range.max : state.scope.max }) }).catch(e => ({ error: e.message }))
         if (!r.error) data = r
         else if (r.hint) { setStatus(`${r.error} — ${r.hint}`, 'error'); state.stop = true }
       }
       done++
       if (!data) { failed++; continue }
       for (const roof of data.roofs) {
-        if (seen.has(roof.osm_id) || !inCommune(roof.lon, roof.lat, polygons)) continue
-        seen.add(roof.osm_id)
+        if (!inCommune(roof.lon, roof.lat, polygons)) continue
+        addToSearch(x, roof.osm_id)
+        if (have.has(roof.osm_id)) continue
+        have.add(roof.osm_id)
         state.scan.push(roof)
       }
       $('tt-bar').style.width = `${Math.round(done / tiles.length * 100)}%`
-      setStatus(`Scan de ${commune.nom} : secteur ${done}/${tiles.length} — ${state.scan.length} toits de 500 m² et + trouvés…`)
+      setStatus(`Scan de ${commune.nom} : secteur ${done}/${tiles.length} — ${x.ids.length} toits trouvés…`)
       render()
     }
     state.running = false
     $('tt-city').disabled = false; $('tt-stop').style.display = 'none'; updateZoneLabel()
-    const n = state.scan.length
-    const toScreen = state.scan.filter(r => !screenedForMode(r)).length
+    const n = x.ids.length
+    const toScreen = act().filter(r => !screenedForMode(r)).length
     setStatus(`${commune.nom} : ${n} toits trouvés dans la plage de surface${failed ? ` (${failed} secteur(s) en échec : relancez pour compléter)` : ''}. Qualification B2B gratuite en cours (collectivités / entreprises), puis étape 1 : tri rapide des toits retenus.`, failed ? 'error' : 'ok')
     $('tt-n').value = toScreen < n ? 's6' : '20'
-    state.scanMin = state.scope.min
+    state.scanMin = range?.min ?? state.scope.min
     render()
-    qualifyAll()
+    return qualifyAll()
+  }
+
+  // 🏫 One click from a town name: public buildings in tiles, dirtiest first (free)
+  async function gymScan() {
+    if (state.running) return
+    if ($('tt-search').value.trim().length < 2) return setStatus('Tapez le nom de la ville (ex. « Prades 66 »), puis cliquez sur « Gymnases & écoles en tuiles sales ».', 'error')
+    state.preset = 'gym'
+    await cityScan(GYM)
+    if (!isGym() || !act().some(r => gymCandidate(r, false))) return render()
+    await tintAll()
+  }
+
+  let tintRun = 0
+  async function tintAll() {
+    const run = ++tintRun
+    const todo = act().filter(r => gymCandidate(r, false) && r.tint_roof == null && !r.analyzed_at)
+    if (!todo.length) { render(); return }
+    const batches = []
+    for (let i = 0; i < todo.length; i += 12) batches.push(todo.slice(i, i + 12))
+    let done = 0
+    busy('tint', `Pré-tri gratuit des toitures (couleur des tuiles) 0/${todo.length}…`)
+    async function worker() {
+      while (batches.length && run === tintRun) {
+        const batch = batches.shift()
+        const data = await api('/api/admin/roofs?action=tint', { method: 'POST', retries: 1, body: JSON.stringify({ buildings: batch.map(strip) }) })
+        for (const t of data?.results || []) {
+          const r = state.scan.find(x => x.osm_id === t.osm_id)
+          if (r) Object.assign(r, { tint_roof: t.tint_roof, tint_tile_ratio: t.tint_tile_ratio, tint_dirt: t.tint_dirt })
+        }
+        done += batch.length
+        busy('tint', `Pré-tri gratuit des toitures (couleur des tuiles) ${done}/${todo.length}…`)
+        render()
+      }
+    }
+    await Promise.all([worker(), worker(), worker()])
+    if (run !== tintRun) return
+    busy('tint', null)
+    const tiles = act().filter(r => payable(r))
+    const dirty = tiles.filter(r => (r.tint_dirt ?? 0) >= 6).length
+    $('tt-n').value = '10'
+    setStatus(`${state.city?.nom || 'Zone'} : ${tiles.length} bâtiment(s) public(s) en tuiles, dont ${dirty} à l'aspect sale (6/10 et +), classés du plus sale au plus propre. Ce pré-tri par la couleur est gratuit mais approximatif (ombres, date de la photo) : vérifiez les premiers sur Street View, ou lancez « Analyser » (payant) pour le diagnostic IA et le propriétaire.`, 'ok')
+    render()
   }
 
   // Free: who is behind each building (cadastre owner group / company register)
   let qualifyRun = 0
   async function qualifyAll() {
     const run = ++qualifyRun
-    for (const r of state.scan) if (!r.b2b && r.osm_class === 'residentiel') r.b2b = 'residentiel'
-    const todo = state.scan.filter(r => b2bOf(r) == null || (!r.b2b && !r.analyzed_at && r.osm_class))
+    for (const r of act()) if (!r.b2b && r.osm_class === 'residentiel') r.b2b = 'residentiel'
+    const todo = act().filter(r => b2bOf(r) == null || (!r.b2b && !r.analyzed_at && r.osm_class))
     const status = $('tt-q-status')
     if (!todo.length) { status.textContent = ''; busy('qualify', null); return }
     busy('qualify', `Qualification B2B (propriétaires) 0/${todo.length}…`)
@@ -671,14 +833,14 @@
     await Promise.all([worker(), worker()])
     if (run !== qualifyRun) return
     busy('qualify', null)
-    const c = (k) => state.scan.filter(r => areaOk(r) && b2bOf(r) === k).length
+    const c = (k) => act().filter(r => areaOk(r) && b2bOf(r) === k).length
     status.textContent = `${c('collectivite')} collectivités · ${c('entreprise')} entreprises · ${c('bailleur') + c('copropriete')} bailleurs / copros · ${c('inconnu')} inconnus · ${c('residentiel')} logements`
-    if (!state.running) setStatus(`${state.scan.length} toits en mémoire — ${status.textContent}`, 'ok')
+    if (!state.running) setStatus(`${activeSearch()?.label || 'Recherche'} : ${act().length} toits — ${status.textContent}`, 'ok')
     render()
   }
 
   async function screenAll() {
-    const todo = state.scan.filter(r => payable(r) && !screenedForMode(r)).sort((a, b) => b.area_m2 - a.area_m2)
+    const todo = act().filter(r => payable(r) && !screenedForMode(r)).sort((a, b) => b.area_m2 - a.area_m2)
     if (!todo.length) return
     const grids = []
     for (let i = 0; i < todo.length; i += 9) grids.push(todo.slice(i, i + 9))
@@ -707,7 +869,7 @@
     await Promise.all(Array.from({ length: CONCURRENCY }, worker))
     state.running = false
     $('tt-stop').style.display = 'none'; updateZoneLabel()
-    const dirty = state.scan.filter(r => payable(r) && (shownScore(r) ?? 0) >= 6).length
+    const dirty = act().filter(r => payable(r) && (shownScore(r) ?? 0) >= 6).length
     $('tt-n').value = 's6'
     setStatus(`${state.stop ? 'Tri arrêté' : 'Tri terminé'} : ${dirty} ${isSolar() ? 'site(s) aux panneaux notés' : 'toit(s) notés'} 6/10 et plus${failed ? `, ${failed} planche(s) en échec (relancez le tri pour les compléter)` : ''}. Étape 2 : analysez-les en détail pour avoir le diagnostic, le propriétaire et les occupants.`, failed ? 'error' : 'ok')
     render()
@@ -759,7 +921,8 @@
 
   // ── Rendering ─────────────────────────────────────────────────────────────
   function sorted(list) {
-    return list.slice().sort((a, b) => (detailScore(b) ?? -1) - (detailScore(a) ?? -1) || (screenScore(b) ?? -1) - (screenScore(a) ?? -1) || b.area_m2 - a.area_m2)
+    return list.slice().sort((a, b) => (detailScore(b) ?? -1) - (detailScore(a) ?? -1) || (screenScore(b) ?? -1) - (screenScore(a) ?? -1) ||
+      (isGym() ? (b.tint_dirt ?? -1) - (a.tint_dirt ?? -1) : 0) || b.area_m2 - a.area_m2)
   }
 
   function filtered(list) {
@@ -846,6 +1009,14 @@
       </div></details>`
   }
 
+  function tintBadge(r) {
+    if (r.tint_roof == null) return ''
+    const d = r.tint_dirt
+    const text = r.tint_roof === 'tuiles' ? `Tuiles · aspect sale ${d}/10` : r.tint_roof === 'gris' ? 'Toit gris (pas des tuiles)' : r.tint_roof === 'végétation' ? 'Toit masqué par la végétation' : 'Toiture mixte / incertaine'
+    const cls = r.tint_roof !== 'tuiles' ? 'badge-cold' : d >= 7 ? 'badge-hot' : d >= 4 ? 'badge-warm' : 'badge-cold'
+    return `<span class="badge ${cls}" title="Pré-tri gratuit d'après la couleur de la photo IGN (tuiles sombres / ternes = sales). Approximatif : ombres et date de la photo peuvent tromper.">🆓 ${text}</span>`
+  }
+
   function screenBadge(r) {
     const q = screenScore(r)
     if (q == null) return ''
@@ -899,7 +1070,7 @@
           </div>
           <div class="tt-diag">${esc(r.diagnostic)}</div>
           ${solarHtml(r)}`
-        : `<div class="tt-badges">${r.kind === 'centrale' ? '<span class="badge badge-new">Centrale solaire au sol</span>' : ''}${screenBadge(r)}${isPending
+        : `<div class="tt-badges">${r.kind === 'centrale' ? '<span class="badge badge-new">Centrale solaire au sol</span>' : ''}${tintBadge(r)}${screenBadge(r)}${isPending
           ? '<span class="tt-pending"><span class="spinner"></span> Analyse en cours (photo, IA, propriétaire)…</span>'
           : `<button class="tt-btn" data-act="analyze" data-osm="${esc(r.osm_id)}">Analyser ce toit ${costPill('≈ 2-3 ct')}</button>`}</div>`}
         ${b2bOf(r) ? `<div class="tt-badges" style="margin:4px 0 0"><span class="badge ${b2bOf(r) === 'collectivite' ? 'badge-new' : b2bOf(r) === 'entreprise' ? 'badge-warm' : 'badge-cold'}">${esc(B2B_LABEL[b2bOf(r)])}${b2bLabel(r) && !r.analyzed_at ? ` · ${esc(b2bLabel(r))}` : ''}</span></div>` : ''}
@@ -928,9 +1099,10 @@
     if (state.view === 'outreach') return renderOutreach()
     const list = filtered(sorted(current()))
     const all = current()
-    $('tt-batch').style.display = state.view === 'scan' && state.scan.length ? '' : 'none'
+    renderSearches()
+    $('tt-batch').style.display = state.view === 'scan' && act().length ? '' : 'none'
     $('tt-scan').parentElement.style.display = state.view === 'scan' ? '' : 'none'
-    if (state.view === 'scan' && state.scan.length) updateBatchBar()
+    if (state.view === 'scan' && act().length) updateBatchBar()
     drawPolygons(all)
     // Keep what Nordine is typing when a background analysis re-renders the list
     const focused = document.activeElement?.closest?.('.tt-card')
@@ -1212,11 +1384,18 @@ Règles impératives :
   $('tt-go').addEventListener('click', search)
   $('tt-search').addEventListener('keydown', e => { if (e.key === 'Enter') search() })
   $('tt-search').placeholder = "Ville (ex. « Narbonne », « Saint-Cyprien 66 ») ou adresse…"
-  $('tt-scan').addEventListener('click', scan)
+  $('tt-scan').addEventListener('click', () => { state.preset = null; scan() })
   $('tt-clear').addEventListener('click', clearScan)
   $('tt-analyze').addEventListener('click', analyzeBatch)
   $('tt-screen').addEventListener('click', screenAll)
-  $('tt-city').addEventListener('click', cityScan)
+  $('tt-city').addEventListener('click', () => { state.preset = null; cityScan() })
+  $('tt-gym').addEventListener('click', gymScan)
+  $('tt-searches').addEventListener('click', e => {
+    const close = e.target.closest('[data-close]')
+    if (close) { e.stopPropagation(); return closeSearch(close.dataset.close) }
+    const c = e.target.closest('[data-search]')
+    if (c && c.dataset.search !== state.activeSearch) activateSearch(c.dataset.search)
+  })
   $('tt-n').addEventListener('change', () => render())
   $('tt-stop').addEventListener('click', () => { state.stop = true; setStatus('Arrêt après les analyses en cours…') })
   $('tt-f-priority').addEventListener('change', e => { state.filter.priority = e.target.value; render() })
