@@ -280,13 +280,19 @@
     saveTimer = setTimeout(() => {
       if (!state.scan.length) return store.set('scan-v1', null)
       const c = state.map?.getCenter()
-      store.set('scan-v1', { scan: state.scan, searches: state.searches.map(({ _set, ...x }) => x), activeSearch: state.activeSearch, preset: state.preset || null, city: state.city || null, scanMin: state.scanMin || null, view: c ? { center: [c.lat, c.lng], zoom: state.map.getZoom() } : null })
+      store.set('scan-v1', { v: 2, scan: state.scan, searches: state.searches.map(({ _set, ...x }) => x), activeSearch: state.activeSearch, preset: state.preset || null, city: state.city || null, scanMin: state.scanMin || null, view: c ? { center: [c.lat, c.lng], zoom: state.map.getZoom() } : null })
     }, 1500)
   }
   async function restoreScan() {
     if (state.scan.length) return
     const saved = await store.get('scan-v1')
     if (!saved?.scan?.length || state.scan.length) return
+    // v2: owner classes fixed (group 9 companies, closed owners, copropriétés):
+    // qualify again (free) and drop the free details gathered with the old rules
+    if ((saved.v || 1) < 2) for (const r of saved.scan) {
+      delete r.b2b; delete r.b2b_label
+      if (!r.analyzed_at) { delete r.free_at; delete r.owners; delete r.occupants; delete r.parcels; delete r.mairie }
+    }
     state.scan = saved.scan; state.city = saved.city; state.scanMin = saved.scanMin; state.preset = saved.preset || null
     // Saves from before the searches were split: one tab with everything
     state.searches = saved.searches?.length ? saved.searches
@@ -388,10 +394,27 @@
   const RANK = { collectivite: 4, entreprise: 3, bailleur: 2, copropriete: 1 }
   // Who is behind the building: free qualification first, else the detailed
   // analysis' owners / occupants, else the OSM tags (null = not known yet)
+  // Same rules as ownerClass in lib/roofs.js, recomputed here so roofs saved
+  // before the fix (group 9 SAS shown as « Collectivité ») are right too
+  const PUBLIC_FORMS = /^(COM|CCOM|COLL|COAG|CU|METR|SIVU|SIVO|SYMC|SYMO|SMIX|DEPT|REG|ETAT|EPA|EPIC|EPLS|EPCI|HOSP|CCAS|EPT|PETR)$/
+  const COMPANY_FORMS = /^(SA|SAS|SASU|SARL|EURL|SCI|SC|SCA|SCS|SNC|SCCV|SCPI|SCP|SEL|SELARL|GFA|GAEC|SEM|STE|ASS|GIE)$/
+  function ownerClassOf(o) {
+    const forme = String(o.forme || '').toUpperCase()
+    if (o.group === '7' || forme === 'SYCO' || o.right === 'Syndic') return 'copropriete'
+    if (o.group === '5') return 'bailleur'
+    if (PUBLIC_FORMS.test(forme)) return 'collectivite'
+    if (COMPANY_FORMS.test(forme)) return 'entreprise'
+    if (['1', '2', '3', '4', '9'].includes(o.group)) return 'collectivite'
+    if (o.owner_class) return o.owner_class
+    return /^(COMMUNE|DEPARTEMENT|REGION|ETAT)\b/i.test(o.name || '') ? 'collectivite' : 'entreprise'
+  }
+  // A copropriété found on the building in the national register wins
+  const coproOnSite = (r) => (r.coproprietes || []).find(c => c.match !== 'proximité')
   function b2bOf(r) {
     if (r.b2b) return r.b2b
-    // Roofs analysed before owner types were stored: recognise public owners by name
-    const owners = (r.owners || []).map(o => o.owner_class || (/^(COMMUNE|DEPARTEMENT|REGION|ETAT)\b/i.test(o.name || '') ? 'collectivite' : 'entreprise'))
+    if (coproOnSite(r)) return 'copropriete'
+    // Closed companies still listed at the cadastre don't count
+    const owners = (r.owners || []).filter(o => !o.company?.closed).map(ownerClassOf)
     if (owners.length) return owners.sort((a, b) => RANK[b] - RANK[a])[0]
     if ((r.occupants || []).length) return 'entreprise'
     return r.osm_class || (r.analyzed_at ? 'inconnu' : null)
@@ -552,7 +575,7 @@
 
   // Server rows don't carry the scan-time fields (OSM class, free B2B
   // qualification): keep them from the row being replaced.
-  const CLIENT_FIELDS = ['osm_class', 'b2b', 'b2b_label', 'tint_roof', 'tint_tile_ratio', 'tint_dirt', 'mairie', 'free_at', 'citycode']
+  const CLIENT_FIELDS = ['osm_class', 'b2b', 'b2b_label', 'tint_roof', 'tint_tile_ratio', 'tint_dirt', 'mairie', 'free_at', 'citycode', 'coproprietes']
   function replaceRoof(roof) {
     for (const list of [state.scan, state.saved]) {
       const i = list.findIndex(r => r.osm_id === roof.osm_id)
@@ -958,7 +981,9 @@
     const owners = r.owners || []
     const parcels = (r.parcels || []).map(p => `${p.section} ${p.numero}`).join(', ')
     const body = owners.length
-      ? owners.map(o => companyBlock(o.company, o.name, ` <span class="tt-sub">— ${esc(o.right || 'Propriétaire')}${o.forme ? `, ${esc(o.forme)}` : ''}</span>`)).join('')
+      ? owners.map(o => companyBlock(o.company, o.name, ` <span class="tt-sub">— ${esc(o.right || 'Propriétaire')}${o.forme ? `, ${esc(o.forme)}` : ''}</span>` +
+          (o.company?.closed ? ` <span class="badge badge-warm" title="Le cadastre garde parfois le nom d'un ancien promoteur ou d'une société dissoute">⚠ entreprise fermée${o.company.closed_on ? ` en ${esc(o.company.closed_on.slice(0, 4))}` : ''} : propriétaire obsolète, voir la copropriété ci-dessous</span>`
+            : o.right === 'Syndic' ? ' <span class="badge badge-cold" title="Donnée du cadastre parfois ancienne : le syndic actuel est dans le Registre des copropriétés">inscrit comme syndic au cadastre : vérifier le syndic actuel</span>' : ''))).join('')
       : `<div class="tt-sub">Non trouvé dans le fichier des propriétaires-entreprises (particulier, entrepreneur individuel ou parcelle hors fichier). Voir les occupants ci-dessous.</div>`
     return `<div class="tt-section"><h4>Propriétaire${parcels ? ` · parcelle(s) ${esc(parcels)}` : ''}</h4>${body}</div>`
   }
@@ -993,6 +1018,7 @@
     return `<div class="tt-section"><h4>Infos ${freePill()}</h4>
       ${r.address ? `<div class="tt-who">📍 ${esc(r.address)}</div>` : ''}
       ${parcels.length ? `<div class="tt-sub">Parcelles cadastrales : ${parcels.map(p => `<a href="https://www.geoportail.gouv.fr/carte?c=${r.lon},${r.lat}&z=19&l0=ORTHOIMAGERY.ORTHOPHOTOS::GEOPORTAIL:OGC:WMTS(1)&l1=CADASTRALPARCELS.PARCELLAIRE_EXPRESS::GEOPORTAIL:OGC:WMTS(1)&permalink=yes" target="_blank" rel="noopener" title="${esc(p.idu || '')}">${esc(p.section)} ${esc(p.numero)}</a>${p.contenance ? ` (${Number(p.contenance).toLocaleString('fr-FR')} m²)` : ''}`).join(', ')}</div>` : ''}
+      ${coproHtml(r)}
       ${m ? `<div class="tt-who" style="margin-top:6px"><b>🏛️ ${esc(m.name || 'Mairie')}</b>${m.phone ? ` · <a href="tel:${esc(m.phone.replace(/\s/g, ''))}">${esc(m.phone)}</a>` : ''}${m.email ? ` · <a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ''}${m.website ? ` · <a href="${esc(m.website)}" target="_blank" rel="noopener">site</a>` : ''}${m.address ? `<div class="tt-sub">${esc(m.address)}</div>` : ''}</div>` : ''}
       ${links.length ? `<div class="tt-links" style="margin-top:6px">${links.map(([l, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>` : ''}
       <div class="tt-links" style="margin-top:4px">
@@ -1001,6 +1027,23 @@
         ${/^(way|relation)\//.test(r.osm_id) ? `<a href="https://www.openstreetmap.org/${esc(r.osm_id)}" target="_blank" rel="noopener">Fiche OpenStreetMap</a>` : ''}
         ${r.free_at ? `<a href="#" data-act="free" data-osm="${esc(r.osm_id)}">Actualiser ${freePill()}</a>` : ''}
       </div></div>`
+  }
+
+  // 🏢 Registre national des copropriétés: who to contact for a copropriété
+  function coproHtml(r) {
+    const list = r.coproprietes || []
+    if (!r.free_at) return ''
+    if (!list.length) return '<div class="tt-sub" style="margin-top:6px">🏢 Registre des copropriétés : aucune copropriété immatriculée sur ce bâtiment.</div>'
+    const q = encodeURIComponent
+    return `<div style="margin-top:8px"><div class="tt-sub" style="text-transform:uppercase;letter-spacing:.06em;font-size:.68rem">🏢 Registre national des copropriétés</div>${list.map(c => `
+      <div class="tt-who" style="margin-top:4px"><b>${esc(c.name || 'Copropriété')}</b> <span class="tt-sub">— ${esc(c.address || '')}${c.lots ? ` · ${c.lots} lots${c.lots_habitation ? ` (${c.lots_habitation} logements)` : ''}` : ''}${c.period ? ` · construite ${esc(c.period)}` : ''}</span>
+        <span class="badge ${c.match === 'proximité' ? 'badge-cold' : 'badge-new'}" title="Comment la copropriété a été rattachée au bâtiment">${c.match === 'parcelle' ? 'même parcelle' : c.match === 'bâtiment' ? 'dans le bâtiment' : `à ${c.distance_m} m`}</span>
+        <div>${c.syndic
+          ? `Syndic professionnel : <b>${esc(c.syndic)}</b>${c.syndic_city ? ` <span class="tt-sub">(${esc(c.syndic_city)})</span>` : ''}${c.mandate ? ` · <span class="${/en cours/i.test(c.mandate) ? 'tt-ok' : 'tt-warn'}">${esc(c.mandate.toLowerCase())}${c.mandate_end ? ` jusqu'au ${esc(c.mandate_end)}` : ''}</span>` : ''}
+             <div class="tt-links">${c.syndic_siret ? `<a href="https://annuaire-entreprises.data.gouv.fr/etablissement/${esc(c.syndic_siret)}" target="_blank" rel="noopener">Fiche du syndic</a>` : ''}<a href="https://www.google.com/search?q=${q(`${c.syndic} ${c.syndic_city || ''} syndic contact email`)}" target="_blank" rel="noopener">Google : contact du syndic</a><a href="https://www.pagesjaunes.fr/annuaire/chercherlespros?quoiqui=${q(c.syndic)}&ou=${q(c.syndic_city || '')}" target="_blank" rel="noopener">Pages Jaunes</a></div>`
+          : `<span class="tt-warn">Syndic ${c.syndic_type === 'bénévole' ? 'bénévole' : 'non déclaré'}${c.mandate ? ` · ${esc(c.mandate.toLowerCase())}` : ''}</span> <span class="tt-sub">— identité non publiée : passer par le conseil syndical (affichage dans le hall) ou la mairie</span>`}</div>
+        <div class="tt-sub">N° d'immatriculation ${esc(c.immatriculation || '')} · <a href="https://www.registre-coproprietes.gouv.fr/" target="_blank" rel="noopener">registre-coproprietes.gouv.fr</a></div>
+      </div>`).join('')}</div>`
   }
 
   async function loadFree(roofs) {
@@ -1020,9 +1063,14 @@
           const { osm_id, ...fields } = d
           for (const r of state.scan.filter(x => x.osm_id === osm_id)) {
             Object.assign(r, fields)
-            // Owner type from the cadastre, now known for sure
-            const o = (fields.owners || []).slice().sort((a, b) => (RANK[b.owner_class] || 0) - (RANK[a.owner_class] || 0))[0]
-            if (o && !r.analyzed_at) { r.b2b = o.owner_class; r.b2b_label = o.company?.name || o.name }
+            // Owner type now known for sure: the copropriété of the register,
+            // else the active owners of the cadastre (closed companies ignored)
+            if (!r.analyzed_at) {
+              const copro = coproOnSite(fields)
+              const o = (fields.owners || []).filter(x => !x.company?.closed).sort((a, b) => (RANK[ownerClassOf(b)] || 0) - (RANK[ownerClassOf(a)] || 0))[0]
+              if (copro) { r.b2b = 'copropriete'; r.b2b_label = copro.syndic ? `syndic ${copro.syndic}` : copro.name || 'copropriété' }
+              else if (o) { r.b2b = ownerClassOf(o); r.b2b_label = o.company?.name || o.name }
+            }
           }
         }
         batch.forEach(r => freePending.delete(r.osm_id))
@@ -1046,7 +1094,7 @@
       const publicOwner = b2bOf(r) === 'collectivite'
       mailDrafts.set(r.osm_id, {
         email: r.contact_email || (publicOwner ? r.mairie?.email || '' : ''),
-        company: r.contact_company || owner?.company?.name || owner?.name || b2bLabel(r) || (publicOwner ? r.mairie?.name || '' : ''),
+        company: r.contact_company || (coproOnSite(r)?.syndic ? coproOnSite(r).syndic : '') || (owner && !owner.company?.closed ? owner.company?.name || owner.name : '') || b2bLabel(r) || (publicOwner ? r.mairie?.name || '' : ''),
         contact_name: r.contact_name || '',
         offer: isSolar() || r.solar ? 'solaire' : 'toiture',
         note: '', subject: '', html: '', signature: '', roof_id: null, busy: false, msg: '', kind: ''
