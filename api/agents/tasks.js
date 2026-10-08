@@ -634,6 +634,42 @@ SUBJECT:[objet]
 ---
 [corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
 
+// Syndics and property managers (industry "immobilier copropriété"). Same
+// mechanism as the other pitches: the tag sits in the industry column on import.
+function isSyndicProspect(prospect) {
+  const haystack = `${prospect.industry || ''} ${prospect.csv_batch || ''}`.toLowerCase()
+  return /copropri|compropri|syndic/.test(haystack)
+}
+
+// Syndic de copropriété: the reader is a gestionnaire who has to bring a quote
+// to the next assemblée générale and answer a conseil syndical that complains
+// about green façades or a leaking roof. The pitch starts from that problem and
+// sells the phone call, not the cleaning.
+const CHLOE_EMAIL_SYSTEM_PROMPT_SYNDIC = `Tu es Chloé, d'Exadrone Enterprise (nettoyage et démoussage de toitures, façades et bardages par drone). Tu écris à un syndic de copropriété ou à un gestionnaire d'immeubles. Ton email doit sonner comme celui d'une vraie personne qui connaît leur quotidien, pas comme une plaquette commerciale.
+
+Objectif unique : qu'il décroche son téléphone ou réponde pour un échange rapide avec Nordine, le dirigeant, qui réalise lui-même les interventions. On ne vend pas le nettoyage dans cet email, on vend l'appel.
+
+Structure imposée (110 à 150 mots, 4 ou 5 paragraphes très courts, aucune liste à puces) :
+1. « Bonjour, » puis directement le problème, sans phrase d'introduction ni compliment : celui que le gestionnaire a sur son bureau. Façades noircies ou verdies, toiture envahie de mousse, infiltrations qui menacent, conseil syndical qui relance, copropriétaires qui s'impatientent. Choisis UNE image concrète et parle-lui comme à quelqu'un qui connaît ça par cœur.
+2. Ce qui bloque d'habitude : un échafaudage ou une nacelle coûte cher, se répartit entre tous les copropriétaires et fait hésiter le vote en assemblée générale.
+3. La solution, claire : on nettoie et démousse toitures et façades par drone, sans échafaudage ni nacelle, personne ne monte sur le toit, en une à deux journées selon la taille, sans gêner les résidents ni bloquer les accès, pour un coût nettement inférieur à un échafaudage (n'avance aucun chiffre ni pourcentage).
+4. Ce qu'on lui apporte à lui : un devis gratuit, clair et chiffré, prêt à présenter en assemblée générale, et un compte rendu photo avant/après à remettre au conseil syndical.
+5. L'appel à l'action : un appel de 10 minutes avec Nordine, directement au 06 71 31 27 06, ou une simple réponse à ce mail avec l'adresse d'une copropriété à regarder. Une phrase, sans pression.
+
+Règles :
+- Vouvoiement, ton direct, chaleureux et sobre : phrases courtes, mots simples, zéro jargon, zéro superlatif, zéro « leader » ou « solution innovante »
+- Le mail arrive à l'accueil ou à la boîte générale du cabinet : ne nomme personne et n'écris pas « Madame, Monsieur ». Si le nom de l'entreprise est une agence d'une ville précise, tu peux y faire allusion naturellement une seule fois, sans rien inventer sur ses immeubles
+- N'invente aucune référence, aucun chiffre, aucun immeuble, aucune réglementation précise
+- Objet court (moins de 55 caractères), concret, sans point d'exclamation, sans prix ni pourcentage, qui parle de leurs façades ou toitures de copropriété (ex. « Façades et toitures de vos copropriétés », « Toiture ou façade encrassée en copropriété »)
+- Signature : "Chloé — Exadrone Enterprise"
+- Réponds exclusivement en français
+- Relis-toi : aucune faute d'orthographe, de grammaire ou d'accent tolérée avant de conclure
+
+Format de sortie STRICT :
+SUBJECT:[objet]
+---
+[corps de l'email en HTML simple, uniquement des balises <p> — n'inclus ni pied de page ni lien de désinscription, ils sont ajoutés automatiquement par le système]`
+
 // Same mechanism as isSolarProspect/isHeritageProspect, for the "Collectivité, mairie"
 // batch (town halls and their public buildings specifically, as opposed to the
 // broader "collectivités territoriales" already covered by the generic pitch) —
@@ -678,7 +714,8 @@ SUBJECT:[objet]
 
 // Same order as the prompt choice in sendOne: the mairie pitch only when no
 // more specific one (roof, solar, heritage) applies.
-const usesMairiePitch = (prospect) => !isRoofProspect(prospect) && !isSolarProspect(prospect) && !isHeritageProspect(prospect) && isMairieProspect(prospect)
+const usesMairiePitch = (prospect) => !isRoofProspect(prospect) && !isSolarProspect(prospect) && !isHeritageProspect(prospect) && !isSyndicProspect(prospect) && isMairieProspect(prospect)
+const usesSyndicPitch = (prospect) => !isRoofProspect(prospect) && !isSolarProspect(prospect) && !isHeritageProspect(prospect) && isSyndicProspect(prospect)
 
 // Roofs handed over from the dashboard "Toitures" tab (industry "Toiture
 // industrielle", batch "toitures"). Their prospects.context carries the aerial
@@ -1066,6 +1103,7 @@ function cleanSubject(subject, prospect) {
       : isRoofProspect(prospect) ? `${prospect.company_name} : votre toiture vue du ciel`
       : isSolarProspect(prospect) ? 'Une question sur vos panneaux solaires'
       : isHeritageProspect(prospect) ? 'Entretien de monuments par drone'
+      : usesSyndicPitch(prospect) ? 'Façades et toitures de vos copropriétés'
       : usesMairiePitch(prospect) ? 'Entretien de vos bâtiments communaux par drone'
       : `Exadrone Enterprise — ${prospect.company_name}`
   }
@@ -1097,6 +1135,7 @@ async function draftFirstEmail(anthropic, agent, prospect, { photoUrl = null, so
       : isRoofProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_ROOF
       : isSolarProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SOLAR
       : isHeritageProspect(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_HERITAGE
+      : usesSyndicPitch(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_SYNDIC
       : usesMairiePitch(prospect) ? CHLOE_EMAIL_SYSTEM_PROMPT_MAIRIE
       : CHLOE_EMAIL_SYSTEM_PROMPT) + ((prospect.chloe_note || (prospect.context && /Note de Nordine/.test(prospect.context))) ? '\n\nLe contexte du prospect contient une « Note de Nordine » ou une « Consigne de Nordine » : elle est PRIORITAIRE sur tout le reste de ces consignes (type d\'installation, interlocuteur, éléments à mentionner ou à éviter). Applique-la scrupuleusement et ne la cite jamais telle quelle dans l\'email.' : '') + instructionsPromptBlock(agent),
     messages: [{
